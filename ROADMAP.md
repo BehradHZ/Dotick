@@ -1,6 +1,6 @@
 # Dotick — Engineering Roadmap & Decision Record
 
-## 0. Purpose of This Document
+<!-- ## 0. Purpose of This Document
 
 This document is the single source of truth for how Dotick is built: the process
 model governing development, the technology stack, the domain decisions already
@@ -11,7 +11,7 @@ before implementation starts — not lost in conversation history.
 A companion document, `TESTING_PLAN.md`, breaks down the required tests for each
 stage described here.
 
----
+--- -->
 
 ## 1. Project Overview
 
@@ -189,15 +189,27 @@ values: `DONE` or `WONT_DO`. `NULL` means "the user hasn't made an explicit
 completion decision" and the effective status falls through to the
 time-based computation below.
 
+**`deadline` is a toggleable field, not a plain nullable date (revised —
+see §4.7):** a task has a `deadline_enabled` boolean alongside `deadline`.
+Turning the toggle off does **not** clear the stored `deadline` value — the
+date is preserved but ignored by status computation until the toggle is
+turned back on. This means `deadline_enabled = false` is the only condition
+that matters for status purposes; the underlying `deadline` value is inert
+while disabled, and can be re-enabled by the user without re-entering a date.
+
 **Effective status (computed at query/render time when `user_status` is
 `NULL`):**
 
 | Status | Condition | Meaning |
 |---|---|---|
-| `TODO` | `now <= due_date` | Not yet due; appears in today's/upcoming list once `due_date` arrives — reaching `due_date` changes *which list the task appears in*, not its status. |
-| `OVERDUE` | `due_date < now <= deadline` | Due date has passed but the hard deadline hasn't. Still straightforwardly actionable. |
-| `MISSED` | `deadline < now <= deadline + grace_period` | Deadline has passed. The task is tagged as missed but still recoverable — the grace period (see §4.4) hasn't elapsed. |
-| `AUTO_WONT_DO` | `now > deadline + grace_period` | Grace period elapsed with no user action; the system closes the task automatically. |
+| `TODO` | `now <= due_date`, OR `deadline_enabled = false` | Not yet due, or the task currently has no active deadline (e.g., after a MISSED-postpone — see §4.7). Reaching `due_date` (when a deadline is active) changes *which list the task appears in*, not its status. |
+| `OVERDUE` | `deadline_enabled = true` AND `due_date < now <= deadline` | Due date has passed but the hard deadline hasn't. Still straightforwardly actionable. |
+| `MISSED` | `deadline_enabled = true` AND `deadline < now <= deadline + grace_period` | Deadline has passed. The task is tagged as missed but still recoverable — the grace period (see §4.4) hasn't elapsed. |
+| `AUTO_WONT_DO` | `deadline_enabled = true` AND `now > deadline + grace_period` | Grace period elapsed with no user action; the system closes the task automatically. |
+
+**Note:** a task with `deadline_enabled = false` can never become `MISSED` or
+`AUTO_WONT_DO` — it behaves like a plain due-date-only task until the user
+re-enables the deadline or sets a new one.
 
 **Explicit field (when `user_status` is not `NULL`):**
 
@@ -261,39 +273,49 @@ Two related but distinct actions, both called "Postpone" in the UI:
 1. **Postpone a task that is `TODO` or `OVERDUE`** (i.e., `due_date` has
    passed or is approaching, but `deadline` has not): sets `due_date = today`.
    `deadline` is untouched.
-2. **Postpone a task that is `MISSED`** (i.e., `deadline` has passed): sets
-   `due_date = today` **and** advances `deadline` forward. The exact
-   forward-shift rule (e.g., preserve the original due-to-deadline gap, or
-   jump to a fixed new offset) is an open item for Stage 2 design — see §9.
+2. **Postpone a task that is `MISSED`** (i.e., `deadline` has passed):
+   sets `due_date = today` **and turns `deadline_enabled` off**. The stored
+   `deadline` value itself is left untouched — it is not shifted forward and
+   not cleared — so the user can re-enable it later (see §4.3) if they want
+   to set a new one, without losing the old date as a reference point.
+   **(Revised from the original "advance deadline forward" design — see the
+   resolution of Open Item §9.1, now closed.)**
+   - Once past deadline, the deadline is considered elapsed; Postpone on a
+     MISSED task is a due-date-only recovery action, not a deadline
+     recalculation.
 
 Two entry points trigger this behavior:
 - **Single-task Postpone**, from within a task's detail view.
 - **Postpone All**, a bulk action that applies the same logic to every
   `OVERDUE`/`MISSED` task at once.
 
-### 4.8 Deadline History
+### 4.8 Deadline History — Superseded by System Logging
 
-**Decision:** full history is retained, as a dedicated table, not a
-lightweight counter.
+**Original decision (superseded):** a dedicated `TaskDeadlineHistory` domain
+table, writing a row on every deadline change (Postpone or manual edit).
 
-```
-TaskDeadlineHistory
-├── id (PK)
-├── task_id (FK → tasks)
-├── old_deadline (TIMESTAMPTZ)
-├── new_deadline (TIMESTAMPTZ)
-├── changed_at (TIMESTAMPTZ)
-└── reason (ENUM: POSTPONE_SINGLE, POSTPONE_ALL, MANUAL_EDIT)
-```
+**Revised decision:** `TaskDeadlineHistory` is **removed from the design
+entirely.** No domain-level history table is maintained for `deadline` or
+`due_date` changes. Because `deadline` is now a toggleable field that
+preserves its stored value when disabled rather than being overwritten or
+cleared (§4.3, §4.7), the main case the history table existed to serve — not
+losing the old deadline when it changes — is already handled by the toggle
+itself for the Postpone case. What remains (a full change-by-change audit
+trail, including manual edits) is delegated to **application-level system
+logging**, introduced as its own stage — see the new **Stage 1.5 — Logging**
+in §6, inserted immediately after Stage 1 and before Stage 2, since Stage 2's
+domain logic (this section) now depends on it.
 
-Every deadline change is written as a row, including manual edits made
-outside the Postpone flow (`MANUAL_EDIT`), so the full history of how a
-task's deadline evolved is reconstructable, not just the current value.
+This keeps a full reconstructable trail available if it's ever needed
+(surfaced through logs rather than a queryable domain table), while removing
+a bespoke table and its `reason` ENUM from the domain model — consistent with
+KISS (§2.3): the dedicated table added a queryable, domain-modeled audit
+trail that this project doesn't currently have a use case exercising, and
+building it up front is the kind of decision this project's incremental
+principle is built to postpone until a real need is demonstrated (§7).
 
-**Open item:** whether `due_date` changes need the same full history
-treatment, or whether history is scoped to `deadline` only. This is listed as
-an open question in §9 and should be resolved during Stage 2 design, before
-the history table is implemented.
+**Resolved:** this closes Open Item §9.2 (deadline history scope) — the
+question is now moot, since there is no domain history table to scope.
 
 ### 4.9 Recurrence Model (Stage 3 — Design Direction, Detailed at Implementation)
 
@@ -389,6 +411,43 @@ phone browsers on the same network and see a live response from the backend.
 
 ---
 
+### Stage 1.5 — Application Logging
+
+**Goal:** introduce cross-cutting, application-level system logging before
+any domain feature depends on it. This stage exists because Stage 2's
+revised deadline-change tracking (§4.8) relies on logging instead of a
+dedicated domain history table — logging must be in place first.
+
+**Why its own stage, not folded into Stage 1 or Stage 2:** logging is a
+cross-cutting infrastructure concern, not specific to Task/Event/Routine —
+future entities and features will also want it. Folding it into Stage 2
+would give that stage two unrelated goals (the domain model, and
+infrastructure); folding it into Stage 1 would conflate "prove the pipe
+works" with "instrument the pipe," which are different concerns even though
+both are infrastructural.
+
+**Backend:**
+- Structured application logging configured for the Django backend (a
+  standard logging setup is sufficient — e.g., Python's `logging` module
+  configured with structured/JSON output; no external log-aggregation
+  service is required at this stage).
+- Logging calls added at the points that previously would have written to
+  `TaskDeadlineHistory`: every `deadline` value change and every
+  `deadline_enabled` toggle, with enough context (task id, old/new value,
+  timestamp, triggering action — Postpone-single, Postpone-all, or manual
+  edit) to reconstruct what happened after the fact.
+- Log output location decided as part of this stage (e.g., local file under
+  the developer's laptop setup); revisited if it conflicts with Stage 4's
+  containerized setup once that stage begins.
+
+**Frontend:** none — this stage is backend/infrastructure only.
+
+**Definition of done:** log output can be inspected and a deadline change
+(e.g., from a test Postpone action) can be reconstructed from the logs
+alone, before Stage 2 begins.
+
+---
+
 ### Stage 2 — Core Task, Event, and Routine Management
 
 **Goal:** implement the full domain core decided in §4 — CTI schema, all
@@ -411,12 +470,14 @@ history — as a genuinely usable single-user task manager.
 - Routine status logic implemented as specified in §4.6, for manually-created
   single occurrences (full recurrence generation is Stage 3 — Stage 2 should
   support creating and completing individual routine instances by hand).
+- `deadline_enabled` boolean field on Task, alongside `deadline` (§4.3) —
+  disabling it preserves the stored `deadline` value rather than clearing it.
 - Postpone logic (§4.7): single-task postpone and bulk "Postpone All"
-  endpoints, with the due-date-only vs. due-date-and-deadline branching
-  behavior.
-- `TaskDeadlineHistory` table and write-path implemented (§4.8) — every
-  deadline change, whether from Postpone or a direct edit, produces a history
-  row.
+  endpoints, with the due-date-only-shift vs. due-date-shift-plus-
+  deadline-disable branching behavior.
+- Deadline-change logging (§4.8): every `deadline` value change and every
+  `deadline_enabled` toggle writes a structured log entry via the logging
+  infrastructure from Stage 1.5, rather than a domain history table.
 - CRUD endpoints for Task, Event, and Routine.
 
 **Frontend:**
@@ -424,7 +485,10 @@ history — as a genuinely usable single-user task manager.
   (at minimum: distinct labels/colors — polish deferred per §5.1).
 - Task detail view with Done, Won't Do (reversible), and Postpone actions.
 - A visible way to trigger "Postpone All" from the list view.
-- Basic create/edit forms for Task, Event, and Routine.
+- Basic create/edit forms for Task, Event, and Routine, including a toggle
+  control next to the deadline field (§4.3): switching it on reveals a date
+  picker; switching it off hides the active date input but retains the
+  underlying stored value for when it's switched back on.
 - Event list/view reflecting the three time-driven states.
 - Simple manual routine occurrence view (create and mark done/won't-do by
   hand — no recurrence UI yet, that's Stage 3).
@@ -552,12 +616,13 @@ design questions are resolved, not all at once upfront:
 
 | Diagram | Scope | Produced at |
 |---|---|---|
+| Logging architecture note | What gets logged and where (§4.8, Stage 1.5) — lightweight, not a formal diagram | Start of Stage 1.5 |
 | Use-case diagram | Stage 2 functional scope (Task/Event/Routine CRUD, statuses, postpone) | Start of Stage 2 |
 | State diagrams | Task, Event, and Routine lifecycle (per §4.3, §4.5, §4.6) | Start of Stage 2, refined if Stage 3 changes routine lifecycle |
 | Class diagram / CRC cards | CTI structure (§4.1) | Start of Stage 2 |
-| ER diagram | Full Stage 2 schema, including `TaskDeadlineHistory` | End of Stage 2, once schema is stable |
+| ER diagram | Full Stage 2 schema, including the `deadline`/`deadline_enabled` pair (no `TaskDeadlineHistory` table — removed, see §4.8) | End of Stage 2, once schema is stable |
 | Recurrence rule class/ER diagram | Stage 3 recurrence data model | Start of Stage 3 |
-| Sequence diagram | Postpone flow (single + bulk), since it touches status, deadline, and history simultaneously | Start of Stage 2 |
+| Sequence diagram | Postpone flow (single + bulk), since it touches status, deadline, and logging simultaneously | Start of Stage 2 |
 | Deployment diagram | Docker Compose architecture | Start of Stage 4 |
 | Deferred: organizational hierarchy diagrams | Stage 5 structure | Start of Stage 5 |
 
@@ -565,15 +630,19 @@ design questions are resolved, not all at once upfront:
 
 ## 9. Open Items to Resolve Before or During Relevant Stages
 
-These are known unresolved questions, tracked explicitly so they aren't lost:
+These are known unresolved questions, tracked explicitly so they aren't lost.
+Resolved items are kept (struck through in spirit, not deleted) so the
+decision trail stays visible.
 
-1. **Postpone-on-MISSED deadline shift rule** (§4.7): when a missed task is
-   postponed, exactly how far forward should `deadline` move? Options include
-   preserving the original due-to-deadline gap, or applying a fixed offset.
-   To resolve at Stage 2 design time.
-2. **Deadline history scope** (§4.8): does `TaskDeadlineHistory` need to also
-   cover `due_date` changes, or is it scoped to `deadline` only? To resolve
-   before the history table is implemented in Stage 2.
+1. ~~**Postpone-on-MISSED deadline shift rule** (§4.7)~~ — **RESOLVED.**
+   `deadline` is never shifted forward. Postponing a `MISSED` task sets
+   `due_date = today` and turns `deadline_enabled` off, preserving the old
+   stored `deadline` value untouched. See §4.3 and §4.7.
+2. ~~**Deadline history scope** (§4.8)~~ — **RESOLVED, and moot.**
+   `TaskDeadlineHistory` is removed from the design entirely; deadline
+   changes are tracked via application-level logging (Stage 1.5) instead of
+   a domain history table, so the due_date-vs-deadline scoping question no
+   longer applies. See §4.8.
 3. **State management approach for the frontend** (§5.1): not yet decided;
    to be resolved early in Stage 2 once there's real UI state (task lists,
    statuses) to manage.
