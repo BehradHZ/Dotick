@@ -279,7 +279,7 @@ Two related but distinct actions, both called "Postpone" in the UI:
    not cleared — so the user can re-enable it later (see §4.3) if they want
    to set a new one, without losing the old date as a reference point.
    **(Revised from the original "advance deadline forward" design — see the
-   resolution of Open Item §9.1, now closed.)**
+   resolution of Open Item §10.1, now closed.)**
    - Once past deadline, the deadline is considered elapsed; Postpone on a
      MISSED task is a due-date-only recovery action, not a deadline
      recalculation.
@@ -312,9 +312,9 @@ a bespoke table and its `reason` ENUM from the domain model — consistent with
 KISS (§2.3): the dedicated table added a queryable, domain-modeled audit
 trail that this project doesn't currently have a use case exercising, and
 building it up front is the kind of decision this project's incremental
-principle is built to postpone until a real need is demonstrated (§7).
+principle is built to postpone until a real need is demonstrated (§8).
 
-**Resolved:** this closes Open Item §9.2 (deadline history scope) — the
+**Resolved:** this closes Open Item §10.2 (deadline history scope) — the
 question is now moot, since there is no domain history table to scope.
 
 ### 4.9 Recurrence Model (Stage 3 — Design Direction, Detailed at Implementation)
@@ -371,7 +371,7 @@ underlying logic.
   laptop browser and a phone browser (since that's the real early usage
   pattern per §1.2), but pixel-level responsive design work is deferred until
   the underlying feature set stabilizes.
-- **State management approach** is an open item — see §9.
+- **State management approach** is an open item — see §10.
 
 ### 5.2 Per-Stage Frontend Deliverables
 
@@ -507,7 +507,7 @@ Stage 2's manual routine-instance creation with automatic generation.
 
 **Backend:**
 - Recurrence rule data model (design detail resolved at this stage, per the
-  incremental principle — see §4.9 and the open item in §9).
+  incremental principle — see §4.9 and the open item in §10).
 - Support for all four recurrence patterns: every day, every N days, specific
   weekdays, specific day-of-month (Gregorian or Jalali, calendar choice
   preserved per §4.9).
@@ -583,9 +583,110 @@ guessing at it.
 recorded, following the same process as Stages 1–4 — used in daily practice
 before any Stage 6 is planned.
 
+**Note:** from around this point onward, the gamification track described in
+§7 can begin running as its own line of small sub-stages alongside whatever
+core stage comes next — see §7.5.
+
 ---
 
-## 7. Deliberately Postponed Items
+## 7. Gamification Layer (Cross-Cutting, Post-Core-Stages)
+
+### 7.1 Intent and Positioning
+
+Gamification is a **deliberately separate concern** from the core stages
+above (§6), not a feature bolted onto Stage 2 or Stage 3. It should begin
+only once the core task/event/routine system (through roughly Stage 3–4) is
+built, stable, and genuinely used daily — because every gamification
+mechanic described below depends on having real behavioral data (completion
+times, streaks, per-goal activity) to work from. Once that foundation
+exists, gamification work can proceed as its **own track of small,
+incremental sub-stages**, following the same "use it before extending it"
+discipline as the rest of the roadmap (§2.5), rather than as one large
+feature dump.
+
+### 7.2 Core Design Principle: Contained, Not Pervasive
+
+The single guiding rule for this layer: **gamification must be optional and
+spatially contained, not woven through the whole app.**
+
+- The main task list (the everyday working screen) shows only plain task
+  data and lightweight progress rings — no XP bars, levels, currencies, or
+  characters anywhere in that view.
+- A dedicated **"Play" tab** houses everything explicitly game-flavored
+  (collectibles, avatars, social/competitive features, narrative elements).
+- A separate **"Stats" / analytics area** houses serious, numeric
+  self-comparison data (trends, personal bests) — useful on its own without
+  any game framing.
+- This split means a user who wants zero fantasy elements can use Dotick
+  purely as a serious tool, while a user who wants the motivational layer
+  can opt into it in one place. This is a direct, deliberate reaction to
+  Habitica's core weakness: it is effective but so immersively game-like
+  that it stops feeling usable as a serious daily driver.
+
+### 7.3 Anti-Gaming Principle
+
+Every scoring mechanic introduced under this layer must be designed
+alongside its abuse case before being implemented — e.g., splitting one task
+into many to farm points, or padding low-effort days to hit a quota. Scoring
+logic should be based on effort/consistency signals that resist this kind of
+manipulation, not raw counts alone. This is treated as a first-class design
+constraint for every sub-idea below, not an afterthought.
+
+### 7.4 Candidate Mechanics (Proposals — to Be Individually Evaluated)
+
+The following are **proposals**, not commitments. Each will be individually
+scoped, weighed against the anti-gaming principle (§7.3), and either adopted,
+adapted, or dropped once this layer's design actually begins:
+
+- **Behavioral pattern inference** — infer from a user's own task-completion
+  history (day/time patterns) which days tend to be "work days" vs. "personal
+  project days" per goal, without the user configuring this manually.
+- **Randomized, inferred-context bonus multipliers** — occasionally boost
+  points for a goal on the days the system infers are naturally suited to
+  it, kept unpredictable so it feels like a pleasant surprise rather than a
+  gameable rule.
+- **Non-zero starting progress** — progress bars/rings start partially
+  filled rather than at zero, since people are more motivated to finish
+  something already in progress than to start from nothing.
+- **Apple-Watch-style activity rings** — one ring per goal area on the main
+  screen, filling as related tasks are completed, with a minimum-activity
+  threshold before a day counts, and a non-linear fill curve so later tasks
+  in a day fill more of the ring than earlier ones.
+- **Oscillating cross-goal difficulty** — a goal that's been getting a lot of
+  attention gradually gets "harder to fill" while neglected goals get
+  "easier," so the balance of effort naturally drifts back toward whatever's
+  being ignored, and the cycle repeats.
+- **Shareable progress** — let a user share read-only progress on a specific
+  task or goal with someone else via a link or view.
+- **Friend circles and gentle competition** — Duolingo-style small groups of
+  people who choose to work alongside each other, with the ability to nudge
+  one another (a wave, a reminder notification) rather than direct
+  leaderboard-style comparison.
+- **Comparison against one's own past, not just others** — periodic
+  (daily/weekly) reports highlighting the specific areas where the user has
+  improved relative to their own recent history, framed positively.
+- **A living collectible/growth visual** (e.g., a tree, similar to the Forest
+  app) confined entirely to the Play tab, potentially tied to collaborative
+  or shared effort with friends rather than solo pressure alone.
+- **Serious analytics dashboard** — the numeric backbone behind the reports
+  above (consistency trends, recovery-after-a-bad-day patterns, per-goal
+  balance over time), living in the Stats area independent of any game
+  framing, so the same underlying data serves both the playful and the
+  serious presentation.
+
+### 7.5 Relationship to the Core Roadmap
+
+This layer does not get its own single "Stage N" the way §6 does. Once the
+core stages have matured enough to produce real usage data, gamification
+work is expected to proceed as a series of **small, independent sub-stages**
+running alongside (not blocking) further core-stage work — each sub-stage
+picking one mechanic from §7.4, scoping it, building it, and using it in
+practice before the next is started, per the same progression rule as
+everywhere else in this document (§2.5).
+
+---
+
+## 8. Deliberately Postponed Items
 
 Consistent with the incremental principle of not building ahead of
 demonstrated need, the following are explicitly out of scope until a later,
@@ -609,7 +710,7 @@ understood need.
 
 ---
 
-## 8. Diagram Backlog
+## 9. Diagram Backlog
 
 Per the ordering principle in §2.4, diagrams are produced as each stage's
 design questions are resolved, not all at once upfront:
@@ -628,7 +729,7 @@ design questions are resolved, not all at once upfront:
 
 ---
 
-## 9. Open Items to Resolve Before or During Relevant Stages
+## 10. Open Items to Resolve Before or During Relevant Stages
 
 These are known unresolved questions, tracked explicitly so they aren't lost.
 Resolved items are kept (struck through in spirit, not deleted) so the
