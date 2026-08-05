@@ -326,7 +326,17 @@ recurring task:
 - Every N days.
 - Specific days of the week (e.g., every Tuesday, Wednesday, and Friday).
 - A specific day of the month, in **either** the Gregorian or the Persian
-  (Jalali) calendar, user's choice per recurrence rule.
+  (Jalali) calendar.
+
+**Calendar choice is per-recurrence-rule, not app-wide.** There is no global
+"the app uses Jalali" or "the app uses Gregorian" setting. Each individual
+day-of-month recurrence rule carries its own calendar system, chosen by the
+user at the time that rule is created. This means two different recurring
+tasks can legitimately use two different calendars at the same time — e.g.,
+one task set to recur on the **19th of every Jalali month**, and a separate
+task set to recur on the **26th of every Gregorian month** — and both are
+valid, independent, simultaneously-active rules. The calendar is a property
+of the rule, not a property of the user, the app, or any other rule.
 
 **Key constraint:** the calendar system the user originally specified (Jalali
 or Gregorian) must be stored and preserved, not derived by converting between
