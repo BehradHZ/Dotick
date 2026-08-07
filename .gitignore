@@ -1,6 +1,8 @@
 # نادیده گرفتن پوشه archive در کل پروژه
 archive/
+Archive/
 **/archive/
+**/Archive/
 
 # نادیده گرفتن محیط مجازی پایتون
 .venv/
