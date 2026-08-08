@@ -45,8 +45,23 @@ function useHealthCheck() {
       setDetail(body);
     } catch (err) {
       setStatus('error');
+      // A generic "Failed to fetch" / TypeError here (rather than an
+      // HTTP error status handled above) almost always means the
+      // request never reached the app's response-handling code at
+      // all — most commonly because:
+      //   1. The backend isn't running, or API_URL points at the
+      //      wrong host/port (e.g. localhost from a phone, which
+      //      resolves to the phone itself, not the laptop).
+      //   2. The browser blocked it as cross-origin (CORS). This is
+      //      invisible here and in Django's logs — check the
+      //      browser's own devtools console/network tab for a CORS
+      //      error, and confirm the backend's DJANGO_CORS_ALLOWED_ORIGINS
+      //      includes this app's exact origin (see backend/.env.example).
+      const message = err instanceof Error ? err.message : String(err);
       setDetail(
-        err instanceof Error ? err.message : 'Could not reach the backend.'
+        `${message} — backend unreachable at ${HEALTH_ENDPOINT}. If the ` +
+          `backend is running, this is usually a CORS or wrong-host issue ` +
+          `(check the browser console/network tab, and see backend/.env.example).`
       );
     }
   }, []);

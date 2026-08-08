@@ -37,6 +37,24 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+# CORS: the frontend (Expo web / phone browser) runs on a different
+# origin than the backend (e.g. frontend on localhost:8081 or the
+# laptop's LAN IP, backend on localhost:8000 or the LAN IP:8000), so
+# every fetch() from the frontend is a cross-origin request. Without
+# this, the browser silently blocks the response before it ever
+# reaches the app's JS, which surfaces in the frontend as a generic
+# "could not fetch" / TypeError: Failed to fetch — not an HTTP error,
+# so it's invisible in Django's own logs.
+#
+# Origins are read from an env var so no LAN IP or port is hardcoded
+# here (same env-var-driven approach as ALLOWED_HOSTS above, and
+# anticipates Stage 4's containerized setup per ROADMAP.md §6.4).
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 
 # Application definition
 
@@ -48,11 +66,13 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "corsheaders",
     "core",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
