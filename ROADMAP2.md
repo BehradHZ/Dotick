@@ -13,21 +13,6 @@ stage described here.
 
 --- -->
 
-## Progress Status (updated 2026-08-07, from repo inspection)
-
-| Stage | Status | Notes |
-|---|---|---|
-| Stage 1 — Basic Foundation | ✅ **Done** (backend). ⚠️ Frontend deliverable not yet develoaped. | See §6 Stage 1 notes below. |
-| Stage 1.5 — Application Logging | Not started | |
-| Stage 2 — Core Task/Event/Routine | Not started | |
-| Stage 3 — Recurrence Engine | Not started | |
-| Stage 4 — Containerization | Not started | |
-| Stage 5 — Organizational Hierarchy | Not started | |
-
-Verified directly against `github.com/BehradHZ/Dotick` (commit `d746b51`,
-2026-08-07), not just against local notes — see §6 Stage 1 for what changed
-from the original plan.
-
 ## 1. Project Overview
 
 ### 1.1 Vision
@@ -434,6 +419,20 @@ only purpose is to confirm the pipe works.
 **Definition of done:** the developer can open the app from both laptop and
 phone browsers on the same network and see a live response from the backend.
 
+**Status (2026-08-08): Stage 1 complete.** Backend was already done
+(`backend/` — health-check endpoint, PostgreSQL wired up, env-based
+settings). The frontend deliverable has now been added at `frontend/`: an
+Expo (React Native for Web) app with a single screen (`App.js`) that calls
+`/api/health/` and shows loading / success / error state with a Retry
+button. The backend URL is read from `EXPO_PUBLIC_API_URL` (see
+`frontend/.env.example`) rather than hardcoded, so the same build works from
+both `localhost` (laptop browser) and the laptop's LAN IP (phone browser),
+matching the backend's existing `DJANGO_ALLOWED_HOSTS` pattern. Verified end
+to end via `npx expo export --platform web`, which bundled successfully with
+the env var correctly embedded. See `frontend/README.md` for setup and run
+instructions. Stage 1.5 can now begin once this has been used in real daily
+practice for a meaningful period, per the progression rule (§2.5).
+
 ---
 
 ### Stage 1.5 — Application Logging
@@ -776,7 +775,7 @@ decision trail stays visible.
    has made this decision separately; it should be transcribed into this
    document in full before Stage 5 implementation begins, replacing the
    current placeholder.
-5. **Frontend not yet built** (§6, Stage 1): the React Native for Web /
-   Expo scaffold and health-check screen still need to be created from
-   scratch. This is the one item blocking Stage 1 from being fully closed
-   out — see the Stage 1 section above.
+5. ~~**Frontend not yet built** (§6, Stage 1)~~ — **RESOLVED.** The Expo /
+   React Native for Web scaffold and health-check screen have been created
+   at `frontend/`. This was the one item blocking Stage 1 from being fully
+   closed out; Stage 1 is now complete. See §6 Stage 1 notes above.
