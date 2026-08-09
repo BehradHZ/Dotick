@@ -33,6 +33,40 @@ class TaskSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def validate(self, attrs):
+        """
+        `due_date <= deadline` is implied by the domain model (§4.3's
+        status ladder only makes sense in that order) but was never
+        enforced — TESTING_PLAN.md §3.7 calls for rejecting the
+        opposite case explicitly.
+
+        Only checked while `deadline_enabled` is true: when it's off,
+        the stored `deadline` value is inert by design (§4.3's note —
+        preserved for later re-enabling, not an active constraint), so
+        comparing against it here would incorrectly block updates to a
+        task's `due_date` while its old deadline sits disabled.
+
+        Falls back to each field's current value on a partial
+        (PATCH) update, since either field may be omitted from attrs.
+        """
+        instance = self.instance
+        deadline_enabled = attrs.get(
+            "deadline_enabled",
+            getattr(instance, "deadline_enabled", False),
+        )
+        if not deadline_enabled:
+            return attrs
+
+        due_date = attrs.get("due_date", getattr(instance, "due_date", None))
+        deadline = attrs.get("deadline", getattr(instance, "deadline", None))
+
+        if due_date is not None and deadline is not None and due_date > deadline:
+            raise serializers.ValidationError(
+                {"due_date": "due_date must not be after deadline."}
+            )
+
+        return attrs
+
 
 class EventSerializer(serializers.ModelSerializer):
     status = serializers.CharField(read_only=True)

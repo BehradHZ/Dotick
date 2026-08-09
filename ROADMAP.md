@@ -19,10 +19,19 @@ stage described here.
 |---|---|---|
 | Stage 1 — Basic Foundation | ✅ **Done** | Backend health-check + frontend Expo screen, verified end to end. See §6 Stage 1. |
 | Stage 1.5 — Application Logging | ✅ **Done** | JSON audit logger + `log_deadline_change()` seam, verified with real Postgres. See §6 Stage 1.5. |
-| Stage 2 — Core Task/Event/Routine | Not started | Next up. |
+| Stage 2 — Core Task/Event/Routine | ✅ **Backend done.** ⚠️ Frontend deliverable not yet built. | CTI schema, full Task/Event/Routine status logic, Postpone (single + all), CRUD for all three entities, and `due_date <= deadline` validation — all implemented and covered by 74 passing tests (verified against a real Postgres instance, not just SQLite). Frontend (task list, detail view, create/edit forms per §6 Stage 2) is the remaining work before this stage is genuinely closed. |
 | Stage 3 — Recurrence Engine | Not started | |
 | Stage 4 — Containerization | Not started | |
 | Stage 5 — Organizational Hierarchy | Not started | |
+
+**Stage 2 backend validation note:** `TESTING_PLAN.md` §3.7 calls for
+rejecting a Task where `due_date` is after `deadline`. This is enforced in
+`TaskSerializer.validate()` (`core/serializers.py`), scoped to only apply
+while `deadline_enabled=True` — per §4.3, a disabled deadline is inert and
+must not block an unrelated `due_date` change. Covered by
+`TaskDueDateDeadlineValidationTests` in `core/tests/test_task_api.py`,
+including the partial-update (PATCH) case where only one of the two fields
+is sent.
 
 ---
 
