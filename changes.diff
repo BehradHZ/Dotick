@@ -1,0 +1,173 @@
+diff --git a/.gitignore b/.gitignore
+index 0aa415a..562f04f 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -13,4 +13,8 @@ __pycache__/
+ *.pyc
+ 
+ # نادیده گرفتن فایل‌های تنظیمات محیطی
+-.env
+\ No newline at end of file
++.env
++
++# نادیده گرفتن لاگ‌های اپلیکیشن (Stage 1.5 — ROADMAP.md §6)
++backend/logs/
++*.log
+\ No newline at end of file
+diff --git a/ROADMAP2.md b/ROADMAP2.md
+index d3c0e37..2a9df86 100644
+--- a/ROADMAP2.md
++++ b/ROADMAP2.md
+@@ -470,6 +470,24 @@ both are infrastructural.
+ (e.g., from a test Postpone action) can be reconstructed from the logs
+ alone, before Stage 2 begins.
+ 
++**Status (2026-08-09): Stage 1.5 complete.** Structured JSON logging is
++configured via a dedicated `dotick.audit` logger (`dotick/settings/base.py`
++`LOGGING`, `core/logging_utils.py`), writing one JSON object per line to
++`<DOTICK_LOG_DIR>/audit.log` (env-driven per §3, defaults to
++`backend/logs/`) plus the console. `log_deadline_change(...)` is the seam
++Stage 2 will call from Postpone-single, Postpone-all, and manual-edit code
++paths, with `task_id`, `action`, and old/new values for `deadline`,
++`deadline_enabled`, and `due_date` — enough context to reconstruct a change
++from the log line alone, per this stage's definition of done. Since no Task
++model exists yet, this was verified with a standalone management command
++(`python manage.py demo_deadline_log`) that calls the same seam Stage 2 will
++use; output was confirmed to round-trip through the JSON formatter correctly.
++Covered by `core/tests/test_logging.py`. Stage 2 can now begin once this has
++been used in real daily practice for a meaningful period, per the
++progression rule (§2.5) — though since this stage has no user-facing
++surface, that mainly means: keep it running and confirm real log output
++looks sane once Stage 2's Postpone actions start generating it.
++
+ ---
+ 
+ ### Stage 2 — Core Task, Event, and Routine Management
+diff --git a/backend/.env.example b/backend/.env.example
+index f970bd4..e92d678 100644
+--- a/backend/.env.example
++++ b/backend/.env.example
+@@ -14,3 +14,7 @@ DOTICK_DB_USER=dotick
+ DOTICK_DB_PASSWORD=U1tim@teHzixe
+ DOTICK_DB_HOST=localhost
+ DOTICK_DB_PORT=5432
++
++# Application logging (ROADMAP.md §6 Stage 1.5). Where audit.log is
++# written. Defaults to <repo>/backend/logs if unset.
++# DOTICK_LOG_DIR=/path/to/logs
+diff --git a/backend/README.md b/backend/README.md
+index 7b062e3..2bac59c 100644
+--- a/backend/README.md
++++ b/backend/README.md
+@@ -8,6 +8,28 @@ the project root for the full engineering roadmap and decision record.
+ This stage only proves the pipe works end to end: browser → Django →
+ PostgreSQL → response. No task/event/routine features exist yet.
+ 
++## Stage 1.5 — Application Logging
++
++Structured JSON logging is now configured (`dotick.audit` logger, see
++`dotick/settings/base.py` `LOGGING` and `core/logging_utils.py`). This
++replaces the domain-level `TaskDeadlineHistory` table from the original
++design (ROADMAP.md §4.8) — deadline/`deadline_enabled` changes will be
++written here by Stage 2 instead of to a dedicated table.
++
++Log output goes to `<DOTICK_LOG_DIR>/audit.log` (defaults to
++`backend/logs/audit.log`; see `.env.example`) as one JSON object per line,
++plus the console. No Task model exists yet at this stage, so verify the
++path works with:
++
++```bash
++python manage.py demo_deadline_log
++cat logs/audit.log
++```
++
++Stage 2 will call `core.logging_utils.log_deadline_change(...)` from
++wherever it mutates a Task's `deadline`/`deadline_enabled`/`due_date`
++(manual edit, single Postpone, Postpone All — ROADMAP.md §4.7).
++
+ ## Setup
+ 
+ 1. **PostgreSQL.** Have a PostgreSQL server running locally, then create a
+@@ -71,12 +93,16 @@ backend/
+ │   │   └── local.py  # dev-only defaults, loads .env
+ │   ├── urls.py        # root URLconf; /api/ -> core.urls
+ │   ├── asgi.py, wsgi.py
+-├── core/               # cross-cutting app; currently just health-check
++├── core/               # cross-cutting app; health-check + audit logging
+ │   ├── views.py
+ │   ├── urls.py
++│   ├── logging_utils.py             # JsonFormatter, log_deadline_change()
++│   ├── management/commands/
++│   │   └── demo_deadline_log.py     # Stage 1.5 verification command
+ │   └── tests/
+ │       ├── test_health_check.py     # response-shape seam
+-│       └── test_health_check_db.py  # DB-connectivity seam
++│       ├── test_health_check_db.py  # DB-connectivity seam
++│       └── test_logging.py          # Stage 1.5 logging seam
+ ├── manage.py
+ ├── requirements.txt
+ └── .env.example
+diff --git a/backend/dotick/settings/base.py b/backend/dotick/settings/base.py
+index 5a1e412..ab99022 100644
+--- a/backend/dotick/settings/base.py
++++ b/backend/dotick/settings/base.py
+@@ -157,4 +157,58 @@ REST_FRAMEWORK = {
+     "DEFAULT_RENDERER_CLASSES": [
+         "rest_framework.renderers.JSONRenderer",
+     ],
++}
++
++
++# Application logging (ROADMAP.md §6 Stage 1.5).
++#
++# Stage 2's deadline-change tracking (§4.8) depends on this instead of a
++# dedicated TaskDeadlineHistory table, so this must exist before Stage 2's
++# domain logic starts calling core.logging_utils.log_deadline_change().
++#
++# A dedicated "dotick.audit" logger (rather than Django's root/request
++# loggers) is used for anything that used to belong in a domain history
++# table, so audit events can be filtered/shipped independently of ordinary
++# request/error logs. Output is structured JSON, one event per line, so a
++# deadline change can be mechanically reconstructed from the log file alone
++# (this stage's definition of done) without needing a log-aggregation
++# service — none is justified yet at this project's scale (§3.1 precedent:
++# infrastructure is added when a real need is demonstrated, not ahead of it).
++#
++# Location is env-driven (DOTICK_LOG_DIR) so it can point at whatever the
++# developer's laptop setup expects, and can be repointed without code
++# changes if Stage 4's containerized setup needs a different path.
++LOG_DIR = Path(os.environ.get("DOTICK_LOG_DIR", BASE_DIR / "logs"))
++LOG_DIR.mkdir(parents=True, exist_ok=True)
++
++LOGGING = {
++    "version": 1,
++    "disable_existing_loggers": False,
++    "formatters": {
++        "json": {
++            "()": "core.logging_utils.JsonFormatter",
++        },
++    },
++    "handlers": {
++        "audit_file": {
++            "level": "INFO",
++            "class": "logging.FileHandler",
++            "filename": str(LOG_DIR / "audit.log"),
++            "formatter": "json",
++        },
++        "console": {
++            "level": "INFO",
++            "class": "logging.StreamHandler",
++            "formatter": "json",
++        },
++    },
++    "loggers": {
++        # Everything that used to belong in a domain history table
++        # (deadline changes now, more later per §4.8) is logged here.
++        "dotick.audit": {
++            "handlers": ["audit_file", "console"],
++            "level": "INFO",
++            "propagate": False,
++        },
++    },
+ }
+\ No newline at end of file

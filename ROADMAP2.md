@@ -470,6 +470,24 @@ both are infrastructural.
 (e.g., from a test Postpone action) can be reconstructed from the logs
 alone, before Stage 2 begins.
 
+**Status (2026-08-09): Stage 1.5 complete.** Structured JSON logging is
+configured via a dedicated `dotick.audit` logger (`dotick/settings/base.py`
+`LOGGING`, `core/logging_utils.py`), writing one JSON object per line to
+`<DOTICK_LOG_DIR>/audit.log` (env-driven per §3, defaults to
+`backend/logs/`) plus the console. `log_deadline_change(...)` is the seam
+Stage 2 will call from Postpone-single, Postpone-all, and manual-edit code
+paths, with `task_id`, `action`, and old/new values for `deadline`,
+`deadline_enabled`, and `due_date` — enough context to reconstruct a change
+from the log line alone, per this stage's definition of done. Since no Task
+model exists yet, this was verified with a standalone management command
+(`python manage.py demo_deadline_log`) that calls the same seam Stage 2 will
+use; output was confirmed to round-trip through the JSON formatter correctly.
+Covered by `core/tests/test_logging.py`. Stage 2 can now begin once this has
+been used in real daily practice for a meaningful period, per the
+progression rule (§2.5) — though since this stage has no user-facing
+surface, that mainly means: keep it running and confirm real log output
+looks sane once Stage 2's Postpone actions start generating it.
+
 ---
 
 ### Stage 2 — Core Task, Event, and Routine Management

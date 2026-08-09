@@ -158,3 +158,57 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ],
 }
+
+
+# Application logging (ROADMAP.md §6 Stage 1.5).
+#
+# Stage 2's deadline-change tracking (§4.8) depends on this instead of a
+# dedicated TaskDeadlineHistory table, so this must exist before Stage 2's
+# domain logic starts calling core.logging_utils.log_deadline_change().
+#
+# A dedicated "dotick.audit" logger (rather than Django's root/request
+# loggers) is used for anything that used to belong in a domain history
+# table, so audit events can be filtered/shipped independently of ordinary
+# request/error logs. Output is structured JSON, one event per line, so a
+# deadline change can be mechanically reconstructed from the log file alone
+# (this stage's definition of done) without needing a log-aggregation
+# service — none is justified yet at this project's scale (§3.1 precedent:
+# infrastructure is added when a real need is demonstrated, not ahead of it).
+#
+# Location is env-driven (DOTICK_LOG_DIR) so it can point at whatever the
+# developer's laptop setup expects, and can be repointed without code
+# changes if Stage 4's containerized setup needs a different path.
+LOG_DIR = Path(os.environ.get("DOTICK_LOG_DIR", BASE_DIR / "logs"))
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "core.logging_utils.JsonFormatter",
+        },
+    },
+    "handlers": {
+        "audit_file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": str(LOG_DIR / "audit.log"),
+            "formatter": "json",
+        },
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+    },
+    "loggers": {
+        # Everything that used to belong in a domain history table
+        # (deadline changes now, more later per §4.8) is logged here.
+        "dotick.audit": {
+            "handlers": ["audit_file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
