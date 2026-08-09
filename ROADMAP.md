@@ -13,20 +13,18 @@ stage described here.
 
 --- -->
 
-## Progress Status (updated 2026-08-07, from repo inspection)
+## Progress Status (updated 2026-08-09)
 
 | Stage | Status | Notes |
 |---|---|---|
-| Stage 1 — Basic Foundation | ✅ **Done** (backend). ⚠️ Frontend deliverable not yet develoaped. | See §6 Stage 1 notes below. |
-| Stage 1.5 — Application Logging | Not started | |
-| Stage 2 — Core Task/Event/Routine | Not started | |
+| Stage 1 — Basic Foundation | ✅ **Done** | Backend health-check + frontend Expo screen, verified end to end. See §6 Stage 1. |
+| Stage 1.5 — Application Logging | ✅ **Done** | JSON audit logger + `log_deadline_change()` seam, verified with real Postgres. See §6 Stage 1.5. |
+| Stage 2 — Core Task/Event/Routine | Not started | Next up. |
 | Stage 3 — Recurrence Engine | Not started | |
 | Stage 4 — Containerization | Not started | |
 | Stage 5 — Organizational Hierarchy | Not started | |
 
-Verified directly against `github.com/BehradHZ/Dotick` (commit `d746b51`,
-2026-08-07), not just against local notes — see §6 Stage 1 for what changed
-from the original plan.
+---
 
 ## 1. Project Overview
 
@@ -434,6 +432,20 @@ only purpose is to confirm the pipe works.
 **Definition of done:** the developer can open the app from both laptop and
 phone browsers on the same network and see a live response from the backend.
 
+**Status (2026-08-08): Stage 1 complete.** Backend was already done
+(`backend/` — health-check endpoint, PostgreSQL wired up, env-based
+settings). The frontend deliverable has now been added at `frontend/`: an
+Expo (React Native for Web) app with a single screen (`App.js`) that calls
+`/api/health/` and shows loading / success / error state with a Retry
+button. The backend URL is read from `EXPO_PUBLIC_API_URL` (see
+`frontend/.env.example`) rather than hardcoded, so the same build works from
+both `localhost` (laptop browser) and the laptop's LAN IP (phone browser),
+matching the backend's existing `DJANGO_ALLOWED_HOSTS` pattern. Verified end
+to end via `npx expo export --platform web`, which bundled successfully with
+the env var correctly embedded. See `frontend/README.md` for setup and run
+instructions. Stage 1.5 can now begin once this has been used in real daily
+practice for a meaningful period, per the progression rule (§2.5).
+
 ---
 
 ### Stage 1.5 — Application Logging
@@ -470,6 +482,25 @@ both are infrastructural.
 **Definition of done:** log output can be inspected and a deadline change
 (e.g., from a test Postpone action) can be reconstructed from the logs
 alone, before Stage 2 begins.
+
+**Status (2026-08-09): Stage 1.5 complete.** Structured JSON logging is
+configured via a dedicated `dotick.audit` logger (`dotick/settings/base.py`
+`LOGGING`, `core/logging_utils.py`), writing one JSON object per line to
+`<DOTICK_LOG_DIR>/audit.log` (env-driven per §3, defaults to
+`backend/logs/`) plus the console. `log_deadline_change(...)` is the seam
+Stage 2 will call from Postpone-single, Postpone-all, and manual-edit code
+paths, with `task_id`, `action`, and old/new values for `deadline`,
+`deadline_enabled`, and `due_date` — enough context to reconstruct a change
+from the log line alone, per this stage's definition of done. Since no Task
+model exists yet, this was verified with a standalone management command
+(`python manage.py demo_deadline_log`) that calls the same seam Stage 2 will
+use; output was confirmed to round-trip through the JSON formatter correctly.
+Covered by `core/tests/test_logging.py` — full suite run against a real
+PostgreSQL test database (`python manage.py test`), all passing. Stage 2 can
+now begin per the progression rule (§2.5) — this stage has no user-facing
+surface, so "used in daily practice" for it means: kept running and
+confirmed to produce sane output, which the test run above and the demo
+command both establish.
 
 ---
 
@@ -776,7 +807,7 @@ decision trail stays visible.
    has made this decision separately; it should be transcribed into this
    document in full before Stage 5 implementation begins, replacing the
    current placeholder.
-5. **Frontend not yet built** (§6, Stage 1): the React Native for Web /
-   Expo scaffold and health-check screen still need to be created from
-   scratch. This is the one item blocking Stage 1 from being fully closed
-   out — see the Stage 1 section above.
+5. ~~**Frontend not yet built** (§6, Stage 1)~~ — **RESOLVED.** The Expo /
+   React Native for Web scaffold and health-check screen have been created
+   at `frontend/`. This was the one item blocking Stage 1 from being fully
+   closed out; Stage 1 is now complete. See §6 Stage 1 notes above.
