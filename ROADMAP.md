@@ -19,7 +19,7 @@ stage described here.
 |---|---|---|
 | Stage 1 — Basic Foundation | ✅ **Done** | Backend health-check + frontend Expo screen, verified end to end. See §6 Stage 1. |
 | Stage 1.5 — Application Logging | ✅ **Done** | JSON audit logger + `log_deadline_change()` seam, verified with real Postgres. See §6 Stage 1.5. |
-| Stage 2 — Core Task/Event/Routine | ✅ **Backend done.** ⚠️ Frontend deliverable not yet built. | CTI schema, full Task/Event/Routine status logic, Postpone (single + all), CRUD for all three entities, and `due_date <= deadline` validation — all implemented and covered by 74 passing tests (verified against a real Postgres instance, not just SQLite). Frontend (task list, detail view, create/edit forms per §6 Stage 2) is the remaining work before this stage is genuinely closed. |
+| Stage 2 — Core Task/Event/Routine | ✅ **Backend done.** ✅ **Frontend built.** ⏳ Daily-use period pending. | CTI schema, full Task/Event/Routine status logic, Postpone (single + all), CRUD for all three entities, and `due_date <= deadline` validation — all implemented and covered by 74 passing tests (verified against a real Postgres instance, not just SQLite). The frontend deliverable is now built too (task list with all six statuses, task detail with Done/Won't Do/Postpone, create/edit forms with the deadline toggle, event list over the three time-driven states, manual routine occurrences) — see `frontend/README.md`. The stage closes once it has been used as the developer's actual daily task list for a meaningful period, per §2.5. |
 | Stage 3 — Recurrence Engine | Not started | |
 | Stage 4 — Containerization | Not started | |
 | Stage 5 — Organizational Hierarchy | Not started | |
@@ -563,6 +563,48 @@ list — creating tasks and events, letting some go overdue/missed
 intentionally to verify the status transitions, and postponing tasks — for a
 meaningful period before Stage 3 begins.
 
+**Frontend status (2026-08-11): built, pending the daily-use period.**
+Every frontend bullet above is implemented in `frontend/` — see
+`frontend/README.md` for what each screen does and how to verify it. Notes
+on the decisions that were open going in:
+
+- **State management (closes Open Item §10.3): React's own `useReducer` plus
+  one Context provider, no state library.** Stage 2's entire client state is
+  three server-owned collections plus which screen is open and which item is
+  selected; every status displayed is computed by the backend (§4.3, §4.5,
+  §4.6) and never recomputed client-side. That makes this a server-cache
+  problem with a trivial cache policy ("refetch the affected collection
+  after a mutation"), not a state-modelling problem. Redux Toolkit's
+  store/slice/thunk machinery only starts paying for itself when many
+  unrelated components mutate shared state — rejected as premature per KISS
+  (§2.3). TanStack Query is genuinely the right answer for caching and
+  optimistic updates and is **deferred, not rejected**: revisit when
+  multi-screen cache sharing, offline, or the polling §3.1 already defers
+  becomes real. Full reasoning is recorded in `frontend/src/state/store.js`.
+- **Deliberately absent: lists, folders, tags, and search.** The prototype's
+  middle rail was built around them, but they don't exist until Stage 5, and
+  §5.1's correctness-first principle rules out a control backed by nothing.
+  The rail keeps its shape and hosts saved views computed from real data
+  (All tasks, Overdue & missed, Events, Routines) with a disabled
+  `Lists · Stage 5` marker where the real thing will go.
+- **No recurrence UI anywhere**, per this stage's scope — routine
+  occurrences are entered by hand (§4.9 is Stage 3).
+- **The `due_date <= deadline` rule is not duplicated client-side.** The
+  form surfaces the serializer's own per-field message under the Due date
+  field instead, keeping one source of truth for the rule (§6 Stage 2
+  backend). Format errors *are* caught locally, so a typo can't become a
+  real timestamp that then drives a wrong computed status.
+- **Verification:** `npm run smoke` in `frontend/` exports the real web
+  bundle and boots it in jsdom against a stubbed API holding one task per
+  status, one event per state, and two routine occurrences — asserting that
+  all six statuses render, every destination is reachable, "Postpone all"
+  reports the count the backend would actually touch, a MISSED task's detail
+  panel names the deadline-disabling branch of §4.7 and POSTs to the
+  postpone endpoint, and the deadline toggle reveals/hides its inputs. This
+  is a bundle-level smoke check, not a replacement for the manual pass in
+  `frontend/README.md` — and per `TESTING_PLAN.md` §2, the stage's real
+  frontend verification remains the documented manual check.
+
 ---
 
 ### Stage 3 — Recurrence Engine
@@ -809,9 +851,14 @@ decision trail stays visible.
    changes are tracked via application-level logging (Stage 1.5) instead of
    a domain history table, so the due_date-vs-deadline scoping question no
    longer applies. See §4.8.
-3. **State management approach for the frontend** (§5.1): not yet decided;
-   to be resolved early in Stage 2 once there's real UI state (task lists,
-   statuses) to manage.
+3. ~~**State management approach for the frontend** (§5.1)~~ — **RESOLVED.**
+   React's own `useReducer` plus a single Context provider; no state
+   library. Stage 2's client state is three server-owned collections plus
+   the current screen/selection, and every status is computed by the
+   backend, so this is a server-cache problem with a trivial policy rather
+   than a state-modelling one. Redux Toolkit rejected as premature (KISS,
+   §2.3); TanStack Query deferred, not rejected. See the §6 Stage 2
+   frontend status note and `frontend/src/state/store.js`.
 4. **Organizational Hierarchy structure detail** (§6, Stage 5): the developer
    has made this decision separately; it should be transcribed into this
    document in full before Stage 5 implementation begins, replacing the
