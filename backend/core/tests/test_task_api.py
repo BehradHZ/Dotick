@@ -76,6 +76,106 @@ class TaskCRUDApiTests(TestCase):
         self.assertEqual(response.data["effective_status"], "DONE")
 
 
+class TaskDueDateDeadlineValidationTests(TestCase):
+    """TESTING_PLAN.md §3.7: 'Invalid input (e.g., due_date after
+    deadline) is rejected with a clear error, not silently accepted.'"""
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_create_rejects_due_date_after_deadline_when_deadline_enabled(self):
+        due = timezone.now() + timedelta(days=10)
+        deadline = timezone.now() + timedelta(days=5)
+
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "title": "Bad dates",
+                "due_date": due.isoformat(),
+                "deadline": deadline.isoformat(),
+                "deadline_enabled": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("due_date", response.data)
+        self.assertFalse(Task.objects.filter(title="Bad dates").exists())
+
+    def test_create_accepts_due_date_after_deadline_when_deadline_disabled(self):
+        """§4.3: while deadline_enabled=false the stored deadline is
+        inert, so it must not block an unrelated due_date."""
+        due = timezone.now() + timedelta(days=10)
+        deadline = timezone.now() + timedelta(days=5)
+
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "title": "Fine for now",
+                "due_date": due.isoformat(),
+                "deadline": deadline.isoformat(),
+                "deadline_enabled": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_create_accepts_due_date_equal_to_deadline(self):
+        same = timezone.now() + timedelta(days=5)
+
+        response = self.client.post(
+            "/api/tasks/",
+            {
+                "title": "Same instant",
+                "due_date": same.isoformat(),
+                "deadline": same.isoformat(),
+                "deadline_enabled": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_partial_update_rejects_due_date_moved_past_existing_deadline(self):
+        """A PATCH that only sends due_date must still be checked
+        against the task's already-stored deadline."""
+        deadline = timezone.now() + timedelta(days=5)
+        task = Task.objects.create(
+            title="A", deadline_enabled=True, deadline=deadline,
+            due_date=timezone.now(),
+        )
+        bad_due = timezone.now() + timedelta(days=10)
+
+        response = self.client.patch(
+            f"/api/tasks/{task.pk}/",
+            {"due_date": bad_due.isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        task.refresh_from_db()
+        self.assertNotEqual(task.due_date, bad_due)
+
+    def test_partial_update_rejects_deadline_moved_before_existing_due_date(self):
+        """Same check, triggered from the other side: shrinking
+        deadline below an already-stored due_date."""
+        due = timezone.now() + timedelta(days=5)
+        task = Task.objects.create(
+            title="A", deadline_enabled=True, due_date=due,
+            deadline=timezone.now() + timedelta(days=10),
+        )
+        bad_deadline = timezone.now() + timedelta(days=1)
+
+        response = self.client.patch(
+            f"/api/tasks/{task.pk}/",
+            {"deadline": bad_deadline.isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+
 class TaskPostponeApiTests(TestCase):
     """§4.7 exposed as API actions, per the frontend's need for 'a
     visible way to trigger Postpone / Postpone All'."""

@@ -8,6 +8,28 @@ the project root for the full engineering roadmap and decision record.
 This stage only proves the pipe works end to end: browser → Django →
 PostgreSQL → response. No task/event/routine features exist yet.
 
+## Stage 1.5 — Application Logging
+
+Structured JSON logging is now configured (`dotick.audit` logger, see
+`dotick/settings/base.py` `LOGGING` and `core/logging_utils.py`). This
+replaces the domain-level `TaskDeadlineHistory` table from the original
+design (ROADMAP.md §4.8) — deadline/`deadline_enabled` changes will be
+written here by Stage 2 instead of to a dedicated table.
+
+Log output goes to `<DOTICK_LOG_DIR>/audit.log` (defaults to
+`backend/logs/audit.log`; see `.env.example`) as one JSON object per line,
+plus the console. No Task model exists yet at this stage, so verify the
+path works with:
+
+```bash
+python manage.py demo_deadline_log
+cat logs/audit.log
+```
+
+Stage 2 will call `core.logging_utils.log_deadline_change(...)` from
+wherever it mutates a Task's `deadline`/`deadline_enabled`/`due_date`
+(manual edit, single Postpone, Postpone All — ROADMAP.md §4.7).
+
 ## Setup
 
 1. **PostgreSQL.** Have a PostgreSQL server running locally, then create a
@@ -71,12 +93,16 @@ backend/
 │   │   └── local.py  # dev-only defaults, loads .env
 │   ├── urls.py        # root URLconf; /api/ -> core.urls
 │   ├── asgi.py, wsgi.py
-├── core/               # cross-cutting app; currently just health-check
+├── core/               # cross-cutting app; health-check + audit logging
 │   ├── views.py
 │   ├── urls.py
+│   ├── logging_utils.py             # JsonFormatter, log_deadline_change()
+│   ├── management/commands/
+│   │   └── demo_deadline_log.py     # Stage 1.5 verification command
 │   └── tests/
 │       ├── test_health_check.py     # response-shape seam
-│       └── test_health_check_db.py  # DB-connectivity seam
+│       ├── test_health_check_db.py  # DB-connectivity seam
+│       └── test_logging.py          # Stage 1.5 logging seam
 ├── manage.py
 ├── requirements.txt
 └── .env.example

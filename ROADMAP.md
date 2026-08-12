@@ -13,20 +13,27 @@ stage described here.
 
 --- -->
 
-## Progress Status (updated 2026-08-07, from repo inspection)
+## Progress Status (updated 2026-08-09)
 
 | Stage | Status | Notes |
 |---|---|---|
-| Stage 1 — Basic Foundation | ✅ **Done** (backend). ⚠️ Frontend deliverable not yet develoaped. | See §6 Stage 1 notes below. |
-| Stage 1.5 — Application Logging | Not started | |
-| Stage 2 — Core Task/Event/Routine | Not started | |
+| Stage 1 — Basic Foundation | ✅ **Done** | Backend health-check + frontend Expo screen, verified end to end. See §6 Stage 1. |
+| Stage 1.5 — Application Logging | ✅ **Done** | JSON audit logger + `log_deadline_change()` seam, verified with real Postgres. See §6 Stage 1.5. |
+| Stage 2 — Core Task/Event/Routine | ✅ **Backend done.** ✅ **Frontend built.** ⏳ Daily-use period pending. | CTI schema, full Task/Event/Routine status logic, Postpone (single + all), CRUD for all three entities, and `due_date <= deadline` validation — all implemented and covered by 74 passing tests (verified against a real Postgres instance, not just SQLite). The frontend deliverable is now built too (task list with all six statuses, task detail with Done/Won't Do/Postpone, create/edit forms with the deadline toggle, event list over the three time-driven states, manual routine occurrences) — see `frontend/README.md`. The stage closes once it has been used as the developer's actual daily task list for a meaningful period, per §2.5. |
 | Stage 3 — Recurrence Engine | Not started | |
 | Stage 4 — Containerization | Not started | |
 | Stage 5 — Organizational Hierarchy | Not started | |
 
-Verified directly against `github.com/BehradHZ/Dotick` (commit `d746b51`,
-2026-08-07), not just against local notes — see §6 Stage 1 for what changed
-from the original plan.
+**Stage 2 backend validation note:** `TESTING_PLAN.md` §3.7 calls for
+rejecting a Task where `due_date` is after `deadline`. This is enforced in
+`TaskSerializer.validate()` (`core/serializers.py`), scoped to only apply
+while `deadline_enabled=True` — per §4.3, a disabled deadline is inert and
+must not block an unrelated `due_date` change. Covered by
+`TaskDueDateDeadlineValidationTests` in `core/tests/test_task_api.py`,
+including the partial-update (PATCH) case where only one of the two fields
+is sent.
+
+---
 
 ## 1. Project Overview
 
@@ -434,6 +441,20 @@ only purpose is to confirm the pipe works.
 **Definition of done:** the developer can open the app from both laptop and
 phone browsers on the same network and see a live response from the backend.
 
+**Status (2026-08-08): Stage 1 complete.** Backend was already done
+(`backend/` — health-check endpoint, PostgreSQL wired up, env-based
+settings). The frontend deliverable has now been added at `frontend/`: an
+Expo (React Native for Web) app with a single screen (`App.js`) that calls
+`/api/health/` and shows loading / success / error state with a Retry
+button. The backend URL is read from `EXPO_PUBLIC_API_URL` (see
+`frontend/.env.example`) rather than hardcoded, so the same build works from
+both `localhost` (laptop browser) and the laptop's LAN IP (phone browser),
+matching the backend's existing `DJANGO_ALLOWED_HOSTS` pattern. Verified end
+to end via `npx expo export --platform web`, which bundled successfully with
+the env var correctly embedded. See `frontend/README.md` for setup and run
+instructions. Stage 1.5 can now begin once this has been used in real daily
+practice for a meaningful period, per the progression rule (§2.5).
+
 ---
 
 ### Stage 1.5 — Application Logging
@@ -470,6 +491,25 @@ both are infrastructural.
 **Definition of done:** log output can be inspected and a deadline change
 (e.g., from a test Postpone action) can be reconstructed from the logs
 alone, before Stage 2 begins.
+
+**Status (2026-08-09): Stage 1.5 complete.** Structured JSON logging is
+configured via a dedicated `dotick.audit` logger (`dotick/settings/base.py`
+`LOGGING`, `core/logging_utils.py`), writing one JSON object per line to
+`<DOTICK_LOG_DIR>/audit.log` (env-driven per §3, defaults to
+`backend/logs/`) plus the console. `log_deadline_change(...)` is the seam
+Stage 2 will call from Postpone-single, Postpone-all, and manual-edit code
+paths, with `task_id`, `action`, and old/new values for `deadline`,
+`deadline_enabled`, and `due_date` — enough context to reconstruct a change
+from the log line alone, per this stage's definition of done. Since no Task
+model exists yet, this was verified with a standalone management command
+(`python manage.py demo_deadline_log`) that calls the same seam Stage 2 will
+use; output was confirmed to round-trip through the JSON formatter correctly.
+Covered by `core/tests/test_logging.py` — full suite run against a real
+PostgreSQL test database (`python manage.py test`), all passing. Stage 2 can
+now begin per the progression rule (§2.5) — this stage has no user-facing
+surface, so "used in daily practice" for it means: kept running and
+confirmed to produce sane output, which the test run above and the demo
+command both establish.
 
 ---
 
@@ -522,6 +562,48 @@ history — as a genuinely usable single-user task manager.
 list — creating tasks and events, letting some go overdue/missed
 intentionally to verify the status transitions, and postponing tasks — for a
 meaningful period before Stage 3 begins.
+
+**Frontend status (2026-08-11): built, pending the daily-use period.**
+Every frontend bullet above is implemented in `frontend/` — see
+`frontend/README.md` for what each screen does and how to verify it. Notes
+on the decisions that were open going in:
+
+- **State management (closes Open Item §10.3): React's own `useReducer` plus
+  one Context provider, no state library.** Stage 2's entire client state is
+  three server-owned collections plus which screen is open and which item is
+  selected; every status displayed is computed by the backend (§4.3, §4.5,
+  §4.6) and never recomputed client-side. That makes this a server-cache
+  problem with a trivial cache policy ("refetch the affected collection
+  after a mutation"), not a state-modelling problem. Redux Toolkit's
+  store/slice/thunk machinery only starts paying for itself when many
+  unrelated components mutate shared state — rejected as premature per KISS
+  (§2.3). TanStack Query is genuinely the right answer for caching and
+  optimistic updates and is **deferred, not rejected**: revisit when
+  multi-screen cache sharing, offline, or the polling §3.1 already defers
+  becomes real. Full reasoning is recorded in `frontend/src/state/store.js`.
+- **Deliberately absent: lists, folders, tags, and search.** The prototype's
+  middle rail was built around them, but they don't exist until Stage 5, and
+  §5.1's correctness-first principle rules out a control backed by nothing.
+  The rail keeps its shape and hosts saved views computed from real data
+  (All tasks, Overdue & missed, Events, Routines) with a disabled
+  `Lists · Stage 5` marker where the real thing will go.
+- **No recurrence UI anywhere**, per this stage's scope — routine
+  occurrences are entered by hand (§4.9 is Stage 3).
+- **The `due_date <= deadline` rule is not duplicated client-side.** The
+  form surfaces the serializer's own per-field message under the Due date
+  field instead, keeping one source of truth for the rule (§6 Stage 2
+  backend). Format errors *are* caught locally, so a typo can't become a
+  real timestamp that then drives a wrong computed status.
+- **Verification:** `npm run smoke` in `frontend/` exports the real web
+  bundle and boots it in jsdom against a stubbed API holding one task per
+  status, one event per state, and two routine occurrences — asserting that
+  all six statuses render, every destination is reachable, "Postpone all"
+  reports the count the backend would actually touch, a MISSED task's detail
+  panel names the deadline-disabling branch of §4.7 and POSTs to the
+  postpone endpoint, and the deadline toggle reveals/hides its inputs. This
+  is a bundle-level smoke check, not a replacement for the manual pass in
+  `frontend/README.md` — and per `TESTING_PLAN.md` §2, the stage's real
+  frontend verification remains the documented manual check.
 
 ---
 
@@ -769,14 +851,19 @@ decision trail stays visible.
    changes are tracked via application-level logging (Stage 1.5) instead of
    a domain history table, so the due_date-vs-deadline scoping question no
    longer applies. See §4.8.
-3. **State management approach for the frontend** (§5.1): not yet decided;
-   to be resolved early in Stage 2 once there's real UI state (task lists,
-   statuses) to manage.
+3. ~~**State management approach for the frontend** (§5.1)~~ — **RESOLVED.**
+   React's own `useReducer` plus a single Context provider; no state
+   library. Stage 2's client state is three server-owned collections plus
+   the current screen/selection, and every status is computed by the
+   backend, so this is a server-cache problem with a trivial policy rather
+   than a state-modelling one. Redux Toolkit rejected as premature (KISS,
+   §2.3); TanStack Query deferred, not rejected. See the §6 Stage 2
+   frontend status note and `frontend/src/state/store.js`.
 4. **Organizational Hierarchy structure detail** (§6, Stage 5): the developer
    has made this decision separately; it should be transcribed into this
    document in full before Stage 5 implementation begins, replacing the
    current placeholder.
-5. **Frontend not yet built** (§6, Stage 1): the React Native for Web /
-   Expo scaffold and health-check screen still need to be created from
-   scratch. This is the one item blocking Stage 1 from being fully closed
-   out — see the Stage 1 section above.
+5. ~~**Frontend not yet built** (§6, Stage 1)~~ — **RESOLVED.** The Expo /
+   React Native for Web scaffold and health-check screen have been created
+   at `frontend/`. This was the one item blocking Stage 1 from being fully
+   closed out; Stage 1 is now complete. See §6 Stage 1 notes above.
