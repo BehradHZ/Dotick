@@ -1,20 +1,36 @@
-# نادیده گرفتن پوشه archive در کل پروژه
+# نادیده گرفتن پوشه‌های آرشیو در کل پروژه
 archive/
-Archive/
 **/archive/
-**/Archive/
+
+# منابع مهارتی محلی و مخزن‌های ثالث
+resources/skills/
 
 # نادیده گرفتن محیط مجازی پایتون
 .venv/
 venv/
 
-# نادیده گرفتن فایل‌های کcached پایتون
+# نادیده گرفتن فایل‌های cache پایتون
 __pycache__/
 *.pyc
 
 # نادیده گرفتن فایل‌های تنظیمات محیطی
 .env
+.env.*
+!.env.example
 
-# نادیده گرفتن لاگ‌های اپلیکیشن (Stage 1.5 — ROADMAP.md §6)
+# وابستگی‌ها و خروجی‌های build/test
+node_modules/
+dist/
+build/
+coverage/
+.pytest_cache/
+
+# فایل‌های محلی سیستم‌عامل و ویرایشگر
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# نادیده گرفتن لاگ‌های اپلیکیشن (Stage 1.5 — docs/planning/roadmap.md §6)
 backend/logs/
 *.log
