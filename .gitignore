@@ -5,6 +5,9 @@ archive/
 # منابع مهارتی محلی و مخزن‌های ثالث
 resources/skills/
 
+# دارایی‌های آزمایشی و بدون مصرف‌کننده‌ی نسخه‌ی قبلی
+assets/fonts/
+
 # نادیده گرفتن محیط مجازی پایتون
 .venv/
 venv/
@@ -31,6 +34,5 @@ Thumbs.db
 .idea/
 .vscode/
 
-# نادیده گرفتن لاگ‌های اپلیکیشن (Stage 1.5 — docs/planning/roadmap.md §6)
-backend/logs/
+# لاگ‌های محلی
 *.log
