@@ -62,8 +62,8 @@ TRACEABILITY.md
 - Formal SRS normative requirements traced: **257**.
 - Every normative requirement has at least one canonical source mapping.
 - Every normative requirement has a planned owning Increment or a staged multi-Increment ownership.
-- Formal SRS open/non-normative items traced: **25**.
-- Analysis, design, test-case, implementation and release links are intentionally not fabricated in Increment 0. They are added when those artifacts exist.
+- Formal SRS decision records traced: **25**؛ از این تعداد **24** مورد باز و `OPEN-021` با DR-054 resolved است.
+- Analysis، test-case، implementation و release linkها تا ایجاد artifact واقعی ثبت نمی‌شوند. Design baselineهای موجود در §5.1 trace شده‌اند.
 
 ## 4.1 Planned ownership counts
 
@@ -334,7 +334,7 @@ TRACEABILITY.md
 | `SRS-IF-004` | 4.1 API و ارتباط client/server | SD §27; RM I0 | `I0 baseline + I7 implementation` | Integration Test + Inspection | WebSocket باید برای notification و live update سبک استفاده شود و نباید جایگزین CRUD authority مبتنی بر REST شود. |
 | `SRS-IF-005` | 4.1 API و ارتباط client/server | SD §27; RM I0 | `I0 baseline + I1 implementation` | Security Test + Inspection | ارتباط client/server باید از HTTPS استفاده کند. در local development فقط Deployment Design می‌تواند برای محیطی که HTTPS عملا قابل اعمال نیست exception صریح تعریف کند. |
 | `SRS-CON-001` | 4.2 storage و platform constraints | SD §27; RM I0 | `I0` | Inspection + Integration Test | persistence اصلی server-side باید از PostgreSQL استفاده کند. |
-| `SRS-CON-002` | 4.2 storage و platform constraints | DM §31; DR open storage/inheritance decision | `I0` | Architecture Inspection | hierarchy مفهومی Domain Model نباید به تنهایی implementation را به Class Table Inheritance متعهد کند. |
+| `SRS-CON-002` | 4.2 storage و platform constraints | DM §31; DR-054 | `I0` | Architecture Inspection | hierarchy مفهومی Domain Model نباید به تنهایی implementation را به Class Table Inheritance متعهد کند. |
 | `SRS-CON-003` | 4.2 storage و platform constraints | DM §31; SD §27 | `I0` | Architecture Review + Test | storage strategy باید query simplicity، integrity، migration safety و performance لازم برای behaviorهای این SRS را حفظ کند. |
 | `SRS-CON-004` | 4.2 storage و platform constraints | SD §27 | `I0` | Deployment Test | Personal V1 باید بتواند روی server local-hosted اجرا شود. |
 | `SRS-NFR-SEC-001` | 5.1 امنیت | SD §§23, 29; DR-050 | `I1` | Security Test + Inspection | password plaintext نباید در persistence یا logهای عادی ذخیره شود. |
@@ -358,9 +358,20 @@ TRACEABILITY.md
 | `SRS-NFR-MAINT-001` | 5.5 maintainability و change isolation | SD §§5, 27; DR-014, DR-015 | `I1` | Architecture Review + Test | failure یا تغییر یک integration خارجی نباید مدل ownership داخلی را به Source وابسته کند. |
 | `SRS-NFR-MAINT-002` | 5.5 maintainability و change isolation | SD §3.1 | `I5` | Regression Test | تغییر View نباید domain data را تغییر دهد. |
 
+## 5.1 Increment 0 engineering artifact trace
+
+| Requirement(s) | Engineering artifact | Current evidence |
+|---|---|---|
+| `SRS-IF-001..004` | `docs/ARCHITECTURE.md`; ADR-0001 | client/server boundary، REST authority و WebSocket scope تعریف شده‌اند؛ implementation verification در Increment مالک باقی می‌ماند. |
+| `SRS-IF-005` | `docs/SECURITY.md`; `docs/DEPLOYMENT.md` | TLS baseline و loopback-only development exception تعریف شده‌اند. |
+| `SRS-CON-001..003` | `docs/DATA_DESIGN.md`; ADR-0002; DR-054 | PostgreSQL و explicit-composition storage baseline تعریف و review شده‌اند. |
+| `SRS-CON-004` | `docs/DEPLOYMENT.md` | local-hosted Compose topology و clean-clone verification تعریف شده‌اند؛ deployment test پس از scaffold انجام می‌شود. |
+| Increment 0 verification process | `docs/TEST_STRATEGY.md` | gateهای migration، integration، contract و Walking Skeleton تعریف شده‌اند. |
+| Increment risks | `docs/RISK_REGISTER.md` | riskهای architecture، isolation، reproducibility و recovery ثبت شده‌اند. |
+
 # 6. OPEN decision traceability
 
-این موارد requirement قطعی نیستند. جدول فقط نشان می‌دهد هر تصمیم باز روی چه requirementهایی اثر دارد و در کدام Decision Gate باید formalize شود.
+این recordها requirement قطعی نیستند. جدول نشان می‌دهد هر تصمیم روی چه requirementهایی اثر دارد و در کدام Decision Gate باید formalize شود؛ record resolved برای حفظ history باقی می‌ماند.
 
 | Open ID | Topic | Affected requirement(s) | Canonical/open source | Decision Gate |
 |---|---|---|---|---|
@@ -384,7 +395,7 @@ TRACEABILITY.md
 | OPEN-018 | Global daily streak and related motivational behavior | No normative SRS requirement yet | DR-051 / SRS §7 | I10 |
 | OPEN-019 | RoutineOccurrence representation in DailyRingItem | SRS-RING-009..010 | DM §20 / SRS §7 | I10 |
 | OPEN-020 | Goal-level reminder frequency/rate limit | SRS-GOAL-013 | SD §13.3 / SRS §7 | I10 |
-| OPEN-021 | Physical storage inheritance/composition/denormalization strategy | SRS-CON-002..003 | DR open item 12 / DM §31 / SRS §7 | I0/I1 |
+| OPEN-021 | Physical storage inheritance/composition/denormalization strategy | SRS-CON-002..003 | RESOLVED by DR-054 / DM §31 / ADR-0002 | I0 baseline complete; revisit only by measured need |
 | OPEN-022 | Exact API endpoints and versioning contract | SRS-IF-001..004 | DR open item 13 / SRS §7 | Per increment |
 | OPEN-023 | Trusted automation confirmation policy | Future only | DR open item 15 / SRS §7 | Future Integration |
 | OPEN-024 | Enterprise SSO protocol | Future only | SD §23 / SRS §7 | Enterprise |

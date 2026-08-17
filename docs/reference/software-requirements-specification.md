@@ -635,7 +635,7 @@ Folder
 | OPEN-018 | global daily streak و behavior motivational/scolding مرتبط | OPEN | Increment 10 |
 | OPEN-019 | representation دقیق RoutineOccurrence در DailyRingItem | OPEN | Increment 10 |
 | OPEN-020 | frequency/rate-limit دقیق Goal-level reminder | OPEN | Increment 10 |
-| OPEN-021 | storage inheritance/composition/denormalization strategy | OPEN, ولی برای Increment 1 باید به اندازه کافی بسته شود | Increment 0/1 Data Design |
+| OPEN-021 | storage inheritance/composition/denormalization strategy | RESOLVED برای baseline Personal V1 با DR-054 و ADR-0002 | Increment 0 Data Design؛ بازنگری فقط با evidence و ADR جدید |
 | OPEN-022 | endpointهای دقیق API و versioning contract | OPEN در سطح global | به تفکیک Increment |
 | OPEN-023 | confirmation policy برای trusted automation | OPEN / Future | Future Integration |
 | OPEN-024 | Enterprise SSO protocol | OPEN / Future | Enterprise |

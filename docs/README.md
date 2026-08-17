@@ -5,6 +5,8 @@
 - [`canonical/`](canonical/) — منابع اصلی و معتبر تعریف سیستم، مدل دامنه و تصمیم‌ها
 - [`reference/`](reference/) — مراجع مشتق‌شده و غیرمرجع
 - [`planning/`](planning/) — برنامه و ترتیب توسعه
+- [`adr/`](adr/) — تصمیم‌های معماری پذیرفته‌شده
+- [`reviews/`](reviews/) — گزارش‌های review تاریخی
 
 ## نقطه شروع پیشنهادی
 
@@ -14,5 +16,15 @@
 4. [`planning/roadmap.md`](planning/roadmap.md)
 5. [`reference/software-requirements-specification.md`](reference/software-requirements-specification.md)
 6. [`reference/class-fields.md`](reference/class-fields.md)
+
+## Baselineهای مهندسی Increment 0
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- [`DATA_DESIGN.md`](DATA_DESIGN.md)
+- [`SECURITY.md`](SECURITY.md)
+- [`TEST_STRATEGY.md`](TEST_STRATEGY.md)
+- [`DEPLOYMENT.md`](DEPLOYMENT.md)
+- [`RISK_REGISTER.md`](RISK_REGISTER.md)
+- [`TRACEABILITY.md`](TRACEABILITY.md)
 
 نام فایل‌ها و پوشه‌های پروژه از قرارداد `lowercase-kebab-case` پیروی می‌کند.

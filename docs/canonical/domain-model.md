@@ -753,7 +753,7 @@ Completion فقط Ringی را جلو می‌برد که Item در `DailyRingItem
 
 ---
 
-# 20.1 Daily target / Norm
+# 20.2 Daily target / Norm
 
 Daily Ring target manually set by user نیست. سیستم آن را بر اساس recent performance و capacity تعیین می‌کند.
 
@@ -1024,11 +1024,14 @@ Field-level Last-Write-Wins
 
 این Domain Model نباید با Class Table Inheritance قبلی یکی فرض شود.
 
-تصمیم فعلی:
+تصمیم فیزیکی baseline برای Increment 1 در DR-054 و `docs/DATA_DESIGN.md` ثبت شده است:
 
 - inheritance بالا **مفهومی** است.
-- اینکه PostgreSQL tableهای `items`, `schedulables`, `tracking_states` داشته باشد یا composition/denormalization بهتری استفاده شود هنوز OPEN است.
-- هدف schema نهایی: query ساده، integrity بالا، migration قابل کنترل و performance مناسب.
+- identity و metadata مشترک Item در table پایه‌ی `items` نگه‌داری می‌شود.
+- داده‌ی subtype در tableهای صریح یک‌به‌یک مانند `tasks` نگه‌داری می‌شود؛ این انتخاب composition فیزیکی است و به ORM inheritance متکی نیست.
+- capabilityهایی مانند Source، recurrence، reminder و tracking به‌صورت relation/component مستقل و فقط در Increment مالکشان اضافه می‌شوند.
+- این baseline برای Itemهای Personal V1 بسته است؛ denormalization فقط با evidence اندازه‌گیری‌شده و migration/ADR مستقل مجاز است.
+- هدف schema: query ساده، integrity بالا، migration قابل کنترل و performance مناسب.
 
 ---
 
@@ -1063,6 +1066,6 @@ Field-level Last-Write-Wins
 7. frequency-routine streak formal model.
 8. incremental Routine inactivity reset.
 9. exact ownership of Folder/List/Column در group contexts.
-10. storage inheritance strategy.
+10. ~~storage inheritance strategy~~ — برای baseline Personal V1 در DR-054 بسته شد.
 11. exact field-level sync metadata.
 

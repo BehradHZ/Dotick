@@ -606,12 +606,48 @@ Historical legacy wording
 
 بنابراین:
 
-- `docs/reference/software-requirements-specification.md` تا زمانی که در Increment 0 به Formal SRS تبدیل نشده، یک **reconciled derived reference** است و canonical نیست.
+- `docs/reference/software-requirements-specification.md` در 2026-08-17 به Formal SRS Baseline v2.0 تبدیل شد؛ همچنان پایین‌تر از منابع canonical قرار دارد.
 - `docs/reference/class-fields.md` یک **derived field reference** است، نه physical database schema و نه منبع تصمیم معماری.
 - تصمیم‌های `OPEN` نباید برای یکدست‌کردن اسناد به‌صورت ضمنی بسته شوند؛ wording قدیمی باید به `OPEN` یا wording خنثی تبدیل شود.
 - متن تاریخی مهم می‌تواند در revision history باقی بماند، ولی requirement/field جاری نباید تصمیم superseded را به‌عنوان رفتار فعلی بیان کند.
 
-# Decisions still OPEN
+---
+
+## DR-053 — Increment 0 technology and architecture baseline
+
+**Status:** CONFIRMED
+
+برای Walking Skeleton و Personal V1، baseline فنی زیر انتخاب شد:
+
+- معماری backend یک **modular monolith** با boundaryهای صریح domain/application/interface/infrastructure است.
+- backend با Python 3.14، Django 5.2 LTS و Django REST Framework ساخته می‌شود؛ dependency management با `uv` و lockfile است.
+- frontend یک application مستقل TypeScript بر پایه Expo SDK 57، React Native و React Native for Web است؛ Node.js 24 LTS و npm workspace baseline ابزار آن هستند.
+- persistence اصلی PostgreSQL است.
+- HTTP/JSON/REST مسیر authoritative برای command و query است؛ WebSocket فقط notification و invalidation سبک را حمل می‌کند.
+- dependencyها در زمان scaffold با lockfile ثبت می‌شوند و فقط نسخه‌های پشتیبانی‌شده انتخاب می‌شوند.
+- Redis، worker queue، Channels و سرویس‌های AI تا Increment مالکشان dependency اجباری نیستند.
+
+این انتخاب با سابقه‌ی پروژه هم‌راستاست، اما دلیل اعتبار آن اسناد canonical و baseline مهندسی فعلی است، نه کد archiveشده.
+
+جزئیات و trade-offها در `docs/adr/0001-modular-monolith-and-technology-stack.md` ثبت شده‌اند.
+
+---
+
+## DR-054 — Explicit composition for Item persistence
+
+**Status:** CONFIRMED
+
+OPEN مربوط به storage inheritance برای baseline Personal V1 به این شکل بسته شد:
+
+- table پایه‌ی `items` فقط identity، ownership و metadata واقعاً مشترک را نگه می‌دارد.
+- هر subtype در table صریح یک‌به‌یک خود نگه‌داری می‌شود؛ برای مثال `tasks.item_id` هم primary key و هم foreign key به `items.id` است.
+- implementation به ORM/model inheritance متکی نیست؛ relationها و transaction boundaryها صریح‌اند.
+- capabilityهایی مانند Source، recurrence، reminder و tracking به‌صورت component/relation مستقل و فقط هنگام نیاز Increment اضافه می‌شوند.
+- denormalization پیش‌فرض نیست و فقط پس از اندازه‌گیری، با migration و ADR جدا مجاز است.
+
+این تصمیم query مشترک Item و integrity نوع را حفظ می‌کند، بدون آنکه Domain inheritance را مکانیکی به Class Table Inheritance تبدیل کند. جزئیات در `docs/DATA_DESIGN.md` و `docs/adr/0002-explicit-item-composition-storage.md` آمده‌اند.
+
+# Decision backlog and resolution status
 
 1. Event multi-parent structural support.
 2. Description/ContentBlock exact schema.
@@ -624,7 +660,7 @@ Historical legacy wording
 9. AI Goal warm-up duration.
 10. Goal similarity thresholds.
 11. exact Goal selection algorithm.
-12. database inheritance/storage strategy.
+12. ~~database inheritance/storage strategy~~ — resolved by DR-054 for the Personal V1 baseline.
 13. API endpoint design.
 14. sync metadata design.
 15. trusted automation confirmation policy.

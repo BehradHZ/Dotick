@@ -1,7 +1,7 @@
 # Dotick — System Definition Specification
 
 > **وضعیت سند:** Canonical Working Specification  
-> **هدف:** ثبت دقیق فهم فعلی از محصول، رفتار سیستم، قواعد دامنه، محدودیت‌ها و تصمیم‌های نهایی‌شده پیش از تبدیل به SRS رسمی و Design Documents.  
+> **هدف:** ثبت دقیق فهم فعلی از محصول، رفتار سیستم، قواعد دامنه، محدودیت‌ها و تصمیم‌های نهایی‌شده؛ Formal SRS و Design Documents از این منبع مشتق می‌شوند.
 > **منابع پایه:** `docs/reference/software-requirements-specification.md` و `docs/reference/class-fields.md` قبلی + تصمیم‌های جدید این گفت‌وگو.  
 > **قاعده‌ی حاکم:** هرجا این سند با نسخه‌های قبلی تعارض دارد، این سند مرجع فعلی است. مواردی که هنوز نهایی نشده‌اند صریحاً با `OPEN` علامت‌گذاری شده‌اند.
 
@@ -13,12 +13,12 @@
 
 در وضعیت فعلی:
 
-1. `docs/reference/software-requirements-specification.md` یک **reconciled derived requirements reference** است تا در Increment 0 به Formal SRS تبدیل/بازنویسی شود.
+1. `docs/reference/software-requirements-specification.md` اکنون **Formal SRS Baseline v2.0** است؛ requirement رسمی را نگه می‌دارد ولی در تعارض رفتاری پایین‌تر از منابع canonical است.
 2. `docs/reference/class-fields.md` یک **derived field reference** است و physical database schema یا storage-inheritance decision نیست.
 3. این سند، تعریف فعلی «سیستم چیست و چه رفتاری دارد» را نگه می‌دارد.
 4. فایل `docs/canonical/domain-model.md` مدل مفهومی و فیلدهای فعلی را جداگانه نگه می‌دارد.
 5. فایل `docs/canonical/decision-register.md` تصمیم‌های تثبیت‌شده، superseded و موارد باز را ثبت می‌کند.
-6. اسناد رسمی‌تر مثل Formal SRS، ERD، API Contract، Test Specification و Design Specs طبق Roadmap و در Increment مالک خود ساخته/تکمیل می‌شوند.
+6. سایر اسناد مهندسی مثل ERD، API Contract و specهای تخصصی طبق Roadmap و در Increment مالک خود ساخته/تکمیل می‌شوند.
 
 ---
 
@@ -700,11 +700,11 @@ Daily Ring نمای روزانه‌ی Goal است؛ خود Goal محدود به 
 
 تعداد Goalهای user محدودیت ثابت ندارد.
 
-اگر active goal count حداقل 3 باشد:
+اگر تعداد Goalهای active و eligible حداقل 3 باشد:
 
 - **دقیقاً 3 Daily Ring** انتخاب می‌شود.
 
-اگر active goal count کمتر از 3 باشد:
+اگر تعداد Goalهای active و eligible کمتر از 3 باشد:
 
 - به اندازه‌ی Goalهای موجود Ring ساخته می‌شود.
 
@@ -1286,7 +1286,7 @@ Baselineهای حفظ‌شده:
 - Description capabilityها هنوز schema نهایی نیستند.
 - Folder > List > Column terminology مبناست.
 - Feature priority از specification حذف می‌شود؛ roadmap ترتیب توسعه را مشخص می‌کند.
-- Daily Rings حداکثر «سه تا در صورت داشتن حداقل سه Goal» نیست؛ **دقیقاً سه تا** هستند وقتی حداقل سه Goal فعال وجود دارد.
+- Daily Rings حداکثر «سه تا در صورت داشتن حداقل سه Goal» نیست؛ **دقیقاً سه تا** هستند وقتی حداقل سه Goal active و eligible وجود دارد.
 - Goal progress در UI از 100 بالاتر نمی‌رود.
 - final performance score می‌تواند از baseline بالاتر رود.
 - bonus تا finalization روز مخفی می‌ماند.
@@ -1301,17 +1301,18 @@ Baselineهای حفظ‌شده:
 
 ---
 
-# 33. گام سندی بعدی
+# 33. وضعیت خروجی‌های مهندسی
 
-بعد از تکمیل باقی Domain Reviewها، پیشنهاد می‌شود از این سند این خروجی‌ها ساخته شوند:
+Formal SRS و Traceability baseline در Increment 0 ایجاد شده‌اند. خروجی‌های زیر طبق Roadmap ایجاد یا در Increment مالکشان تکمیل می‌شوند:
 
-1. **Formal SRS** — فقط requirements قابل تست و scope.
-2. **Domain Model / ERD** — entityها، cardinality، constraints.
-3. **Data Design Specification** — PostgreSQL schema، inheritance/storage strategy، indexes.
-4. **API Contract** — به تفکیک Increment.
-5. **UI/UX Specification** — flowها، screens، description editor، hierarchy interaction.
-6. **Gamification & Scoring Specification** — فرمول‌ها و lifecycle روزانه.
-7. **Sync & Audit Specification**.
-8. **AI/Integration Specification**.
-9. **Roadmap / Increment Plan** — ترتیب پیاده‌سازی و خروجی هر Increment.
+1. **Formal SRS** — ایجاد شده؛ فقط requirements قابل تست و scope.
+2. **Traceability Matrix** — baseline ایجاد شده و در هر Increment تکمیل می‌شود.
+3. **Domain Model / ERD** — مدل مفهومی موجود است؛ ERD فیزیکی با Increment 1 تکمیل می‌شود.
+4. **Data Design Specification** — baseline PostgreSQL و storage strategy در Increment 0 ایجاد می‌شود.
+5. **API Contract** — به تفکیک Increment.
+6. **UI/UX Specification** — flowها، screens، description editor، hierarchy interaction.
+7. **Gamification & Scoring Specification** — فرمول‌ها و lifecycle روزانه.
+8. **Sync & Audit Specification**.
+9. **AI/Integration Specification**.
+10. **Roadmap / Increment Plan** — موجود است و با آموخته‌های هر Increment update می‌شود.
 

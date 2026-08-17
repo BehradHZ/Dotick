@@ -7,7 +7,7 @@
 > `docs/canonical/domain-model.md` — current conceptual domain model  
 > `docs/canonical/decision-register.md` — confirmed, retained, open and superseded decisions  
 >
-> `docs/reference/software-requirements-specification.md` and `docs/reference/class-fields.md` are reconciled derived/reference documents and are **not** authoritative for this roadmap until/except where a future Formal SRS is explicitly baselined. See DR-052.
+> `docs/reference/software-requirements-specification.md` اکنون **Formal SRS Baseline v2.0** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
 
 ---
 
@@ -433,7 +433,7 @@ Review:
 - specialized spec
 - Roadmap/backlog where needed
 
-### New
+### Created in Increment 0 baseline
 
 - `releases/vX.Y.Z.md`
 - `reviews/increment-N.md`
@@ -450,11 +450,11 @@ Review:
 
 ## 7.1 Formal Specification Baseline
 
-### Formalize / Replace Derived Reference
+### Formalize / Replace Derived Reference — Completed
 
 `docs/reference/software-requirements-specification.md`
 
-نسخه‌ی reconciled فعلی در Increment 0 باید به Formal SRS تبدیل/بازنویسی شود و فقط شامل مواردی باشد که به‌صورت Requirement قابل بیان/تست هستند.
+نسخه‌ی reconciled قبلی در Formal SRS Baseline v2.0 بازنویسی شده و فقط requirementهای قابل بیان/تست را normative می‌کند.
 
 در این مرحله:
 
@@ -463,9 +463,9 @@ Review:
 - OPEN decisionها با وضعیت مشخص trace می‌شوند.
 - نسخه‌ی reconciled قبلی SRS مبنای merge خودکار نیست؛ Formal SRS باید از canonical sources استخراج شود.
 
-### New
+### Created
 
-`TRACEABILITY.md`
+`docs/TRACEABILITY.md`
 
 Baseline trace:
 
@@ -515,7 +515,7 @@ Technical baselines retained:
 
 Possible implementation is a Design decision; Roadmap does not prescribe Class Table Inheritance.
 
-### New
+### Created in Increment 0 baseline
 
 - `DATA_DESIGN.md`
 
