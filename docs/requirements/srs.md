@@ -45,12 +45,12 @@ Reconciled non-canonical references
 
 منابع این baseline:
 
-- `docs/canonical/decision-register.md`
-- `docs/canonical/system-definition.md`
-- `docs/canonical/domain-model.md`
-- `docs/planning/roadmap.md` فقط برای scope، lifecycle سند و Decision Gateهای Incrementها
+- `project-docs/decision-register.md`
+- `project-docs/02-requirements/system-definition.md`
+- `project-docs/03-design/domain-model.md`
+- `project-docs/01-planning/increment-roadmap.md` فقط برای scope، lifecycle سند و Decision Gateهای Incrementها
 
-`docs/reference/class-fields.md` منبع requirement یا schema فیزیکی نیست و فقط یک derived field reference است.
+`project-docs/reference/class-fields.md` منبع requirement یا schema فیزیکی نیست و فقط یک derived field reference است.
 
 ## 1.3 قواعد normative
 
@@ -682,7 +682,7 @@ Roadmap برای Increment 0 و Incrementهای بعدی artifactها و process
 - CI pipeline، formatter و linter.
 - Docker/dev reproducibility setup.
 - migration tooling.
-- `ARCHITECTURE.md`, `DATA_DESIGN.md`, `API.md` یا OpenAPI، `UI_UX.md`, `SECURITY.md`, `TEST_STRATEGY.md`, `DEPLOYMENT.md` و specهای تخصصی.
+- `project-docs/03-design/architecture.md`, `project-docs/03-design/data-model.md`, `project-docs/03-design/api-contracts.md` یا OpenAPI، `project-docs/03-design/ui-ux/`, `project-docs/03-design/security-design.md`, `project-docs/05-quality/test-strategy.md`, `project-docs/06-operations/release-deployment.md` و specهای تخصصی.
 - ADRها، migrationها، release noteها و Increment reviewها.
 
 این artifactها باید requirementهای این SRS را بدون کپی مکانیکی Domain Model به schema فیزیکی پیاده‌پذیر و testable کنند.

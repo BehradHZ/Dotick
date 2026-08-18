@@ -1024,7 +1024,7 @@ Field-level Last-Write-Wins
 
 این Domain Model نباید با Class Table Inheritance قبلی یکی فرض شود.
 
-تصمیم فیزیکی baseline برای Increment 1 در DR-054 و `docs/DATA_DESIGN.md` ثبت شده است:
+تصمیم فیزیکی baseline برای Increment 1 در DR-054 و `project-docs/03-design/data-model.md` ثبت شده است:
 
 - inheritance بالا **مفهومی** است.
 - identity و metadata مشترک Item در table پایه‌ی `items` نگه‌داری می‌شود.

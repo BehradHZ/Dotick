@@ -2,22 +2,22 @@
 
 > **وضعیت سند:** Canonical Working Specification  
 > **هدف:** ثبت دقیق فهم فعلی از محصول، رفتار سیستم، قواعد دامنه، محدودیت‌ها و تصمیم‌های نهایی‌شده؛ Formal SRS و Design Documents از این منبع مشتق می‌شوند.
-> **منابع پایه:** `docs/reference/software-requirements-specification.md` و `docs/reference/class-fields.md` قبلی + تصمیم‌های جدید این گفت‌وگو.  
+> **منابع پایه:** `project-docs/02-requirements/srs.md` و `project-docs/reference/class-fields.md` قبلی + تصمیم‌های جدید این گفت‌وگو.
 > **قاعده‌ی حاکم:** هرجا این سند با نسخه‌های قبلی تعارض دارد، این سند مرجع فعلی است. مواردی که هنوز نهایی نشده‌اند صریحاً با `OPEN` علامت‌گذاری شده‌اند.
 
 ---
 
 ## 0. جایگاه این سند و اسناد قبلی
 
-نسخه‌های اولیه‌ی `docs/reference/software-requirements-specification.md` و `docs/reference/class-fields.md` برای شکل‌دادن دامنه و جمع‌آوری ایده‌ها مفید بوده‌اند، اما چند نقش را هم‌زمان مخلوط می‌کردند: requirement، domain model، design proposal، implementation note و تصمیم‌های هنوز باز. طبق DR-052، این دو فایل اکنون می‌توانند برای حذف تناقض‌های فعال **reconcile** شوند، اما همچنان **canonical نیستند**.
+نسخه‌های اولیه‌ی `project-docs/02-requirements/srs.md` و `project-docs/reference/class-fields.md` برای شکل‌دادن دامنه و جمع‌آوری ایده‌ها مفید بوده‌اند، اما چند نقش را هم‌زمان مخلوط می‌کردند: requirement، domain model، design proposal، implementation note و تصمیم‌های هنوز باز. طبق DR-052، این دو فایل اکنون می‌توانند برای حذف تناقض‌های فعال **reconcile** شوند، اما همچنان **canonical نیستند**.
 
 در وضعیت فعلی:
 
-1. `docs/reference/software-requirements-specification.md` اکنون **Formal SRS Baseline v2.0** است؛ requirement رسمی را نگه می‌دارد ولی در تعارض رفتاری پایین‌تر از منابع canonical است.
-2. `docs/reference/class-fields.md` یک **derived field reference** است و physical database schema یا storage-inheritance decision نیست.
+1. `project-docs/02-requirements/srs.md` اکنون **Formal SRS Baseline v2.0** است؛ requirement رسمی را نگه می‌دارد ولی در تعارض رفتاری پایین‌تر از منابع canonical است.
+2. `project-docs/reference/class-fields.md` یک **derived field reference** است و physical database schema یا storage-inheritance decision نیست.
 3. این سند، تعریف فعلی «سیستم چیست و چه رفتاری دارد» را نگه می‌دارد.
-4. فایل `docs/canonical/domain-model.md` مدل مفهومی و فیلدهای فعلی را جداگانه نگه می‌دارد.
-5. فایل `docs/canonical/decision-register.md` تصمیم‌های تثبیت‌شده، superseded و موارد باز را ثبت می‌کند.
+4. فایل `project-docs/03-design/domain-model.md` مدل مفهومی و فیلدهای فعلی را جداگانه نگه می‌دارد.
+5. فایل `project-docs/decision-register.md` تصمیم‌های تثبیت‌شده، superseded و موارد باز را ثبت می‌کند.
 6. سایر اسناد مهندسی مثل ERD، API Contract و specهای تخصصی طبق Roadmap و در Increment مالک خود ساخته/تکمیل می‌شوند.
 
 ---

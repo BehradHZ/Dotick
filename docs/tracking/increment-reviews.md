@@ -25,7 +25,7 @@
 # Corrections made
 
 - Roadmap wording updated from future/reconciled SRS to the existing Formal SRS v2.0.
-- Traceability path normalized to `docs/TRACEABILITY.md` in the Increment 0 section.
+- Traceability path normalized to `project-docs/02-requirements/traceability-matrix.md` in the Increment 0 section.
 - Domain Model duplicate section number `20.1` corrected to `20.2`.
 - Daily Ring wording aligned on `active and eligible` Goals.
 - stale System Definition “next document step” changed to current artifact status.

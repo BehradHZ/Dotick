@@ -105,6 +105,6 @@ merge با gate قرمز مجاز نیست. flaky test باید defect تلقی�
 # 10. Test result artifacts
 
 - CI result منبع اجرای معمول است.
-- benchmark، security review و test execution دستی در `docs/reports/` ثبت می‌شود.
+- benchmark، security review و test execution دستی در `project-docs/05-quality/reports/` ثبت می‌شود.
 - release/increment review نتیجه را به Requirement IDها متصل می‌کند.
 - test ID یا path فقط بعد از ایجاد واقعی وارد Traceability می‌شود.

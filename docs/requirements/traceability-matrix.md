@@ -25,20 +25,20 @@ Domain Model
         ->
 Formal SRS
         ->
-TRACEABILITY.md
+traceability-matrix.md
 ```
 
-`TRACEABILITY.md` فقط رابطه بین artifactها را ثبت می‌کند و نمی‌تواند یک `OPEN` decision را ببندد یا requirement جدید بسازد.
+`project-docs/02-requirements/traceability-matrix.md` فقط رابطه بین artifactها را ثبت می‌کند و نمی‌تواند یک `OPEN` decision را ببندد یا requirement جدید بسازد.
 
 # 2. Source key
 
 | Code | Document | Role |
 |---|---|---|
-| `DR` | `docs/canonical/decision-register.md` | confirmed, retained, open and superseded decisions |
-| `SD` | `docs/canonical/system-definition.md` | current product behavior and scope |
-| `DM` | `docs/canonical/domain-model.md` | conceptual entities, relations and constraints |
-| `SRS` | `docs/reference/software-requirements-specification.md` | formal testable requirements |
-| `RM` | `docs/planning/roadmap.md` | increment ownership, decision gates and document lifecycle only |
+| `DR` | `project-docs/decision-register.md` | confirmed, retained, open and superseded decisions |
+| `SD` | `project-docs/02-requirements/system-definition.md` | current product behavior and scope |
+| `DM` | `project-docs/03-design/domain-model.md` | conceptual entities, relations and constraints |
+| `SRS` | `project-docs/02-requirements/srs.md` | formal testable requirements |
+| `RM` | `project-docs/01-planning/increment-roadmap.md` | increment ownership, decision gates and document lifecycle only |
 
 # 3. Increment key
 
@@ -362,12 +362,12 @@ TRACEABILITY.md
 
 | Requirement(s) | Engineering artifact | Current evidence |
 |---|---|---|
-| `SRS-IF-001..004` | `docs/ARCHITECTURE.md`; ADR-0001 | client/server boundary، REST authority و WebSocket scope تعریف شده‌اند؛ implementation verification در Increment مالک باقی می‌ماند. |
-| `SRS-IF-005` | `docs/SECURITY.md`; `docs/DEPLOYMENT.md` | TLS baseline و loopback-only development exception تعریف شده‌اند. |
-| `SRS-CON-001..003` | `docs/DATA_DESIGN.md`; ADR-0002; DR-054 | PostgreSQL و explicit-composition storage baseline تعریف و review شده‌اند. |
-| `SRS-CON-004` | `docs/DEPLOYMENT.md` | local-hosted Compose topology و clean-clone verification تعریف شده‌اند؛ deployment test پس از scaffold انجام می‌شود. |
-| Increment 0 verification process | `docs/TEST_STRATEGY.md` | gateهای migration، integration، contract و Walking Skeleton تعریف شده‌اند. |
-| Increment risks | `docs/RISK_REGISTER.md` | riskهای architecture، isolation، reproducibility و recovery ثبت شده‌اند. |
+| `SRS-IF-001..004` | `project-docs/03-design/architecture.md`; ADR-0001 | client/server boundary، REST authority و WebSocket scope تعریف شده‌اند؛ implementation verification در Increment مالک باقی می‌ماند. |
+| `SRS-IF-005` | `project-docs/03-design/security-design.md`; `project-docs/06-operations/release-deployment.md` | TLS baseline و loopback-only development exception تعریف شده‌اند. |
+| `SRS-CON-001..003` | `project-docs/03-design/data-model.md`; ADR-0002; DR-054 | PostgreSQL و explicit-composition storage baseline تعریف و review شده‌اند. |
+| `SRS-CON-004` | `project-docs/06-operations/release-deployment.md` | local-hosted Compose topology و clean-clone verification تعریف شده‌اند؛ deployment test پس از scaffold انجام می‌شود. |
+| Increment 0 verification process | `project-docs/05-quality/test-strategy.md` | gateهای migration، integration، contract و Walking Skeleton تعریف شده‌اند. |
+| Increment risks | `project-docs/01-planning/risk-log.md` | riskهای architecture، isolation، reproducibility و recovery ثبت شده‌اند. |
 
 # 6. OPEN decision traceability
 

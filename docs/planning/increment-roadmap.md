@@ -3,11 +3,13 @@
 > **Status:** Updated Roadmap based on the canonical project documents  
 > **Process:** Incremental + Iterative + Test-Driven Development (TDD)  
 > **Canonical sources used by this roadmap:**  
-> `docs/canonical/system-definition.md` — current system behavior, scope and product rules  
-> `docs/canonical/domain-model.md` — current conceptual domain model  
-> `docs/canonical/decision-register.md` — confirmed, retained, open and superseded decisions  
+> `project-docs/02-requirements/system-definition.md` — current system behavior, scope and product rules
 >
-> `docs/reference/software-requirements-specification.md` اکنون **Formal SRS Baseline v2.0** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
+> `project-docs/03-design/domain-model.md` — current conceptual domain model
+>
+> `project-docs/decision-register.md` — confirmed, retained, open and superseded decisions
+>
+> `project-docs/02-requirements/srs.md` اکنون **Formal SRS Baseline v2.0** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `project-docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
 
 ---
 
@@ -55,9 +57,9 @@ Reconciled non-canonical reference documents
 
 نکته:
 
-- `docs/canonical/decision-register.md` تاریخچه‌ی تصمیم است؛ تصمیم قدیمی حذف نمی‌شود، بلکه در صورت تغییر `SUPERSEDED` می‌شود و تصمیم جدید ثبت می‌شود.
-- `docs/canonical/system-definition.md` رفتار و Scope محصول را نگه می‌دارد.
-- `docs/canonical/domain-model.md` مدل مفهومی است و نباید با PostgreSQL schema یکی فرض شود.
+- `project-docs/decision-register.md` تاریخچه‌ی تصمیم است؛ تصمیم قدیمی حذف نمی‌شود، بلکه در صورت تغییر `SUPERSEDED` می‌شود و تصمیم جدید ثبت می‌شود.
+- `project-docs/02-requirements/system-definition.md` رفتار و Scope محصول را نگه می‌دارد.
+- `project-docs/03-design/domain-model.md` مدل مفهومی است و نباید با PostgreSQL schema یکی فرض شود.
 - Database inheritance/storage strategy هنوز یک Design Decision است.
 
 ---
@@ -112,10 +114,10 @@ Architecture، Data Design، API، UI، Security و Test Design در ابتدا�
 
 | Document | Role | Rule |
 |---|---|---|
-| `docs/canonical/system-definition.md` | Product/system behavior and scope | **Update only when behavior/scope changes** |
-| `docs/canonical/domain-model.md` | Conceptual entities, relations, constraints | **Update when domain understanding changes** |
-| `docs/canonical/decision-register.md` | Decision history and OPEN items | **Add/resolve/supersede decisions; do not silently rewrite history** |
-| `docs/planning/roadmap.md` | Increment plan | **Update after scope/order/decision changes** |
+| `project-docs/02-requirements/system-definition.md` | Product/system behavior and scope | **Update only when behavior/scope changes** |
+| `project-docs/03-design/domain-model.md` | Conceptual entities, relations, constraints | **Update when domain understanding changes** |
+| `project-docs/decision-register.md` | Decision history and OPEN items | **Add/resolve/supersede decisions; do not silently rewrite history** |
+| `project-docs/01-planning/increment-roadmap.md` | Increment plan | **Update after scope/order/decision changes** |
 
 ---
 
@@ -125,23 +127,23 @@ Architecture، Data Design، API، UI، Security و Test Design در ابتدا�
 
 | Document | First Creation | Afterwards |
 |---|---|---|
-| `docs/reference/software-requirements-specification.md` | Increment 0 formalization | **Replace/rewrite the reconciled derived reference into Formal SRS, then Update** |
-| `TRACEABILITY.md` | Increment 0 | **Update every Increment** |
-| `RISK_REGISTER.md` | Increment 0 | **Update every Increment** |
-| `ARCHITECTURE.md` | Increment 0 | **Update when architecture evolves** |
-| `DATA_DESIGN.md` | Increment 0/1 | **Update** |
+| `project-docs/02-requirements/srs.md` | Increment 0 formalization | **Replace/rewrite the reconciled derived reference into Formal SRS, then Update** |
+| `project-docs/02-requirements/traceability-matrix.md` | Increment 0 | **Update every Increment** |
+| `project-docs/01-planning/risk-log.md` | Increment 0 | **Update every Increment** |
+| `project-docs/03-design/architecture.md` | Increment 0 | **Update when architecture evolves** |
+| `project-docs/03-design/data-model.md` | Increment 0/1 | **Update** |
 | `ERD.md` / ERD source | Increment 1 | **Update** |
-| `API.md` / `openapi.yaml` | Increment 1 | **Update Increment-by-Increment** |
-| `UI_UX.md` | Increment 1 | **Update** |
-| `SECURITY.md` | Increment 0/1 | **Update every security-relevant Increment** |
-| `TEST_STRATEGY.md` | Increment 0 | **Update only when strategy changes** |
+| `project-docs/03-design/api-contracts.md` / `openapi.yaml` | Increment 1 | **Update Increment-by-Increment** |
+| `project-docs/03-design/ui-ux/` | Increment 1 | **Update** |
+| `project-docs/03-design/security-design.md` | Increment 0/1 | **Update every security-relevant Increment** |
+| `project-docs/05-quality/test-strategy.md` | Increment 0 | **Update only when strategy changes** |
 | `RECURRENCE_SPEC.md` | Increment 4 | **New, then Update** |
 | `SYNC_AUDIT_SPEC.md` | Increment 6 | **New, then Update** |
 | `AUTHORIZATION_MODEL.md` | Increment 7 | **New, then Update** |
 | `AI_ITEM_CREATION_SPEC.md` | Increment 8 | **New, then Update** |
 | `AI_GOAL_SPEC.md` | Increment 9 | **New, then Update** |
 | `GAMIFICATION_SCORING_SPEC.md` | Increment 10 | **New, then Update** |
-| `DEPLOYMENT.md` | Increment 0 | **Update** |
+| `project-docs/06-operations/release-deployment.md` | Increment 0 | **Update** |
 | `BUSINESS.md` | Parallel Business Track | **Update** |
 
 ---
@@ -177,12 +179,12 @@ Architecture، Data Design، API، UI، Security و Test Design در ابتدا�
 
 ```text
 DB schema changed
-    → DATA_DESIGN.md update
+    → project-docs/03-design/data-model.md update
     → ERD update
     → new migration
 
 Architectural decision made
-    → ARCHITECTURE.md may update
+    → project-docs/03-design/architecture.md may update
     → new ADR
 
 Requirement behavior changed
@@ -249,9 +251,9 @@ Feature فقط وقتی Done است که:
 
 ### Documents
 
-- `docs/planning/roadmap.md` → **Update if scope/order changes**
-- `RISK_REGISTER.md` → **Update**
-- `TRACEABILITY.md` → **Update**
+- `project-docs/01-planning/increment-roadmap.md` → **Update if scope/order changes**
+- `project-docs/01-planning/risk-log.md` → **Update**
+- `project-docs/02-requirements/traceability-matrix.md` → **Update**
 
 ### Output
 
@@ -274,13 +276,13 @@ Feature فقط وقتی Done است که:
 
 اگر clarification فقط Formalization است:
 
-- `docs/reference/software-requirements-specification.md` → **Update**
+- `project-docs/02-requirements/srs.md` → **Update**
 
 اگر رفتار محصول واقعاً تغییر کرد:
 
-- `docs/canonical/decision-register.md` → **New/updated decision entry**
-- `docs/canonical/system-definition.md` → **Update**
-- `docs/reference/software-requirements-specification.md` → **Update**
+- `project-docs/decision-register.md` → **New/updated decision entry**
+- `project-docs/02-requirements/system-definition.md` → **Update**
+- `project-docs/02-requirements/srs.md` → **Update**
 
 ### Output
 
@@ -303,9 +305,9 @@ Refined testable requirements
 
 ### Documents
 
-- `docs/analysis/...` → **New or Update**
-- `docs/canonical/domain-model.md` → **Update only if domain understanding changes**
-- `TRACEABILITY.md` → **Update**
+- `project-docs/reference/analysis/...` → **New or Update**
+- `project-docs/03-design/domain-model.md` → **Update only if domain understanding changes**
+- `project-docs/02-requirements/traceability-matrix.md` → **Update**
 
 ### Output
 
@@ -329,12 +331,12 @@ Analysis sufficient for Design
 
 ### Documents
 
-- `ARCHITECTURE.md` → **Update if needed**
-- `DATA_DESIGN.md` → **Update**
+- `project-docs/03-design/architecture.md` → **Update if needed**
+- `project-docs/03-design/data-model.md` → **Update**
 - ERD → **Update**
 - API/OpenAPI → **Update**
-- `UI_UX.md` → **Update**
-- `SECURITY.md` → **Update**
+- `project-docs/03-design/ui-ux/` → **Update**
+- `project-docs/03-design/security-design.md` → **Update**
 - relevant specialized spec → **New/Update**
 - ADR → **New for significant decision**
 
@@ -362,9 +364,9 @@ Acceptance Criteria باید قبل از کامل شدن Implementation قابل
 
 ### Documents
 
-- `TEST_STRATEGY.md` → **usually unchanged**
+- `project-docs/05-quality/test-strategy.md` → **usually unchanged**
 - test code/cases → **New/Update**
-- `TRACEABILITY.md` → **Update**
+- `project-docs/02-requirements/traceability-matrix.md` → **Update**
 
 ---
 
@@ -452,7 +454,7 @@ Review:
 
 ### Formalize / Replace Derived Reference — Completed
 
-`docs/reference/software-requirements-specification.md`
+`project-docs/02-requirements/srs.md`
 
 نسخه‌ی reconciled قبلی در Formal SRS Baseline v2.0 بازنویسی شده و فقط requirementهای قابل بیان/تست را normative می‌کند.
 
@@ -465,7 +467,7 @@ Review:
 
 ### Created
 
-`docs/TRACEABILITY.md`
+`project-docs/02-requirements/traceability-matrix.md`
 
 Baseline trace:
 
@@ -496,18 +498,18 @@ Technical baselines retained:
 
 ### New
 
-- `ARCHITECTURE.md`
+- `project-docs/03-design/architecture.md`
 - first ADRs
-- `DEPLOYMENT.md`
-- `SECURITY.md`
-- `TEST_STRATEGY.md`
-- `RISK_REGISTER.md`
+- `project-docs/06-operations/release-deployment.md`
+- `project-docs/03-design/security-design.md`
+- `project-docs/05-quality/test-strategy.md`
+- `project-docs/01-planning/risk-log.md`
 
 ---
 
 ## 7.3 Data Design Baseline
 
-`docs/canonical/domain-model.md` is conceptual and must not be copied mechanically into database tables.
+`project-docs/03-design/domain-model.md` is conceptual and must not be copied mechanically into database tables.
 
 ### Blocking Decision
 
@@ -517,7 +519,7 @@ Possible implementation is a Design decision; Roadmap does not prescribe Class T
 
 ### Created in Increment 0 baseline
 
-- `DATA_DESIGN.md`
+- `project-docs/03-design/data-model.md`
 
 Physical ERD can start minimal and evolve.
 
@@ -729,18 +731,18 @@ Endpoints are designed here, not globally in advance.
 
 ### New
 
-- `API.md` or `openapi.yaml`
+- `project-docs/03-design/api-contracts.md` or `openapi.yaml`
 - initial physical ERD
 
 ### Update
 
-- `docs/reference/software-requirements-specification.md`
-- `DATA_DESIGN.md`
-- `ARCHITECTURE.md`
-- `UI_UX.md`
-- `SECURITY.md`
-- `TRACEABILITY.md`
-- `RISK_REGISTER.md`
+- `project-docs/02-requirements/srs.md`
+- `project-docs/03-design/data-model.md`
+- `project-docs/03-design/architecture.md`
+- `project-docs/03-design/ui-ux/`
+- `project-docs/03-design/security-design.md`
+- `project-docs/02-requirements/traceability-matrix.md`
+- `project-docs/01-planning/risk-log.md`
 
 ### Canonical Documents
 
@@ -982,10 +984,10 @@ No RichDescription parse for List tree.
 
 ### Update
 
-- `docs/reference/software-requirements-specification.md`
-- `docs/canonical/domain-model.md` **only if resolved design changes conceptual model**
-- `docs/canonical/decision-register.md` for resolved OPEN decisions
-- `DATA_DESIGN.md`
+- `project-docs/02-requirements/srs.md`
+- `project-docs/03-design/domain-model.md` **only if resolved design changes conceptual model**
+- `project-docs/decision-register.md` for resolved OPEN decisions
+- `project-docs/03-design/data-model.md`
 - ERD
 - API
 - UI/UX
@@ -1166,8 +1168,8 @@ Implementation may use composition/embedded/shared table according to Data Desig
 
 ### Update
 
-- `docs/reference/software-requirements-specification.md`
-- `DATA_DESIGN.md`
+- `project-docs/02-requirements/srs.md`
+- `project-docs/03-design/data-model.md`
 - ERD
 - API
 - UI/UX
@@ -1441,7 +1443,7 @@ Technical API error is translated into understandable UI message.
 
 ### Update
 
-- `UI_UX.md`
+- `project-docs/03-design/ui-ux/`
 - API for query/filter/sort needs
 - Data Design for user view preference if persisted
 - Security for rich content rendering
@@ -1506,7 +1508,7 @@ Must resolve:
 - recurrence edit conflict
 - tag relation conflict
 
-Decision goes to `docs/canonical/decision-register.md`.
+Decision goes to `project-docs/decision-register.md`.
 
 ---
 
@@ -2988,46 +2990,19 @@ release
 ```text
 /
 ├── README.md
-├── docs/canonical/system-definition.md
-├── docs/canonical/domain-model.md
-├── docs/canonical/decision-register.md
-├── docs/reference/software-requirements-specification.md
-├── docs/planning/roadmap.md
-│
-├── docs/
-│   ├── TRACEABILITY.md
-│   ├── RISK_REGISTER.md
-│   ├── ARCHITECTURE.md
-│   ├── DATA_DESIGN.md
-│   ├── ERD.md
-│   ├── API.md
-│   ├── UI_UX.md
-│   ├── SECURITY.md
-│   ├── TEST_STRATEGY.md
-│   ├── DEPLOYMENT.md
-│   ├── RECURRENCE_SPEC.md
-│   ├── SYNC_AUDIT_SPEC.md
-│   ├── AUTHORIZATION_MODEL.md
-│   ├── AI_ITEM_CREATION_SPEC.md
-│   ├── AI_GOAL_SPEC.md
-│   ├── GAMIFICATION_SCORING_SPEC.md
-│   ├── BUSINESS.md
-│   │
-│   ├── analysis/
-│   │   ├── use-cases/
-│   │   ├── sequence/
-│   │   ├── state/
-│   │   └── activity/
-│   │
-│   ├── adr/
-│   ├── releases/
-│   ├── reviews/
-│   └── reports/
-│       ├── testing/
-│       ├── performance/
-│       ├── security/
-│       └── ai-evaluation/
-│
+├── project-docs/
+│   ├── 00-README.md
+│   ├── decision-register.md
+│   ├── 01-planning/
+│   ├── 02-requirements/
+│   ├── 03-design/
+│   │   ├── ui-ux/
+│   │   └── adr/
+│   ├── 04-development/
+│   ├── 05-quality/
+│   ├── 06-operations/
+│   ├── 08-tracking/
+│   └── reference/
 ├── src/
 ├── tests/
 ├── migrations/
@@ -3098,7 +3073,7 @@ Native Mobile / OS-specific Capabilities
 
 This revision intentionally changes earlier planning assumptions:
 
-1. `docs/canonical/system-definition.md`, `docs/canonical/domain-model.md`, `docs/canonical/decision-register.md` are now canonical.
+1. `project-docs/02-requirements/system-definition.md`, `project-docs/03-design/domain-model.md`, `project-docs/decision-register.md` are now canonical.
 2. Reconciled SRS/Class Fields are derived references, not roadmap sources of truth; their stale contradictions were removed under DR-052.
 3. Increment 0 no longer contains obsolete contradiction-reconciliation work.
 4. Current role model is System-defined Roles; Custom Roles move to Enterprise.

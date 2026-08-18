@@ -1,7 +1,7 @@
 # Dotick — Derived Field Reference
 
 > **Status:** Reconciled derived reference — non-canonical  
-> **Authority:** `docs/canonical/decision-register.md` → `docs/canonical/system-definition.md` → `docs/canonical/domain-model.md` → this file.  
+> **Authority:** `project-docs/decision-register.md` → `project-docs/02-requirements/system-definition.md` → `project-docs/03-design/domain-model.md` → this file.
 > **Purpose:** A convenient field/capability index. This file is **not** the physical PostgreSQL schema, ORM mapping, or a database-inheritance decision. Exact storage details that are still `OPEN` remain open here as well.
 
 ---

@@ -88,12 +88,17 @@ apps/
   client/              Expo universal client
 packages/
   api-contract/        generated/client-facing contract artifacts when introduced
-docs/
-  canonical/
+project-docs/
+  01-planning/
+  02-requirements/
+  03-design/
+    adr/
+    ui-ux/
+  04-development/
+  05-quality/
+  06-operations/
+  08-tracking/
   reference/
-  planning/
-  adr/
-  reviews/
 ```
 
 در backend، moduleها بر اساس capability محصول شکل می‌گیرند، نه صرفاً نوع فایل:
@@ -149,7 +154,7 @@ resource باید خنثی و قابل حذف باشد، یا اولین thin sl
 # 10. Authentication and authorization
 
 - custom User model با UUID باید قبل از اولین migration تثبیت شود.
-- password handling به API استاندارد Django واگذار می‌شود و algorithm policy در `SECURITY.md` است.
+- password handling به API استاندارد Django واگذار می‌شود و algorithm policy در `project-docs/03-design/security-design.md` است.
 - JWT، Google OAuth و Passkey در Increment 1 پشت adapter/use-caseهای مستقل قرار می‌گیرند.
 - authentication method نباید ownership model را تغییر دهد.
 - queryهای private با owner scope آغاز می‌شوند؛ object lookup بدون scope مجاز نیست.

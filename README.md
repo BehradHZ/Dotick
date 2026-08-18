@@ -6,17 +6,17 @@ Dotick در مرحله‌ی بازطراحی مبتنی بر سند قرار د�
 
 ## اسناد پروژه
 
-نقطه‌ی شروع مستندات، [`docs/README.md`](docs/README.md) است.
+نقطه‌ی شروع مستندات، [`project-docs/00-README.md`](project-docs/00-README.md) است.
 
 در صورت تعارض میان اسناد، ترتیب اعتبار فعلی چنین است:
 
-1. [`docs/canonical/decision-register.md`](docs/canonical/decision-register.md)
-2. [`docs/canonical/system-definition.md`](docs/canonical/system-definition.md)
-3. [`docs/canonical/domain-model.md`](docs/canonical/domain-model.md)
-4. [`docs/reference/software-requirements-specification.md`](docs/reference/software-requirements-specification.md)
-5. [`docs/reference/class-fields.md`](docs/reference/class-fields.md)
+1. [`project-docs/decision-register.md`](project-docs/decision-register.md)
+2. [`project-docs/02-requirements/system-definition.md`](project-docs/02-requirements/system-definition.md)
+3. [`project-docs/03-design/domain-model.md`](project-docs/03-design/domain-model.md)
+4. [`project-docs/02-requirements/srs.md`](project-docs/02-requirements/srs.md)
+5. [`project-docs/reference/class-fields.md`](project-docs/reference/class-fields.md)
 
-برنامه و ترتیب توسعه در [`docs/planning/roadmap.md`](docs/planning/roadmap.md) ثبت می‌شود.
+برنامه و ترتیب توسعه در [`project-docs/01-planning/increment-roadmap.md`](project-docs/01-planning/increment-roadmap.md) ثبت می‌شود.
 
 ## وضعیت بازنشانی
 
