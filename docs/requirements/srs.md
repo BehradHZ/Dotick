@@ -2,7 +2,7 @@
 
 **Document type:** Formal Software Requirements Specification
 
-**Version:** 2.8
+**Version:** 2.9
 
 **Baseline date:** 2026-08-26
 
@@ -26,6 +26,7 @@
 | 2.6 | 2026-08-26 | Terminology Baseline | تکمیل Glossary canonical، تفکیک اصطلاحات Dotick-specific/domain/legacy و اصلاح ارجاع‌های stale به شماره‌بخش‌های جاری System Definition. |
 | 2.7 | 2026-08-26 | Consistency Reconciliation Baseline | همگام‌سازی Historical Statistics با immutable finalized windows، تثبیت Event single-parent، formalization History/Sync/Time guardrailها، external-AI acknowledgement، PWA/native alarm boundary و اصلاح traceability با Decision Register ادغام‌شده. |
 | 2.8 | 2026-08-26 | SRS Coverage & Reference Integrity Baseline | formalization رفتارهای قطعی Task/Hierarchy که در SRS جا افتاده بودند، تثبیت Global Streak requirement، حذف/اصلاح referenceهای stale یا نامرتبط و همگام‌سازی traceability با System Definition و Decision Register جاری. |
+| 2.9 | 2026-08-26 | Traceability Reconciliation Baseline | افزودن requirement صریح برای confirmation دامنه‌ی inherited sharing، اصلاح Daily Ring completion semantics و Routine reference coverage، و همگام‌سازی source references با Decision Register/engineering baseline جاری. |
 
 # 1. مقدمه
 
@@ -55,12 +56,12 @@ Roadmap / reconciled non-canonical references
 
 منابع این baseline:
 
-- `project-docs/02-requirements/system-definition.md`
-- `project-docs/decision-register.md`
-- `project-docs/03-design/domain-model.md`
-- `project-docs/01-planning/increment-roadmap.md` فقط برای scope، lifecycle سند و Decision Gateهای Incrementها
+- `docs/02-requirements/system-definition.md`
+- `docs/decision-register.md`
+- `docs/03-design/domain-model.md`
+- `docs/01-planning/increment-roadmap.md` فقط برای scope، lifecycle سند و Decision Gateهای Incrementها
 
-`project-docs/reference/class-fields.md` منبع requirement یا schema فیزیکی نیست و فقط یک derived field reference است.
+`docs/reference/class-fields.md` منبع requirement یا schema فیزیکی نیست و فقط یک derived field reference است.
 
 ## 1.3 قواعد normative
 
@@ -133,7 +134,7 @@ Folder
 
 ## 3.1 سازمان‌دهی، Inbox و navigation
 
-مبنای canonical: System Definition بخش 6.1، DR-001 و DR-096، Domain Model بخش 15.
+منابع trace: System Definition بخش 6.1، DR-001 و DR-096، Domain Model بخش 15.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -146,7 +147,7 @@ Folder
 
 ## 3.2 Item، identity، ownership و source
 
-مبنای canonical: System Definition بخش‌های 6 و 7.1، DR-012، DR-013 و DR-111، Domain Model بخش‌های 2 و 6.
+منابع trace: System Definition بخش‌های 6 و 7.1، DR-012، DR-013 و DR-111، Domain Model بخش‌های 2 و 6.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -163,7 +164,7 @@ Folder
 
 ## 3.3 Task
 
-مبنای canonical: System Definition بخش 6.2، DR-010، DR-011، DR-080، DR-081 و DR-097، Domain Model بخش 4.
+منابع trace: System Definition بخش 6.2، DR-010، DR-011، DR-080، DR-081 و DR-097، Domain Model بخش 4.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -202,7 +203,7 @@ Folder
 
 ## 3.4 Event
 
-مبنای canonical: System Definition بخش 6.3، DR-015، DR-098 و DR-115، Domain Model بخش 5.
+منابع trace: System Definition بخش 6.3، DR-015، DR-098 و DR-115، Domain Model بخش 5.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -222,7 +223,7 @@ Folder
 
 ## 3.5 hierarchy ساختاری و reference
 
-مبنای canonical: System Definition بخش‌های 6.4، 7.3 و 7.4، DR-014، DR-015، DR-017، DR-099، DR-113 و DR-114، Domain Model بخش 3.
+منابع trace: System Definition بخش‌های 6.4، 7.3 و 7.4، DR-014، DR-015، DR-017، DR-099، DR-113 و DR-114، Domain Model بخش 3.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -246,19 +247,19 @@ Folder
 
 ## 3.6 RichDescription و ContentBlock
 
-مبنای canonical: System Definition بخش 6.5، DR-018 و DR-019، Domain Model بخش 8.
+منابع trace: System Definition بخش‌های 6.4 و 6.5؛ DR-018، DR-019 و DR-099؛ Domain Model بخش 8.
 
 | ID | Requirement | Verification |
 |---|---|---|
 | SRS-DESC-001 | Description در Task و Event باید block-based باشد. | Test + Inspection |
 | SRS-DESC-002 | RichDescription باید TextBlock را با قابلیت Bold، Italic، Underline، Strikethrough، Heading، Highlight، Bullets، Numbers، Indent، Separator، Code، Quote و تشخیص link/phone/id پشتیبانی کند. | Test |
-| SRS-DESC-003 | RichDescription باید Attachment، Location و Item reference برای Task/Event را پشتیبانی کند. | Test |
+| SRS-DESC-003 | RichDescription باید Attachment، Location و Item reference برای Task، Event و Routine را پشتیبانی کند؛ Goal در Current Scope referenceable نیست. | Test |
 | SRS-DESC-004 | هر ContentBlock باید identity پایدار داشته باشد تا comment، reorder، edit و sync بتوانند همان block را شناسایی کنند. | Test |
 | SRS-DESC-005 | تغییر ترتیب blockها نباید identity آن‌ها را از بین ببرد. | Test |
 
 ## 3.7 Comment
 
-مبنای canonical: System Definition بخش 6.5 و DR-100، Domain Model بخش 9.
+منابع trace: System Definition بخش 6.5 و DR-100، Domain Model بخش 9.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -271,7 +272,7 @@ Folder
 
 ## 3.8 Routine
 
-مبنای canonical: System Definition بخش 6.6، DR-002 تا DR-008، DR-083 و DR-101، Domain Model بخش‌های 10 تا 12.
+منابع trace: System Definition بخش 6.6، DR-002 تا DR-008، DR-083 و DR-101، Domain Model بخش‌های 10 تا 12.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -307,7 +308,7 @@ Folder
 
 ## 3.9 Routine streak
 
-مبنای canonical: System Definition بخش 6.6، DR-008 و DR-095، Domain Model بخش 14.
+منابع trace: System Definition بخش 6.6، DR-008 و DR-095، Domain Model بخش 14.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -320,7 +321,7 @@ Folder
 
 ## 3.10 Recurrence
 
-مبنای canonical: System Definition بخش 6.7، DR-009، DR-082 و DR-102، Domain Model بخش 13.
+منابع trace: System Definition بخش 6.7، DR-009، DR-082 و DR-102، Domain Model بخش 13.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -343,7 +344,7 @@ Folder
 
 ## 3.11 Reminder
 
-مبنای canonical: System Definition بخش 6.8، DR-066 و DR-103، Domain Model بخش 27.
+منابع trace: System Definition بخش 6.8، DR-066 و DR-103، Domain Model بخش 27.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -356,7 +357,7 @@ Folder
 
 ## 3.12 Authentication و session
 
-مبنای canonical: System Definition بخش‌های 3.1، 6.13 و 9.1، DR-048، DR-061، DR-128 و DR-140.
+منابع trace: System Definition بخش‌های 3.1، 6.13 و 9.1، DR-048، DR-061، DR-128 و DR-140.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -378,7 +379,7 @@ Folder
 
 ## 3.13 Viewها و presentation
 
-مبنای canonical: System Definition بخش‌های 1.4، 5.4.7، 6.1، 6.6 و 10.6، DR-066 و DR-133؛ Roadmap Increment 5 فقط برای scope presentation مربوط به View/Themeهای Current Scope.
+منابع trace: System Definition بخش‌های 1.4، 5.4.7، 6.1، 6.6 و 10.6، DR-066 و DR-133؛ Roadmap Increment 5 فقط برای scope presentation مربوط به View/Themeهای Current Scope.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -396,7 +397,7 @@ Folder
 
 ## 3.14 Offline use و sync
 
-مبنای canonical: System Definition بخش‌های 6.15، 8.5 و 8.6، DR-047، DR-109 و DR-122، Domain Model بخش 30.
+منابع trace: System Definition بخش‌های 6.15، 8.5 و 8.6، DR-047، DR-109 و DR-122، Domain Model بخش 30.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -413,7 +414,7 @@ Folder
 
 ## 3.15 Audit، history و Undo
 
-مبنای canonical: System Definition بخش‌های 6.12، 8.3 و 8.4، DR-036، DR-072 و DR-118، Domain Model بخش 25.
+منابع trace: System Definition بخش‌های 6.12، 8.3 و 8.4، DR-036، DR-072 و DR-118، Domain Model بخش 25.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -429,7 +430,7 @@ Folder
 
 ## 3.16 Sharing، Group، Role و Assignment
 
-مبنای canonical: System Definition بخش‌های 3.1 تا 3.4، 6.14، 7.1، 7.3، 7.4 و 10.1؛ DR-054، DR-055، DR-056، DR-057، DR-060، DR-061، DR-062، DR-063، DR-093، DR-108، DR-109، DR-111، DR-113، DR-114، DR-115 و DR-140؛ Domain Model بخش 29.
+منابع trace: System Definition بخش‌های 3.1 تا 3.4، 5.4.6، 6.14، 7.1، 7.3، 7.4 و 10.1؛ DR-022، DR-054، DR-055، DR-056، DR-057، DR-060، DR-061، DR-062، DR-063، DR-075، DR-093، DR-108، DR-109، DR-111، DR-113، DR-114، DR-115 و DR-140؛ Domain Model بخش 29.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -466,10 +467,11 @@ Folder
 | SRS-SHARE-031 | Resource شخصی واردشده به Group context باید owner اصلی خود را حفظ کند و در عین حال تا زمان حضور در Group context از authorization همان Group تبعیت کند. | Test + Security Test |
 | SRS-SHARE-032 | فقط owner شخصی باید بتواند personal Resource خود را از Group context detach کند، مگر تصمیم canonical دیگری authority صریح بدهد. | Security Test |
 | SRS-SHARE-033 | Group-owned Resource نباید با Direct Share به actor خارج از Group، Group authorization boundary را دور بزند. | Security Test |
+| SRS-SHARE-034 | پیش از هر sharing action یا sharing-policy change که inherited access را روی چند descendant Resource گسترش می‌دهد، سیستم باید scope اثر را به شکل قابل فهم به initiating User نشان دهد و confirmation صریح او را پیش از اعمال تغییر دریافت کند؛ این confirmation از recipient-side acceptance مستقل است. | Test + Inspection |
 
 ## 3.17 Tag
 
-مبنای canonical: System Definition بخش 6.9، DR-045 و DR-104، Domain Model بخش 16.
+منابع trace: System Definition بخش 6.9، DR-045 و DR-104، Domain Model بخش 16.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -484,7 +486,7 @@ Folder
 
 ## 3.18 Goal و lifecycle
 
-مبنای canonical: System Definition بخش 6.9، DR-021، DR-023، DR-025، DR-026، DR-045 و DR-089، Domain Model بخش 17.
+منابع trace: System Definition بخش 6.9، DR-021، DR-023، DR-025، DR-026، DR-045 و DR-089، Domain Model بخش 17.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -506,7 +508,7 @@ Folder
 
 ## 3.19 AI Goal discovery و GoalGenerationLog
 
-مبنای canonical: System Definition بخش‌های 5.4.3، 6.9 و 8.9؛ DR-045، DR-046، DR-073، DR-085، DR-086، DR-104 و DR-123؛ Domain Model بخش 18. Cadenceهای reactive/weekly موجود در این بخش با Roadmap Increment 9 trace می‌شوند.
+منابع trace: System Definition بخش‌های 5.4.3، 6.9 و 8.9؛ DR-045، DR-046، DR-073، DR-085، DR-086، DR-104 و DR-123؛ Domain Model بخش 18. Cadenceهای reactive/weekly موجود در این بخش با Roadmap Increment 9 trace می‌شوند.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -524,7 +526,7 @@ Folder
 
 ## 3.20 Daily Ring selection، Daily Action و snapshot
 
-مبنای canonical: System Definition بخش 6.10، DR-024، DR-031، DR-043، DR-044، DR-049 و DR-094، Domain Model بخش‌های 19 و 20.
+منابع trace: System Definition بخش 6.10، DR-024، DR-031، DR-043، DR-044، DR-049 و DR-094، Domain Model بخش‌های 19 و 20.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -552,13 +554,13 @@ Folder
 
 ## 3.21 Progress، completion، performance score و Norm
 
-مبنای canonical: System Definition بخش 6.10.6، DR-027، DR-028، DR-029، DR-030 و DR-070، Domain Model بخش 21.
+منابع trace: System Definition بخش‌های 5.4.2 و 6.10.6؛ DR-027، DR-028، DR-029، DR-030، DR-070 و DR-074؛ Domain Model بخش 21.
 
 | ID | Requirement | Verification |
 |---|---|---|
 | SRS-SCORE-001 | `progress_percent` DailyRing باید در بازه 0 تا 100 باقی بماند. | Test |
 | SRS-SCORE-002 | UI نباید progress بزرگ‌تر از 100 نمایش دهد. | Test + Inspection |
-| SRS-SCORE-003 | `is_completed` باید زمانی true شود که progress به completion threshold برابر 100 درصد برسد. | Test |
+| SRS-SCORE-003 | `is_completed` باید از ruleهای deterministic `RingGroup`/`DailyAction` و hard requirementهای Ring به‌دست آید؛ رسیدن `progress_percent` به 100 به‌تنهایی نباید hard requirement برآورده‌نشده را override کند و Ring complete باید progress نمایشی 100 داشته باشد. | Test |
 | SRS-SCORE-004 | `final_score` باید از progress جدا باشد و بتواند از baseline یا 100 بالاتر برود. | Test |
 | SRS-SCORE-005 | bonusهای performance که ممکن است حس completion زودهنگام ایجاد کنند باید تا day finalization برای user مخفی بمانند. | Test |
 | SRS-SCORE-006 | final score و bonusهای مخفی باید در day finalization محاسبه یا reveal شوند. | Test |
@@ -573,7 +575,7 @@ Folder
 
 ## 3.22 Dotick Day و credited date
 
-مبنای canonical: System Definition بخش‌های 6.11، 8.1 و 8.2، DR-033، DR-035 و DR-115، Domain Model بخش‌های 22 و 23.
+منابع trace: System Definition بخش‌های 6.11، 8.1 و 8.2، DR-033، DR-035 و DR-115، Domain Model بخش‌های 22 و 23.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -594,7 +596,7 @@ Folder
 
 ## 3.23 Statistics و historical correction
 
-مبنای canonical: System Definition بخش‌های 6.12، 7.2 و 8.3، DR-036 و DR-072، Domain Model بخش 24.
+منابع trace: System Definition بخش‌های 5.3، 6.12، 7.2 و 8.3؛ DR-036، DR-071 و DR-072؛ Domain Model بخش 24.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -611,7 +613,7 @@ Folder
 
 ## 3.24 AI-assisted Item creation
 
-مبنای canonical: System Definition بخش 6.16، DR-037، DR-041 و DR-042، Domain Model مربوط به AI-assisted creation.
+منابع trace: System Definition بخش 6.16، DR-037، DR-041 و DR-042، Domain Model مربوط به AI-assisted creation.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -633,7 +635,7 @@ Folder
 
 ## 3.25 AI provider execution، BYOK و AI controls
 
-مبنای canonical: System Definition بخش‌های 5.4.3، 6.16 و 9.2، DR-068، DR-126 و DR-128.
+منابع trace: System Definition بخش‌های 5.4.3، 6.16 و 9.2؛ DR-068، DR-076، DR-126 و DR-128.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -651,7 +653,7 @@ Folder
 
 ## 3.26 Notification delivery and cross-device interaction
 
-مبنای canonical: System Definition بخش‌های 6.8، 8.7 و 9.4، DR-103، DR-121، DR-128 و DR-135.
+منابع trace: System Definition بخش‌های 6.8، 8.7 و 9.4، DR-103، DR-121، DR-128 و DR-135.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -669,7 +671,7 @@ Folder
 
 ## 3.27 Attachment local cache
 
-مبنای canonical: System Definition بخش‌های 6.15 و 11.2، DR-136.
+منابع trace: System Definition بخش‌های 6.15 و 11.2، DR-136.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -685,7 +687,7 @@ Folder
 
 ## 3.28 Data export و Account deletion
 
-مبنای canonical: System Definition بخش 10.2، DR-131.
+منابع trace: System Definition بخش 10.2، DR-131.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -702,7 +704,7 @@ Folder
 
 ## 4.1 API و ارتباط client/server
 
-مبنای canonical: System Definition بخش‌های 4.1 و 10.6، Roadmap Increment 0 برای engineering baseline.
+منابع trace: System Definition بخش‌های 4.1 و 10.6؛ DR-051؛ Roadmap Increment 0 و Architecture ADR برای engineering baseline.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -714,6 +716,8 @@ Folder
 
 ## 4.2 storage و platform constraints
 
+منابع trace: DR-051 و DR-052؛ Roadmap Increment 0؛ Data/Architecture Design baseline.
+
 | ID | Requirement | Verification |
 |---|---|---|
 | SRS-CON-001 | persistence اصلی server-side باید از PostgreSQL استفاده کند. | Inspection + Integration Test |
@@ -723,7 +727,7 @@ Folder
 
 ## 4.3 External service responsibility boundaries
 
-مبنای canonical: System Definition بخش 9، DR-048، DR-061، DR-065، DR-121، DR-128 و DR-135.
+منابع trace: System Definition بخش 9، DR-048، DR-061، DR-065، DR-121، DR-128 و DR-135.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -738,7 +742,7 @@ Folder
 
 ## 5.1 امنیت
 
-مبنای canonical: System Definition بخش 10.1 و requirements امنیتی مرتبط با Authentication/Group، DR-061، DR-126 و DR-130.
+منابع trace: System Definition بخش 10.1 و requirements امنیتی مرتبط با Authentication/Group، DR-061، DR-126 و DR-130.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -769,6 +773,8 @@ Folder
 
 ## 5.3 کارایی
 
+منابع trace: System Definition بخش 10.5؛ DR-077 و DR-078؛ requirementهای functional مرتبط با hierarchy، sync، AI و statistics.
+
 | ID | Requirement | Verification |
 |---|---|---|
 | SRS-NFR-PERF-001 | بازیابی hierarchy child/parent باید بدون parse کامل RichDescription انجام شود. | Performance Test + Analysis |
@@ -781,6 +787,8 @@ Folder
 
 ## 5.4 usability و presentation
 
+منابع trace: System Definition بخش 5.1 و behaviorهای presentation مرتبط؛ DR-017 و DR-069.
+
 | ID | Requirement | Verification |
 |---|---|---|
 | SRS-NFR-UX-001 | UI باید در اندازه‌های رایج mobile و layoutهای responsive قابل استفاده باقی بماند. | Usability Test + Inspection |
@@ -790,6 +798,8 @@ Folder
 | SRS-NFR-UX-005 | نمایش Persian user-generated content نباید به English-only UI language وابسته باشد و باید typography/font مناسب محتوای Persian را پشتیبانی کند. | UI Test + Inspection |
 
 ## 5.5 maintainability و change isolation
+
+منابع trace: System Definition بخش‌های 5.4.5 و 5.4.7؛ DR-012، DR-066 و DR-078.
 
 | ID | Requirement | Verification |
 |---|---|---|
@@ -821,6 +831,8 @@ Folder
 18. completion cascade Task طبق Preferences و قواعد Parent/descendant تعریف‌شده در بخش 3.3 اعمال می‌شود.
 19. delete/completion cascade و move cascade باید authorization semantics متفاوت و atomicity چند-Resource را رعایت کنند.
 20. Global Streak در Dotick Day قابل ارزیابی با complete شدن حداقل یک Ring ادامه پیدا می‌کند و complete شدن همه Ringها لازم نیست.
+21. Daily Ring completion از ruleهای deterministic RingGroup/DailyAction و hard requirementها به‌دست می‌آید؛ progress عددی به‌تنهایی hard requirement را دور نمی‌زند.
+22. گسترش inherited sharing روی چند descendant Resource باید قبل از اعمال، scope قابل فهم و confirmation صریح initiating User داشته باشد.
 
 # 7. جزئیات عمداً نامشخص و non-normative در Current Scope
 
@@ -907,7 +919,7 @@ Roadmap برای Increment 0 و Incrementهای بعدی artifactها و process
 - CI pipeline، formatter و linter.
 - Docker/dev reproducibility setup.
 - migration tooling.
-- `project-docs/03-design/architecture.md`, `project-docs/03-design/data-model.md`, `project-docs/03-design/api-contracts.md` یا OpenAPI، `project-docs/03-design/ui-ux/`, `project-docs/03-design/security-design.md`, `project-docs/05-quality/test-strategy.md`, `project-docs/06-operations/release-deployment.md` و specهای تخصصی.
+- `docs/03-design/architecture.md`, `docs/03-design/data-model.md`, `docs/03-design/api-contracts.md` یا OpenAPI، `docs/03-design/ui-ux/`, `docs/03-design/security-design.md`, `docs/05-quality/test-strategy.md`, `docs/06-operations/release-deployment.md` و specهای تخصصی.
 - ADRها، migrationها، release noteها و Increment reviewها.
 
 این artifactها باید requirementهای این SRS را بدون کپی مکانیکی Domain Model به schema فیزیکی پیاده‌پذیر و testable کنند.

@@ -253,9 +253,9 @@ For fixed-day routines:
 - An unscheduled completion does not retroactively repair a previous missed occurrence.
 - A new completion can start or continue a new sequence/streak.
 
-### Open boundary
+### Frequency-based boundary
 
-`N times per period` routines have different semantics, and their exact streak still needs to be formalized separately.
+`N times per period` routines use different semantics from fixed-day routines. Their current canonical streak behavior is defined in DR-095; this DR does not apply fixed-day repair/break semantics to that model.
 
 ---
 
@@ -691,7 +691,7 @@ Minor activity is not enough; the day's completion threshold must be met.
 ### Implications
 
 - The streak connects to `DailyRing.is_completed`/the equivalent final completion.
-- The exact threshold/scoring definition is still closed in the Gamification design.
+- Detailed scoring/tuning may be refined in the Gamification design, but completion must preserve the deterministic RingGroup/DailyAction semantics defined in DR-031.
 
 ---
 
@@ -1034,7 +1034,7 @@ In the future, Email and other sources can be creation/automation inputs and con
 ### Implications
 
 - Source provenance is essential for external inputs.
-- The confirmation policy for trusted auto-actions is still OPEN.
+- Trusted future auto-actions require explicitly scoped, tiered, revocable authority as defined in DR-091; exact trust levels and UX remain Future Design details rather than an OPEN Current-Scope product question.
 - This capability is future and must not be a mandatory dependency of the Personal V1 core.
 
 ---
@@ -2379,27 +2379,25 @@ The exact numeric/model-specific thresholds must be calibrated and versioned for
 
 ---
 
-## DR-088 — Motivational messaging uses graduated intensity across the Dotick Day
+## DR-088 — Graduated motivational intensity is a tunable Gamification design direction
 
-**Status:** CONFIRMED IN PRODUCT BEHAVIOR
+**Status:** CONFIRMED IN DESIGN DIRECTION
 
 ### Context and previous model
 
-Motivational/scolding messaging was tied to the unresolved global-streak question. The product must be able to encourage action without making every reminder punitive.
+Current product behavior allows motivational, critical, or scolding messaging as part of Gamification, but the System Definition intentionally leaves exact timing, frequency, cooldown, copy, and escalation behavior to tuning. Earlier wording could be read as making a particular within-day escalation schedule a mandatory Current-Scope behavior.
 
 ### Decision
 
-Motivational messaging may use different tones over the course of a Dotick Day.
+A graduated tone is the preferred starting design direction for motivational messaging: earlier messages may use mild/encouraging language, while later messages may become stronger when relevant work remains unfinished.
 
-Earlier messages should generally use mild/encouraging language (for example, reminding the user that work is still waiting). Stronger or explicitly scolding language may be used later in the day when relevant work remains unfinished.
-
-A late-evening baseline around **21:00 local time** is an appropriate starting point for stronger messaging, but exact timing, frequency, copy, and escalation rules are tunable UX/gamification parameters rather than immutable domain constants.
+A late-evening point around **21:00 local time** may be used as an initial experiment for stronger messaging, but neither that time nor a specific graduated sequence is a canonical behavioral requirement. Exact timing, frequency, copy, cooldown, and escalation rules are versioned/tunable UX/Gamification parameters and must remain consistent with the System Definition's productivity-truth and user-control principles.
 
 ### Implications
 
-- Not every motivational message is scolding.
-- Gamification can apply behavioral pressure, but DR-073 still requires truthful progress and productivity semantics.
-- Exact cooldown/rate-limit behavior belongs to the Gamification specification and experimentation.
+- Current-Scope acceptance must not fail merely because a particular 21:00 or graduated-intensity schedule is changed during tuning.
+- Gamification may apply behavioral pressure, but it must preserve truthful productivity state and the applicable notification controls.
+- The owning Gamification specification records and evaluates the chosen timing/copy/rate-limit configuration.
 
 ---
 
@@ -2593,8 +2591,8 @@ Creation, move, offline sync, sharing, hierarchy, and deletion all depend on det
 
 - A List may exist without a user-visible Folder. A hidden/default Folder may be used internally if implementation benefits from it, but that is not user-facing product semantics.
 - Every User has one special real `Inbox` List. It is the default List and cannot be renamed or deleted.
-- Every Item belongs to exactly one List and exactly one Column of that List at a time.
-- Creation defaults to Inbox and the default Column unless creation is initiated directly in another Column/context.
+- Every Task and Event belongs to exactly one List and exactly one Column of that List at a time. Routine uses its dedicated Routine space and does not use Folder/List/Column placement.
+- Task/Event creation defaults to Inbox and the default Column unless creation is initiated directly in another Column/context.
 - Folder, List, and Column ordering is user-controlled and duplicate titles are allowed.
 - Deleting a Column requires choosing whether contained Items are deleted or moved to the List's default Column.
 - Deleting a List includes its Items; deleting a Folder includes its Lists and their contents. Normal deletion follows Trash/recovery semantics.
@@ -2760,7 +2758,7 @@ A generic “edit this occurrence vs series” rule is not sufficient for all re
 - Routine reminders use user-selected times on valid days.
 - For frequency-based Routine, reminders may continue on remaining days of the period until quota is reached; after quota completion, remaining reminders for that period are unnecessary.
 - Reminder can be snoozed.
-- Persistent/alarm-like reminder uses a full-screen ringing experience. Default ringing duration is one minute; the User may enable indefinite ringing until explicit dismissal.
+- Persistent/alarm-like intent is represented in the domain independently of platform capability. In the Current-Scope PWA, delivery is best-effort within browser/OS constraints and full native ringing/full-screen behavior is not guaranteed. Future native clients may implement stronger platform-specific alarm behavior, including explicit acknowledgement and configurable ringing duration where supported.
 - Future reminders are cancelled once the Item reaches an appropriate final outcome.
 - With multiple devices, delivery may continue until an interaction is recorded on one device; after that, new delivery of the same reminder to the other devices stops.
 
