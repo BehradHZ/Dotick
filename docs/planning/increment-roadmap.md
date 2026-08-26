@@ -7,9 +7,9 @@
 >
 > `project-docs/03-design/domain-model.md` — current conceptual domain model
 >
-> `project-docs/decision-register.md` — confirmed, retained, open and superseded decisions
+> `project-docs/decision-register.md` — consolidated decision rationale, constraints and design handoffs aligned to System Definition
 >
-> `project-docs/02-requirements/srs.md` اکنون **Formal SRS Baseline v2.0** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `project-docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
+> `project-docs/02-requirements/srs.md` اکنون **Formal SRS Baseline v2.8** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `project-docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
 
 ---
 
@@ -41,23 +41,25 @@ Roadmap                  = چه زمانی و با چه ترتیب ساخته م
 
 # 1. Source-of-Truth and Document Authority
 
-اگر اسناد با هم تعارض داشته باشند، این ترتیب مبناست:
+اگر درباره‌ی behavior/Scope میان اسناد تعارض وجود داشته باشد، این ترتیب مبناست:
 
 ```text
-Confirmed Decision Register entry
-        ↓
 System Definition
         ↓
-Domain Model
+Decision Register
         ↓
-Derived/Formal SRS / Design Documents
+Formal SRS
         ↓
-Reconciled non-canonical reference documents
+Domain Model / Design Documents
+        ↓
+Roadmap / reconciled non-canonical references
 ```
+
+Roadmap مالک **ترتیب اجرا** است، نه behavior. هیچ Increment یا Design Gate نمی‌تواند برای ساده‌سازی اجرا، رفتار متفاوتی از System Definition ایجاد کند.
 
 نکته:
 
-- `project-docs/decision-register.md` تاریخچه‌ی تصمیم است؛ تصمیم قدیمی حذف نمی‌شود، بلکه در صورت تغییر `SUPERSEDED` می‌شود و تصمیم جدید ثبت می‌شود.
+- `project-docs/decision-register.md` rationale و مرزهای تصمیم را نگه می‌دارد؛ وقتی یک مفهوم در ادامه کامل می‌شود، متن current Register در یک DR canonical ادغام می‌شود و wordingهای قبلی در repository revision history باقی می‌مانند.
 - `project-docs/02-requirements/system-definition.md` رفتار و Scope محصول را نگه می‌دارد.
 - `project-docs/03-design/domain-model.md` مدل مفهومی است و نباید با PostgreSQL schema یکی فرض شود.
 - Database inheritance/storage strategy هنوز یک Design Decision است.
@@ -116,7 +118,7 @@ Architecture، Data Design، API، UI، Security و Test Design در ابتدا�
 |---|---|---|
 | `project-docs/02-requirements/system-definition.md` | Product/system behavior and scope | **Update only when behavior/scope changes** |
 | `project-docs/03-design/domain-model.md` | Conceptual entities, relations, constraints | **Update when domain understanding changes** |
-| `project-docs/decision-register.md` | Decision history and OPEN items | **Add/resolve/supersede decisions; do not silently rewrite history** |
+| `project-docs/decision-register.md` | Decision rationale/constraints aligned to System Definition | **Consolidate evolved same-concept decisions; repository revision history preserves prior wording** |
 | `project-docs/01-planning/increment-roadmap.md` | Increment plan | **Update after scope/order/decision changes** |
 
 ---
@@ -137,6 +139,7 @@ Architecture، Data Design، API، UI، Security و Test Design در ابتدا�
 | `project-docs/03-design/ui-ux/` | Increment 1 | **Update** |
 | `project-docs/03-design/security-design.md` | Increment 0/1 | **Update every security-relevant Increment** |
 | `project-docs/05-quality/test-strategy.md` | Increment 0 | **Update only when strategy changes** |
+| `TIME_SEMANTICS_SPEC.md` | Increment 0 baseline | **Refine in Increments 2/4/10 as time behavior expands** |
 | `RECURRENCE_SPEC.md` | Increment 4 | **New, then Update** |
 | `SYNC_AUDIT_SPEC.md` | Increment 6 | **New, then Update** |
 | `AUTHORIZATION_MODEL.md` | Increment 7 | **New, then Update** |
@@ -203,14 +206,14 @@ Requirement behavior changed
 - Scope آن برای Increment مشخص باشد.
 - رفتار مورد انتظار در Specification روشن باشد.
 - Acceptance Criteria قابل نوشتن باشد.
-- OPEN Decisionهای blocking آن بسته شده باشند.
+- Product/Domain behavior آن در System Definition/Decision Register بسته و سازگار باشد؛ اگر طی refinement سؤال محصولی واقعاً جدیدی کشف شد، پیش از Implementation باید canonical شود.
 - Dependencyها مشخص باشند.
 - Domain impact مشخص باشد.
 - Data/API/UI impact در حد لازم بررسی شده باشد.
 - Security impact بررسی شده باشد.
 - تست Happy Path و مهم‌ترین Error/Edge Pathها قابل تعریف باشند.
 
-همه‌ی OPEN Decisionهای کل پروژه لازم نیست از ابتدا بسته شوند؛ فقط Decisionی که Feature فعلی به آن وابسته است باید قبل از Implementation آن Feature resolved شود.
+در baseline فعلی Product/Domain OPEN شناخته‌شده‌ای باقی نمانده است. اگر در آینده سؤال محصولی جدیدی کشف شود، فقط همان سؤال blocking باید پیش از Implementation feature مربوط canonical شود؛ Design/Tuning Gateها طبق schedule مالک خود تکمیل می‌شوند.
 
 ---
 
@@ -246,7 +249,7 @@ Feature فقط وقتی Done است که:
 - تعریف Increment Goal
 - تعریف Out-of-Scope
 - بررسی dependency
-- بررسی OPEN decisions
+- بررسی consistency با تصمیم‌های canonical و Design/Specification Gateهای owning Increment
 - بررسی risks
 
 ### Documents
@@ -270,7 +273,7 @@ Feature فقط وقتی Done است که:
 - Happy / Alternate / Error Flow
 - Acceptance Criteria
 - NFRهای مرتبط
-- تصمیم‌گیری روی OPEN itemهای blocking
+- بازگرداندن هر Product/Domain question جدید و blocking به System Definition/Decision workflow؛ تکمیل Design Gateهای همان Increment
 
 ### Documents
 
@@ -456,13 +459,13 @@ Review:
 
 `project-docs/02-requirements/srs.md`
 
-نسخه‌ی reconciled قبلی در Formal SRS Baseline v2.0 بازنویسی شده و فقط requirementهای قابل بیان/تست را normative می‌کند.
+نسخه‌ی reconciled قبلی در Formal SRS Baseline v2.8 بازنویسی شده و فقط requirementهای قابل بیان/تست را normative می‌کند.
 
 در این مرحله:
 
 - Feature Priority وارد SRS نمی‌شود.
 - Design proposalهای باز وارد Requirement قطعی نمی‌شوند.
-- OPEN decisionها با وضعیت مشخص trace می‌شوند.
+- Design/Tuning Gateهای عمداً واگذارشده با owner مشخص trace می‌شوند؛ Product/Domain behavior فعلی بسته است.
 - نسخه‌ی reconciled قبلی SRS مبنای merge خودکار نیست؛ Formal SRS باید از canonical sources استخراج شود.
 
 ### Created
@@ -491,8 +494,8 @@ Technical baselines retained:
 - JSON
 - HTTPS where practical in development
 - lightweight WebSocket for notification/live update
-- React Native / responsive mobile-first initial direction
-- local-hosted server acceptable
+- responsive installable PWA as the Current-Scope official User client
+- developer-local execution is allowed, but supported end-user self-hosting is not a Current-Scope product capability
 - Docker introduced early enough for reproducibility
 - external AI failure must not break core task management
 
@@ -511,17 +514,33 @@ Technical baselines retained:
 
 `project-docs/03-design/domain-model.md` is conceptual and must not be copied mechanically into database tables.
 
-### Blocking Decision
+### Confirmed persistence baseline
 
-**Database inheritance/storage strategy** must be chosen at least enough to support Increment 1.
-
-Possible implementation is a Design decision; Roadmap does not prescribe Class Table Inheritance.
+Personal V1 uses explicit composition rather than ORM/class inheritance for Item persistence. Increment 0 Data Design must implement/refine this baseline without reopening the product-level storage strategy; table/index details remain incremental Design work.
 
 ### Created in Increment 0 baseline
 
 - `project-docs/03-design/data-model.md`
 
 Physical ERD can start minimal and evolve.
+
+---
+
+## 7.3.1 Time Semantics Baseline
+
+Create `TIME_SEMANTICS_SPEC.md` before time-bearing domain choices are locked. Increment 0 baseline must define the shared vocabulary/invariants for:
+
+- real/canonical instant;
+- Calendar Day;
+- Dotick Day and day-boundary attribution;
+- `RoutineCompletion.occurrence_date` and other business dates;
+- credited/effective date;
+- all-day interval semantics;
+- Account timezone vs device timezone;
+- timezone changes and DST gaps/folds;
+- Jalali/Gregorian date arithmetic, leap/invalid dates and recurrence anchors.
+
+The baseline must include reusable golden test vectors. Increments 2, 4 and 10 refine the spec, but must not invent incompatible time semantics independently.
 
 ---
 
@@ -562,23 +581,19 @@ A `/health` endpoint alone is not sufficient.
 
 ---
 
-## Open Decisions That Do NOT Need Resolution Yet
+## Deferred Design / Specification Gates
 
-These stay in Decision Register until their owning Increment:
+Current-Scope Product/Domain decisions from the review are closed. The following are **engineering design/tuning gates**, not OPEN product questions:
 
-- Event structural multi-parent
-- ContentBlock exact schema
-- child/reference relation schema
-- scoring formula
-- difficulty/effort model
-- global daily streak
-- frequency-routine streak semantics
-- incremental routine inactivity reset
-- AI Goal warm-up
-- Goal similarity thresholds
-- Goal selection algorithm
-- sync metadata design
-- trusted automation confirmation policy
+- ContentBlock physical schema and ordering/edit representation;
+- child/dependency/reference relation schema/indexing;
+- Sync metadata, trusted ordering/clock strategy, idempotency, tombstone and conflict representation;
+- History-branch persistence compatible with Audit and Sync semantics;
+- Time Semantics representation and comprehensive test-vector catalog;
+- Daily Ring scoring formula/tuning and RingGroup/DailyAction persistence;
+- exact Goal-selection algorithm/weights and tunable AI Goal warm-up/similarity parameters;
+- adaptive Norm and motivational timing/rate tuning;
+- Future trusted-automation authority-level/UX design before E3 auto-actions.
 
 ---
 
@@ -593,7 +608,24 @@ These stay in Decision Register until their owning Increment:
 - migration mechanism works.
 - frontend ↔ backend ↔ DB vertical slice works.
 - canonical documents are referenced, not duplicated blindly.
-- OPEN decisions are assigned to future decision gates.
+- remaining Design/Specification gates are assigned to their owning Increment without being treated as unresolved Product decisions.
+
+---
+
+# 7.6 Cross-Increment Foundation Guardrail
+
+Dotick is developed incrementally, but foundational decisions are made with the **full known project model** in view. Increment 6 owns full Offline/Sync implementation; this does not allow Increments 1–5 to create entities, APIs or persistence semantics that are incompatible with known Sync/History requirements.
+
+Before locking foundational design in Increments 1–5, teams must review the Increment 6 requirements for at least:
+
+- stable entity/relation/block IDs;
+- version/revision semantics;
+- delete/tombstone/restore behavior;
+- ordering and idempotency assumptions;
+- branching History/Audit compatibility;
+- server-authorization/revocation behavior for later reconciliation.
+
+Likewise, time-bearing entities must follow the `TIME_SEMANTICS_SPEC.md` baseline from the start even though recurrence and advanced time behavior are completed later. Implementation can be deferred; foundational incompatibility cannot.
 
 ---
 
@@ -604,6 +636,9 @@ These stay in Decision Register until their owning Increment:
 اولین usable vertical increment: user وارد سیستم شود و Task واقعی را در ساختار اصلی سازمان‌دهی ایجاد و مدیریت کند.
 
 ---
+
+
+> **Increment 6 compatibility check:** Design in this Increment must follow Section 7.6 and review known Offline/Sync + branching History semantics before persistence/API choices are finalized.
 
 ## Scope
 
@@ -773,6 +808,9 @@ User can:
 
 ---
 
+
+> **Increment 6 compatibility check:** Design in this Increment must follow Section 7.6 and review known Offline/Sync + branching History semantics before persistence/API choices are finalized.
+
 # 9.1 Decision Gate — Must Resolve Before Implementation
 
 ## A. ContentBlock exact schema
@@ -799,16 +837,9 @@ without forcing two complex UI workflows.
 
 Exact relation schema must be decided.
 
-## C. Event structural multiplicity
+## C. Structural parent invariant — already confirmed
 
-Must decide:
-
-- one structural parent + multiple references
-- OR true structural multi-parent
-
-Task is already confirmed:
-
-- max one structural parent.
+Task and Event each have **at most one structural parent**. Both may be referenced from multiple authorized contexts. Increment 2 must implement/test this invariant and must not reopen Event multi-parenting as a Product decision.
 
 ---
 
@@ -816,11 +847,12 @@ Task is already confirmed:
 
 Fields/behavior:
 
+- Task may remain completely unscheduled; date/time is not required for identity or persistence
 - `due_at`
 - optional `end_at`
 - all-day representation
 - `deadline_at`
-- `grace_period_days`
+- `grace_period_days`; when deadline exists and User does not set grace explicitly, default is `0`
 
 State machine:
 
@@ -837,13 +869,19 @@ User-driven:
 - Done
 - Won't_Do
 
-`Skipped` is system-controlled.
+`Skipped` is system-controlled, but a Task already moved to `Skipped` by the system may later be explicitly moved by the User to another allowed state.
+
+Opening/viewing/editing a historical Task must not by itself re-evaluate its status against the current clock.
 
 ---
 
 ## Task Dependency
 
 - `blocked_by_ids`
+- a blocked Task cannot become `Done` until every active blocker is `Done`
+- only `Done` satisfies a blocker
+- deleting a blocker removes that dependency relation
+- dependency and structural hierarchy are independent
 - dependency validation
 - cycle policy must be explicitly tested/designed
 
@@ -862,13 +900,13 @@ This is Item priority, not feature priority.
 
 # 9.3 Event
 
-- start_at
+- start_at optional; absence of both start time and all-day date means the Event is valid but unscheduled
 - end_at optional
-- all-day
+- all-day date optional
 - location
-- Not_Arrived
-- Ongoing
-- Finished
+- scheduled Event lifecycle: Not_Arrived / Ongoing / Finished
+- unscheduled Event has no applicable time-driven status
+- schedule may be added or completed later without changing Event identity
 - independent sub-event information
 - structural hierarchy per resolved decision
 - multiple Description references allowed
@@ -893,6 +931,22 @@ For single-parent structures:
 - cycle prevention
 
 Description references do not replace hierarchy.
+
+Task completion behavior:
+
+- by default, all structural children `Done` -> Parent `Done`; User may disable this Preference
+- explicitly setting Parent Task to `Done` -> all structural descendants `Done`
+- time-driven states do not cascade
+- `Won't_Do` does not cascade by default; User may enable the optional descendant cascade
+
+Cascade authorization and consistency:
+
+- valid delete permission on Parent is sufficient for its intrinsic delete cascade
+- valid `Done` permission on Parent is sufficient for its intrinsic completion cascade; the same applies to optional `Won't_Do` cascade when enabled
+- intrinsic cascade authority does not create persistent/general permission on descendants
+- move cascade requires move authority over every affected Resource
+- destructive multi-Resource cascade shows affected scope and requires explicit confirmation
+- multi-Resource consequences are atomic: no partial application
 
 ---
 
@@ -986,7 +1040,7 @@ No RichDescription parse for List tree.
 
 - `project-docs/02-requirements/srs.md`
 - `project-docs/03-design/domain-model.md` **only if resolved design changes conceptual model**
-- `project-docs/decision-register.md` for resolved OPEN decisions
+- `project-docs/decision-register.md` only if a genuinely new Product/Domain question is discovered or canonical rationale must be reconciled
 - `project-docs/03-design/data-model.md`
 - ERD
 - API
@@ -1000,10 +1054,15 @@ No RichDescription parse for List tree.
 ## Acceptance
 
 - Task state transitions work at boundaries.
-- grace=0 skips directly at deadline.
+- completely unscheduled Task remains valid.
+- grace=0 skips directly at deadline and unspecified grace defaults to zero when a deadline exists.
+- historical Task viewing/editing does not silently re-evaluate status.
+- blocked Task cannot be marked Done until every active blocker is Done; deleting blocker removes the relation.
+- Skipped Task can be explicitly moved to another permitted state without making Skipped directly user-selectable.
 - Event works as point/all-day/duration.
 - hierarchy query never requires RichDescription parsing.
 - Task structural parent count obeys constraint.
+- Task completion cascades, Preferences, move authorization, destructive confirmation and atomic multi-Resource consequences pass their tests.
 - Event multiplicity obeys newly confirmed decision.
 - block comments render in block and global thread.
 - references and children behave distinctly in backend while UI remains simple.
@@ -1017,6 +1076,9 @@ No RichDescription parse for List tree.
 پیاده‌سازی Routine به‌عنوان definition واحد و ثبت outcome روزانه با RoutineCompletion.
 
 ---
+
+
+> **Increment 6 compatibility check:** Design in this Increment must follow Section 7.6 and review known Offline/Sync + branching History semantics before persistence/API choices are finalized.
 
 # 10.1 Routine
 
@@ -1057,8 +1119,11 @@ version
 
 Status:
 
+- In_Progress
 - Done
 - Won't_Do
+
+For Partial targets, a recorded `amount` below the applicable target is `In_Progress`; reaching or exceeding target automatically produces `Done`. Absence of a RoutineCompletion row remains distinct from `In_Progress`, and `amount` is not capped at target.
 
 Constraint:
 
@@ -1093,9 +1158,10 @@ User can edit past RoutineCompletion freely.
 
 This must:
 
-- update relevant state
-- keep audit trail
-- later trigger selective statistics recomputation
+- update the historical domain/source state;
+- keep immutable History/Audit evidence;
+- update only affected **open** derived/statistical windows where applicable;
+- leave already-finalized day/week/month/year statistical outcomes and finalized Daily Rings unchanged.
 
 No full-history recomputation by default.
 
@@ -1115,7 +1181,7 @@ User can:
 - manually complete an unscheduled date
 - see it in Routine history
 - reset it
-- have it affect statistics
+- affect open statistics/derived state where applicable; finalized statistical windows remain immutable
 
 ---
 
@@ -1140,11 +1206,9 @@ Baseline retained formula:
 current_target ≈ fix_amount + qualifying_completions × increment_amount
 ```
 
-### OPEN
+### Confirmed inactivity behavior / tuning handoff
 
-Long-inactivity reset is not invented here.
-
-Until a later confirmed decision exists, implementation must not silently introduce an automatic reset rule.
+After sufficiently long inactivity, an incremental target decays gradually toward its original baseline; only `Done` completions advance the target. The exact inactivity threshold and decay curve are tuning parameters owned by the later Routine/Gamification specification and must not be invented inconsistently in Increment 3.
 
 ---
 
@@ -1205,6 +1269,9 @@ Decision Register updates only if incremental-target or TrackingState conceptual
 ساخت موتور recurrence مشترک با capability restriction هر entity و formalize کردن streak behavior روتین‌ها.
 
 ---
+
+
+> **Increment 6 compatibility check:** Design in this Increment must follow Section 7.6 and review known Offline/Sync + branching History semantics before persistence/API choices are finalized.
 
 # 11.1 Recurrence Capabilities
 
@@ -1280,22 +1347,9 @@ Example semantics:
 
 ---
 
-# 11.4 Frequency Routine Decision Gate
+# 11.4 Frequency Routine Semantics — confirmed, formalize in specification/tests
 
-Feature exists conceptually:
-
-```text
-N times per period
-```
-
-Before implementation, formalize:
-
-- period completion
-- carry/no carry
-- streak across periods
-- relationship between quota and RoutineCompletion rows
-
-Decision Register must be updated.
+Canonical behavior for `N times per period` is already closed: each valid `Done` can advance the streak, empty days inside the period do not by themselves break it, and failure to satisfy the period quota resets the streak at the next period boundary. Increment 4 must formalize period boundaries, quota accounting and RoutineCompletion interaction in `RECURRENCE_SPEC.md` and comprehensive tests without reopening the Product decision.
 
 ---
 
@@ -1306,14 +1360,15 @@ Multiple reminders per Item:
 - trigger-before
 - persistent flag
 
-Persistent/alarm-like delivery is platform capability; domain/API support is implemented now and OS-specific behavior may be completed in native/mobile evolution.
+Persistent/alarm-like intent is represented in domain/API now. Current PWA delivery is best-effort within browser/OS capability and is not required to provide full native alarm semantics on every platform. Full-screen/ringing/background integration may be completed when native OS clients are built.
 
 ---
 
 # 11.6 Time and Calendar Semantics
 
-Must design/test:
+Must analyze in `TIME_SEMANTICS_SPEC.md` and design/test comprehensively:
 
+- distinction between real instant, Calendar Day, Dotick Day, `RoutineCompletion.occurrence_date` and credited/effective date
 - UTC/canonical instant for shared schedulable items
 - local timezone display
 - all-day representation
@@ -1326,6 +1381,13 @@ Must design/test:
 - scheduler catch-up after downtime
 - recurrence editing behavior
 - occurrence identity
+- Account timezone vs device timezone
+- timezone changes without shifting established instants
+- DST gaps/folds and offset changes
+- cross-calendar Jalali/Gregorian edge cases
+- day-boundary/finalization interaction
+
+The specification must include reusable golden test vectors and boundary cases; this is a release/readiness requirement for time-sensitive increments.
 
 ---
 
@@ -1371,6 +1433,9 @@ Contains:
 ساخت تجربه‌ی کاربری کامل برای domainهای ساخته‌شده.
 
 ---
+
+
+> **Increment 6 compatibility check:** Design in this Increment must follow Section 7.6 and review known Offline/Sync + branching History semantics before persistence/API choices are finalized.
 
 ## Main Navigation
 
@@ -1491,11 +1556,11 @@ Not record-level LWW.
 
 ---
 
-# 13.3 Decision Gate — Sync Metadata
+# 13.3 Sync Metadata Design Gate
 
-Must resolve:
+Must finalize engineering representation for the already-confirmed sync semantics:
 
-- per-field timestamps or alternative
+- per-field timestamps or alternative trusted ordering metadata
 - authoritative clock strategy
 - clock skew
 - device identity
@@ -1503,6 +1568,7 @@ Must resolve:
 - delete/update conflict
 - relation conflict
 - ContentBlock conflict granularity
+- compatibility between Sync operation metadata, immutable Audit evidence and branching user-visible History
 - comment conflict
 - RoutineCompletion conflict
 - recurrence edit conflict
@@ -1577,27 +1643,116 @@ Failure paths:
 
 ---
 
-# 14. Increment 7 — Groups + System Roles + Assignment + Realtime
+# 14. Increment 7 — Direct Sharing + Groups + Authorization + Assignment + Realtime
 
 ## Goal
 
-اضافه کردن collaboration فعلی بدون Enterprise complexity.
+اضافه کردن collaboration فعلی با تفکیک Direct Sharing از Group Collaboration، بدون وارد کردن Enterprise complexity.
 
 ---
 
-# 14.1 Current Role Scope
+# 14.1 Direct Resource Sharing
 
-Decision is already confirmed:
+Personal user باید بتواند بدون ساخت Group، Resource مشخصی را با user دیگری Share کند.
 
-- current version uses **System-defined Roles**
-- Custom Roles are not current scope
-- Custom Roles move to Enterprise
+Current shareable scopes:
 
-No role contradiction remains for this Increment.
+```text
+Folder
+List
+Item
+├── Task
+├── Event
+└── Routine
+```
+
+Rules:
+
+- Sharing ownership را به‌تنهایی منتقل نمی‌کند.
+- Share می‌تواند مستقل از GroupMembership revoke شود.
+- Group membership prerequisite برای Direct Sharing نیست.
 
 ---
 
-# 14.2 Group Domain
+# 14.2 Field Visibility
+
+برای Item shared، owner باید بتواند visibility را با field groupهای سطح product/domain محدود کند.
+
+نمونه:
+
+- basic information
+- schedule
+- progress/status
+- description
+- location
+- attachments
+- tags
+- completion history
+- amount
+- streak/statistics
+- notes
+
+Database/ORM fields و metadata داخلی مستقیماً user-facing sharing controls نیستند.
+
+Exact field-group catalog و storage representation در Authorization/Data Design refine می‌شود.
+
+---
+
+# 14.3 Current Access / Role Scope
+
+Confirmed baseline:
+
+- Direct Sharing از predefined Access Profile استفاده می‌کند.
+- GroupMembership از **System-defined Roles** استفاده می‌کند.
+- Access Profile و Group Role یک مفهوم واحد نیستند.
+- Custom Roles در current scope نیستند.
+- Custom Roles و arbitrary permission composition به Enterprise منتقل می‌شوند.
+- authorization در design باید capability-based باشد، نه scattered role-name checks.
+
+Representative capabilities:
+
+```text
+view
+comment
+edit
+move
+claim
+assign
+manage_structure
+manage_members
+manage_sharing
+send_nudge
+```
+
+Exact profile/role permission matrix در `AUTHORIZATION_MODEL.md` تعیین می‌شود.
+
+---
+
+# 14.4 Container Sharing & Inheritance
+
+Shared container access باید بتواند به descendants برسد:
+
+```text
+Folder
+└── List
+    └── Item
+```
+
+Personal V1 به explicit-deny exception پیچیده برای هر descendant نیاز ندارد.
+
+Design باید مشخص کند:
+
+- direct و inherited grants چگونه resolve می‌شوند؛
+- effective access چگونه محاسبه می‌شود؛
+- revoke یک parent grant چه اثری بر inherited access دارد؛
+- move کردن Resource بین shared/private container چه اثری دارد؛
+- cache/index strategy برای authorization چیست.
+
+این موارد Design concern هستند و نباید semantics نهایی محصول را تغییر دهند.
+
+---
+
+# 14.5 Group Domain
 
 - Group
 - GroupMembership
@@ -1608,61 +1763,95 @@ Rules:
 
 - user can belong to multiple groups
 - membership has a system role
-- Task can be assigned to multiple members
-- group data isolation
+- Group is a persistent collaboration context
+- Group can collaborate on shared resources
+- Task can be assigned to multiple authorized members
+- authorized member can claim Task where the relevant capability is granted
+- group data/access isolation
 
 ---
 
-# 14.3 Decision Gate — Folder/List/Column Group Ownership
+# 14.6 Confirmed Group Ownership Model
 
-Before implementation resolve:
+The Product decision is already closed:
 
-- can Folder/List/Column belong to user, group, or both?
-- transfer/ownership semantics
-- membership removal impact
+- collaborative containers/resources created directly in Group context are Group-owned;
+- a personal Resource may be attached to Group context while retaining its personal owner;
+- leaving the Group does not delete Group-owned Resources;
+- the personal owner controls detaching their personal Resource from Group context;
+- Group-owned Resource access must not be bypassed by Direct Sharing to an actor outside the Group.
 
-Update Decision Register and Domain Model if needed.
+Increment 7 owns the persistence/authorization implementation and tests for these confirmed semantics.
 
 ---
 
-# 14.4 Authorization
+# 14.7 Authorization
 
-- object access
-- membership access
-- assignment permissions
+Must design and test:
+
+- direct resource access
+- inherited container access
+- Group membership access
+- field visibility enforcement
 - comment permission
-- cross-group isolation
+- edit/move permission
+- claim/assignment permission
+- sharing-management permission
+- Nudge/encouragement permission
+- cross-group/cross-user isolation
 - creator vs owner behavior
+- effective access after revoke
+- permission changes while a client is connected
+
+`Assignment` must remain separate from authorization. Assigned or claimed Task does not grant access by itself.
 
 ---
 
-# 14.5 Realtime
+# 14.8 Realtime
 
 WebSocket only for:
 
 - live update
 - notifications
+- lightweight collaboration events such as permitted Nudge delivery
 
 REST remains CRUD authority.
 
 Must test:
 
 - stale socket authorization
+- revoked direct share
 - membership removal
+- inherited-access change
 - reconnect
 - permission change
+- field-visibility filtering of realtime payloads
 
 ---
 
-# 14.6 Shared Time
+# 14.9 Shared Time
 
-Shared Task/Event uses an absolute instant baseline and displays according to member timezone.
+Shared Task/Event uses an absolute instant baseline and displays according to each viewer's timezone.
 
 ---
 
 ## New Document
 
 `AUTHORIZATION_MODEL.md`
+
+Must formalize at least:
+
+- shareable resource scope
+- access profiles
+- system-role permission mapping
+- capability matrix
+- field visibility policy
+- direct vs inherited access
+- effective-access resolution
+- Group access
+- assignment/claim authorization
+- revoke behavior
+- realtime authorization behavior
 
 ---
 
@@ -1671,25 +1860,38 @@ Shared Task/Event uses an absolute instant baseline and displays according to me
 ### Update
 
 - SRS
-- Domain Model if group ownership model is resolved
-- Decision Register
+- Domain Model
 - Data Design
 - API
 - Architecture
 - Security
+- UI/UX
 - Traceability
 - Risk Register
 
 ### New
 
-- authorization ADR
+- authorization ADR(s) where required
 - WebSocket ADR if needed
 - security test report
 - migrations
 
 ---
 
-# 15. Increment 8 — AI-Assisted Item Creation: Text + Voice Draft/Review
+## Acceptance
+
+- user can share a Task/Event/Routine directly with another user without creating a Group.
+- user can share a List or Folder and descendant access is inherited according to the confirmed model.
+- owner can limit visible Item information through supported field groups.
+- Viewer/Commenter/Contributor/Manager-style access profiles enforce their configured capabilities.
+- Group collaboration continues to use System-defined Roles.
+- authorized user can comment, move, claim or assign only where the effective permission permits it.
+- assignment or claim alone never grants access.
+- revoking direct or inherited access removes authorization without changing ownership.
+- realtime updates never expose fields or resources outside the viewer's effective access.
+- Custom Roles and organization hierarchy are not required for Increment 7.
+
+# 15. Increment 8 — AI-Assisted Item Creation: Voice Draft/Review
 
 ## Goal
 
@@ -1699,29 +1901,28 @@ Shared Task/Event uses an absolute instant baseline and displays according to me
 
 ---
 
-# 15.1 Supported Current Entry Points
+# 15.1 Supported Current Entry Point
 
-Current scope:
+Current Scope AI-assisted input:
 
-- Text input
-- Voice input
+- **Voice input only**.
 
-Voice option should be available near Item creation input where practical.
+Typed User input belongs to ordinary manual Item creation and is not an AI-assisted fallback. Voice option should be available near the normal Item creation entry point where practical. If microphone capability/permission is unavailable, the UI explains the requirement and keeps manual creation usable; it does not switch to typed-text AI creation.
 
-Email/external automated input remains Future Integration scope.
+Email/external/text-derived automated input remains Future Integration scope.
 
 ---
 
 # 15.2 Pipeline
 
 ```text
-Text / Voice
+Voice
 ↓
-Speech-to-Text if needed
+Speech-to-Text / Normalization
 ↓
 Intent + Entity Analysis
 ↓
-AI Draft Proposal
+One or More AI Item Proposals
 ↓
 Review UI
 ↓
@@ -1740,7 +1941,7 @@ No real Item before Confirm.
 
 At minimum infer when possible:
 
-- Task vs Event
+- Task / Event / Routine
 - title
 - date/time
 - location
@@ -1760,7 +1961,7 @@ All inferred fields remain editable.
 Conceptual entity:
 
 - user
-- source_type
+- source_type (`Voice` for Current-Scope direct User input)
 - original_input
 - normalized_transcript
 - AI proposal payload
@@ -1783,16 +1984,22 @@ Used for:
 
 Draft/session should be able to distinguish:
 
-- explicit user input
+- explicit spoken User input
 - AI inferred
 - user-preference inferred
-- external source
+- external source provenance only for future integrations if/when that source enters Scope
 
 Exact storage belongs in design.
 
 ---
 
-# 15.6 Failure Isolation
+# 15.6 External AI Context Acknowledgement
+
+Before external AI processing is enabled/first used, the User must be informed and accept that authorized context—including shared data within effective field visibility—may be transmitted to third-party AI infrastructure. Security/Privacy design must ensure unauthorized fields are never included. Legal allocation of third-party processing/retention risk belongs to the release Privacy Policy/Terms gate.
+
+---
+
+# 15.7 Failure Isolation
 
 AI/STT failure:
 
@@ -1801,11 +2008,11 @@ AI/STT failure:
 
 ---
 
-# 15.7 Future Learning Boundary
+# 15.8 Future Learning Boundary
 
 Learning from proposal corrections is a confirmed future capability, not required for this Increment.
 
-Current Increment must collect enough data so future learning is possible without rewriting the creation flow.
+Current Increment must retain the accepted proposal/final diff needed for evaluation/future learning without preserving rejected/cancelled sessions contrary to Current-Scope privacy/retention semantics.
 
 ---
 
@@ -1908,11 +2115,9 @@ Do not create Goal for random/non-coherent grouping.
 
 ---
 
-# 16.5 Decision Gate — Warm-up Duration
+# 16.5 Warm-up Tuning Gate
 
-Exact warm-up duration is OPEN.
-
-Must be decided before production implementation of initial automatic discovery.
+Time-based warm-up behavior is confirmed. The exact duration is a tunable/model-versioned parameter that must be calibrated and recorded in `AI_GOAL_SPEC.md` before production auto-discovery.
 
 ---
 
@@ -1933,13 +2138,9 @@ Retained baseline:
 
 ---
 
-# 16.8 Decision Gate — Similarity Threshold
+# 16.8 Similarity Tuning Gate
 
-Define:
-
-- reactivation threshold
-- merge threshold
-- low-similarity behavior
+Tiered similarity behavior is confirmed. `AI_GOAL_SPEC.md` must define/version the numeric reactivation/merge thresholds and evaluation behavior without changing the canonical product tiers.
 
 ---
 
@@ -2009,22 +2210,28 @@ Append-only:
 
 ---
 
-# 17.1 Decision Gates — Must Resolve Here
+# 17.1 Decision / Design Gates — Must Resolve Here
 
-Before implementation finalize:
+Product behavior already fixed before this Increment includes:
+
+- Daily Ring count and system-controlled Goal selection;
+- Global Streak behavior;
+- AI-owned difficulty/effort estimation;
+- Daily Ring plan structure based on `RingGroup` and `DailyAction`;
+- controlled current-day replan with immutable finalized history.
+
+Before implementation, the owning specifications must finalize the remaining design/tuning details:
 
 1. exact Ring scoring formula
-2. difficulty/effort representation
-3. exact Goal selection algorithm
-4. learning/adaptation approach for selection weights
-5. adaptive Norm thresholds/windows
-6. global daily streak: confirm, redesign or remove
-7. motivational/scolding behavior: confirm exact product rule
-8. incremental Routine inactivity reset if it should interact with daily behavior
-9. day-finalization edge cases
-10. RoutineOccurrence representation inside DailyRingItem
+2. exact representation/serialization of RingGroup completion rules
+3. exact DailyAction persistence and linkage to Original Item
+4. exact Goal selection algorithm implementation
+5. learning/adaptation parameters for selection weights
+6. adaptive Norm thresholds/windows
+7. day-finalization/replan concurrency edge cases
+8. AI decomposition output contract and fallback behavior
 
-Each final product decision goes into Decision Register.
+These are implementation/specification gates and must not redefine the confirmed product semantics.
 
 ---
 
@@ -2089,21 +2296,55 @@ Historical Ring meaning must not be rewritten by normal future Item changes.
 
 ---
 
-# 17.5 DailyRingItem Snapshot
+# 17.5 RingGroup + DailyAction Plan
 
-Stores credited Item membership and scoring features for that day.
+Daily Ring is implemented as a daily plan rather than a flat Item-membership set:
 
-Eligible types:
+```text
+Goal
+↓
+DailyRing
+↓
+RingGroup
+↓
+DailyAction
+↓
+Original Item
+```
 
-- Task
-- Event
-- RoutineOccurrence
+`DailyAction` can represent either:
 
-Important rule:
+- completion of the full Original Item;
+- a meaningful measurable part of a larger Item for that Dotick Day.
 
-> Item only advances a Ring if it is a member of that credited day's DailyRingItem set.
+A partial DailyAction must not automatically complete the Original Item.
 
-Completing unrelated Item does not advance a daily Goal.
+`RingGroup` expresses deterministic completion/contribution rules such as:
+
+- all members;
+- minimum count;
+- minimum credit;
+- one-of-many;
+- credit cap;
+- hard requirement.
+
+AI may estimate difficulty/effort and propose decomposition, but progress/completion evaluation must remain deterministic and reconstructable.
+
+---
+
+# 17.5.1 Current-day replan
+
+The initial plan is generated at Dotick Day start.
+
+During the same day:
+
+- newly created relevant Items may become DailyActions;
+- deleted Original Items remove dependent Actions from the current plan;
+- materially harder commitment changes require controlled replan;
+- Goal selection is not globally rerun for every Item change;
+- a Ring already completed must not become incomplete due to later replan.
+
+Finalized RingGroup/DailyAction state becomes the immutable historical snapshot.
 
 ---
 
@@ -2200,7 +2441,7 @@ At Dotick Day boundary:
 3. compute final score
 4. reveal bonus
 5. finalize Goal streak
-6. finalize global streak only if confirmed
+6. finalize global streak according to the confirmed at-least-one-completed-Ring rule, with pause semantics when no valid Ring opportunity exists
 7. generate new day's Rings
 
 After finalization, Ring snapshot is historical.
@@ -2213,7 +2454,7 @@ Raw sources include:
 
 - Task/Event state changes
 - RoutineCompletion
-- DailyRing / DailyRingItem
+- DailyRing / RingGroup / DailyAction
 - AuditLog
 
 Derived statistics may include:
@@ -2325,7 +2566,7 @@ Verify:
 - rate limiting
 - secret handling
 - dependency vulnerabilities
-- AI data exposure/privacy
+- AI data exposure/privacy, including recorded User acknowledgement for external processing and authorized shared context only
 - WebSocket authorization
 - upload limits
 
@@ -2339,7 +2580,9 @@ Verify:
 - rollback
 - offline recovery
 - sync conflict tests
-- historical edit correctness
+- historical edit correctness, including immutable finalized statistical windows
+- branching History ↔ Audit ↔ Sync consistency
+- comprehensive `TIME_SEMANTICS_SPEC.md` golden vectors across timezone/DST/Jalali/Gregorian/Dotick-Day boundaries
 - Routine Reset + AuditLog correctness
 - day finalization idempotency
 - AI service outage fallback
@@ -2411,8 +2654,8 @@ Verify consistency between:
 
 - all Personal V1 requirements traced.
 - all current-scope entities implemented as required.
-- all blocking OPEN decisions resolved.
-- intentionally deferred OPEN decisions clearly marked Future/non-blocking.
+- no unresolved Current-Scope Product/Domain question blocks release.
+- all required Design/Specification gates for implemented features are finalized and traced; Future-only design work remains explicitly Future.
 - regression suite green.
 - backup/restore demonstrated.
 - offline/online core flows verified.
@@ -2561,16 +2804,9 @@ Draft or allowed automation
 Item Model
 ```
 
-### Trusted Automation Decision
+### Trusted Automation Future Design Gate
 
-Confirmation policy is OPEN:
-
-- always review?
-- trusted source?
-- rule-based auto-create?
-- per-field thresholds?
-
-Must be decided before automatic action.
+The authority principle is already canonical: automation without per-action confirmation must be explicit, scoped, revocable and auditable. Before any E3 automatic action is implemented, Future Design must define the concrete authority levels, trusted-source/rule model, per-field limits and review/override UX without weakening that principle.
 
 ### AI Correction Learning
 
@@ -2600,7 +2836,7 @@ Evaluate Swift-native only if justified.
 
 ## Native capabilities
 
-- persistent/alarm-like notifications
+- full persistent/alarm-like notifications and OS-specific full-screen/ringing behavior deferred from PWA limitations
 - background scheduling
 - push notification if needed
 - OS permission handling
@@ -2627,16 +2863,19 @@ This matrix maps the current canonical specification to an implementation locati
 | ownership separate from Source | 1 |
 | Source platform/external_account/external_id | 1/2 |
 | Basic Task CRUD | 1 |
+| Task unscheduled identity/persistence | 2 |
 | Task due/end/all-day | 2 |
-| Task deadline/grace lifecycle | 2 |
+| Task deadline/grace lifecycle + default grace=0 | 2 |
 | grace=0 direct Skipped | 2 |
 | Done/Won't_Do user-driven | 1/2 |
-| Task dependency | 2 |
+| Task dependency + blocked-Done gate + blocker deletion | 2 |
+| Task hierarchy completion cascade + Preferences | 2 |
+| hierarchy cascade authorization/confirmation/atomicity | 2 |
 | Task/Event priority | 2 |
 | Event timing/location/status | 2 |
 | Event sub-event | 2 |
 | Event multi-reference | 2 |
-| Event structural parent multiplicity decision | 2 Gate |
+| Task/Event single structural parent invariant | 2 |
 | direct queryable hierarchy | 2 |
 | Task single structural parent | 2 |
 | child vs reference semantics | 2 |
@@ -2675,11 +2914,19 @@ This matrix maps the current canonical specification to an implementation locati
 | sync metadata design | 6 Gate |
 | history / Undo | 6 |
 | selective sync recovery | 6 |
+| Direct Resource Sharing without Group | 7 |
+| Item field-group visibility | 7 |
+| Folder/List inherited sharing | 7 |
+| predefined Direct Sharing Access Profiles | 7 |
+| capability-based authorization model | 7 |
+| Nudge / encouragement permission | 7 |
 | multi-group membership | 7 |
-| System-defined Roles current version | 7 |
+| System-defined Group Roles current version | 7 |
 | Custom Roles | E1 |
 | multi-assignee Task | 7 |
-| group data isolation | 7 |
+| Task claim | 7 |
+| assignment independent from authorization | 7 |
+| group/user resource isolation | 7 |
 | Folder/List/Column group ownership decision | 7 Gate |
 | WebSocket live updates/notifications | 7 |
 | Email/password auth | 1 |
@@ -2712,7 +2959,7 @@ This matrix maps the current canonical specification to an implementation locati
 | Goal selection inputs | 10 |
 | Goal selection exact algorithm | 10 Gate |
 | DailyRing historical snapshot | 10 |
-| DailyRingItem snapshot | 10 |
+| RingGroup / DailyAction snapshot and replan | 10 |
 | Item only credits credited-day Ring | 10 |
 | progress_percent 0..100 | 10 |
 | is_completed separate | 10 |
@@ -2726,9 +2973,9 @@ This matrix maps the current canonical specification to an implementation locati
 | default 60-minute ambiguity window | 10 |
 | credited/effective date | 10 |
 | finalize old Rings before new generation | 10 |
-| selective statistics recomputation | 10 |
+| historical correction: selective recomputation of open windows + immutable finalized windows | 10 |
 | Goal-level Norm reminder | 10 |
-| global daily streak decision | 10 Gate |
+| confirmed global daily streak rule (>=1 completed Ring on evaluable day) | 10 |
 | motivational/scolding rule revalidation | 10 Gate |
 | ~30 local concurrent users target | 11 |
 | WebSocket latency validation | 11 |
@@ -2769,6 +3016,9 @@ This matrix maps the current canonical specification to an implementation locati
 | TrackingState | 3 | 9/10 |
 | RecurrenceObject | 4 | 4 |
 | ReminderConfig | 4 | 8 AI suggestion / E4 native |
+| ShareGrant | 7 | 7 |
+| AccessProfile | 7 | E1 permission expansion |
+| FieldVisibilityPolicy | 7 | E1 permission expansion |
 | Group | 7 | E1 |
 | GroupMembership | 7 | E1 |
 | SystemRole | 7 | 7 |
@@ -2778,37 +3028,32 @@ This matrix maps the current canonical specification to an implementation locati
 | Goal | 9 | 10 |
 | GoalGenerationLog | 9 | 9 |
 | DailyRing | 10 | 10 |
-| DailyRingItem | 10 | 10 |
+| RingGroup / DailyAction | 10 | 10 |
 | Statistics caches/features | 10 | future analytics |
 | Sync metadata | 6 | 6 |
 | Organization/Tenant | — | E1 |
 
 ---
 
-# 26. OPEN Decision Resolution Schedule
+# 26. Design / Specification Gate Schedule
 
-| OPEN Decision | Must Be Resolved By |
+No unresolved Current-Scope Product/Domain decision remains in the current canonical review. The schedule below tracks only implementation/design/tuning work that must be completed before its owning Increment can be considered ready.
+
+| Design / Specification Gate | Must Be Finalized By |
 |---|---|
-| database inheritance/storage strategy | enough for Increment 1; refine incrementally |
-| API endpoint design | per owning Increment |
-| Event structural multi-parent | before Increment 2 implementation |
-| ContentBlock exact schema | before Increment 2 implementation |
-| backend child/reference schema | before Increment 2 implementation |
-| dependency cycle policy | before Increment 2 acceptance |
-| frequency Routine streak formalization | before Increment 4 implementation |
-| incremental Routine inactivity reset | by Increment 10 if it affects daily behavior; otherwise explicitly defer |
-| Folder/List/Column group ownership | before Increment 7 |
-| sync field metadata design | before Increment 6 |
-| AI Goal warm-up duration | before Increment 9 auto-discovery |
-| Goal similarity thresholds | before Increment 9 lifecycle automation |
-| exact Goal selection algorithm | before Increment 10 |
-| difficulty/effort representation | before Increment 10 |
-| scoring formula | before Increment 10 |
-| adaptive Norm thresholds | before Increment 10 |
-| global daily streak | before Increment 10 |
-| motivational/scolding behavior | before Increment 10 release |
-| trusted automation confirmation policy | before E3 auto-actions |
-| Enterprise SSO SAML/OIDC | before E1 |
+| API endpoint/contracts | per owning Increment |
+| ContentBlock physical schema/order/edit representation | before Increment 2 implementation |
+| structural child/dependency/reference schema and indexing | before Increment 2 implementation |
+| Time Semantics baseline + golden test vectors | baseline in Increment 0; refine before Increments 2/4/10 |
+| Sync field/version/order/clock/idempotency/tombstone metadata | before Increment 6 implementation; foundational compatibility reviewed in Increments 1–5 |
+| History branch persistence compatible with Audit/Sync | before Increment 6 acceptance |
+| exact AI Goal warm-up duration and similarity numeric thresholds | before Increment 9 production automation |
+| exact Goal-selection algorithm/weights | before Increment 10 |
+| scoring formula + late-day/bonus tuning | before Increment 10 |
+| adaptive Norm thresholds/windows | before Increment 10 |
+| RingGroup/DailyAction persistence/rule representation/replan concurrency | before Increment 10 |
+| Future trusted-automation authority-level/UX design | before E3 auto-actions |
+| Enterprise SSO SAML/OIDC choice | before E1 |
 
 ---
 
@@ -2834,16 +3079,18 @@ This matrix maps the current canonical specification to an implementation locati
 When behavior changes:
 
 ```text
-Decision Register
+System Definition (canonical current behavior)
 ↓
-System Definition
+Decision Register (rationale/constraints reconciled)
 ↓
-Formal SRS
+Formal SRS (testable requirements)
 ↓
 Roadmap if schedule affected
 ↓
 Traceability
 ```
+
+A new question may be analyzed in the Decision Register before this sequence, but analysis alone does not become canonical behavior until the System Definition is updated.
 
 Do not modify code behavior and leave specification stale.
 
@@ -2868,7 +3115,7 @@ Important recurring risks:
 - AI dependency
 - authorization leakage
 - recurrence scheduling
-- historical recomputation
+- historical correction semantics: selective recomputation only for open derived state; finalized windows immutable
 - DailyRing finalization
 
 ---
@@ -2964,7 +3211,7 @@ Release
 Example:
 
 ```text
-DR-005 / RoutineCompletion occurrence_date
+DR-003 / RoutineCompletion occurrence_date
 ↓
 SRS-ROUTINE-...
 ↓
@@ -3036,10 +3283,10 @@ Increment 6
 Offline-first Sync + History + Undo
         ↓
 Increment 7
-Groups + System Roles + Assignment + Realtime
+Direct Sharing + Groups + Authorization + Assignment + Realtime
         ↓
 Increment 8
-AI-Assisted Item Creation — Text/Voice Draft + Review
+AI-Assisted Item Creation — Voice Draft + Review
         ↓
 Increment 9
 Goal + AI Tags + Semantic Discovery + Goal Lifecycle
@@ -3074,11 +3321,11 @@ Native Mobile / OS-specific Capabilities
 This revision intentionally changes earlier planning assumptions:
 
 1. `project-docs/02-requirements/system-definition.md`, `project-docs/03-design/domain-model.md`, `project-docs/decision-register.md` are now canonical.
-2. Reconciled SRS/Class Fields are derived references, not roadmap sources of truth; their stale contradictions were removed under DR-052.
+2. Formal SRS requirement layer is below System Definition/Decision Register; non-canonical reference files remain derived and must be reconciled when stale.
 3. Increment 0 no longer contains obsolete contradiction-reconciliation work.
 4. Current role model is System-defined Roles; Custom Roles move to Enterprise.
 5. Task hierarchy is a direct queryable relation, not a cache derived from Description.
-6. Task has one structural parent; Event multi-parent remains a scoped OPEN decision for Increment 2.
+6. Task and Event each have at most one structural parent; multi-context visibility is handled through references.
 7. Description block types are capabilities; exact ContentBlock schema is a Design Gate.
 8. Routine has no status.
 9. RoutineCompletion uses `occurrence_date`, not `completed_at`.
@@ -3091,13 +3338,13 @@ This revision intentionally changes earlier planning assumptions:
 16. AI-assisted Item Creation becomes a dedicated current-scope Increment.
 17. Email/external AI creation remains Future Integration scope.
 18. DailyRing count is `min(3, eligible goals)`.
-19. DailyRing/DailyRingItem are historical snapshots.
+19. Finalized DailyRing/RingGroup/DailyAction state is a historical snapshot; current-day plans may be replanned in a controlled way.
 20. Ring credit is limited to membership in that credited day.
 21. progress, completion and final performance score are separate.
 22. Bonus is hidden until day finalization.
 23. Dotick Day and configurable boundary are explicit roadmap scope.
-24. selective statistics recomputation is part of Daily/Gamification implementation.
-25. global daily streak is not treated as confirmed until Increment 10 decision gate.
+24. historical correction uses selective recomputation for open derived state, while finalized statistical windows/Daily Rings remain immutable.
+25. global daily streak is already confirmed: on an evaluable Dotick Day, at least one completed Daily Ring continues the streak; no completed Ring resets it, while days with no valid Ring opportunity pause it.
 
 ---
 
@@ -3105,7 +3352,7 @@ This revision intentionally changes earlier planning assumptions:
 
 - Do not treat Domain Model inheritance as automatic DB table inheritance.
 - Do not copy derived/reconciled SRS or field-reference wording over canonical decisions.
-- Do not resolve all OPEN decisions before coding; resolve them at owning Increment.
+- Do not invent new Product behavior inside implementation. Complete the remaining Design/Specification gates at their owning Increment and return only genuinely new Product/Domain questions to the Decision Register.
 - Do not store ownership inside Source.
 - Do not rebuild hierarchy by parsing RichDescription.
 - Do not make Routine status a shared Item field.
@@ -3115,10 +3362,10 @@ This revision intentionally changes earlier planning assumptions:
 - Do not expose backend child/reference complexity as unnecessary UI complexity.
 - Do not allow AI draft to create a real Item before user confirmation in current scope.
 - Do not let AI outage disable manual Item management.
-- Do not let current Item field edits silently rewrite historical Daily Rings.
+- Do not let current Item field edits silently rewrite finalized Daily Rings or their RingGroup/DailyAction plans.
 - Do not let progress UI exceed 100.
 - Do not reveal hidden performance bonus early if it changes user behavior against the product rule.
-- Do not run full-history statistics recomputation for every historical edit.
+- Do not run full-history statistics recomputation for every historical edit; do not rewrite finalized statistical windows after later source edits.
 - Do not bring Enterprise Custom Roles/multi-tenancy into Personal V1 prematurely.
 
 ---

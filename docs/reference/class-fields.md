@@ -294,7 +294,7 @@ This is a shared capability/state. Database inheritance, composition, embedding,
 id: UUID
 routine_id: UUID -> Routine
 occurrence_date: Date
-status: Done | Won't_Do
+status: In_Progress | Done | Won't_Do
 amount: Number | null
 note: Text | null
 created_at: DateTime
@@ -311,8 +311,10 @@ UNIQUE(routine_id, occurrence_date)
 Rules:
 
 - `completed_at` is not a business field.
-- No row means no outcome has been recorded for that date; it must not be interpreted as an explicit `Won't_Do`.
-- Partial progress updates the same row.
+- No row means no progress/outcome has been recorded for that date; it must not be interpreted as `In_Progress`, `Done`, or `Won't_Do`.
+- Partial progress updates the same row and uses `In_Progress` until the target is met.
+- Reaching or exceeding the target transitions the current row to `Done` automatically.
+- `amount` stores the actual recorded value and may exceed the target.
 - Reset deletes the current row for that Routine/date and AuditLog preserves the history.
 - A completion may be recorded on an unscheduled date.
 
@@ -569,28 +571,64 @@ When at least 3 eligible active Goals exist, exactly 3 Rings are selected.
 
 ---
 
-# 19. DailyRingItem Fields
+# 19. RingGroup / DailyAction Fields
+
+Conceptual relationship:
+
+```text
+DailyRing
+└── RingGroup
+    └── DailyAction
+        └── Original Item
+```
+
+## 19.1 RingGroup
 
 ```text
 id
 daily_ring_id
-item_id
-item_type: Task | Event | RoutineOccurrence
-base_score
-priority_weight
-urgency_weight
-timing_weight
-difficulty_estimate
-expected_effort
-progress_contribution_rule
+contribution_weight
+completion_rule
+completion_threshold
+credit_cap | optional
+is_hard_requirement
 snapshot_payload | optional
 ```
 
-Rule:
+Representative completion-rule semantics:
 
-> A completion advances only a Ring whose `DailyRingItem` snapshot contains that Item for the credited day.
+```text
+All
+Minimum_Count
+Minimum_Credit
+One_Of
+Credit_Cap
+```
 
-The exact `RoutineOccurrence` representation and scoring fields are finalized in the Gamification/Data Design stage.
+Exact serialization/storage is finalized in Gamification/Data Design.
+
+## 19.2 DailyAction
+
+```text
+id
+ring_group_id
+original_item_id
+original_item_type: Task | Event | Routine
+action_kind: Full_Item | Partial_Item
+action_definition / measurable_target
+current_progress
+is_completed
+difficulty_estimate
+expected_effort
+snapshot_payload | optional
+```
+
+Rules:
+
+- A DailyAction can represent full completion of the Original Item or only a meaningful measurable part of it for the current Dotick Day.
+- Completing a partial DailyAction does not by itself mark the Original Item `Done`.
+- AI may estimate `difficulty_estimate` / `expected_effort` and propose decomposition; Ring completion logic remains deterministic.
+- Current-day Ring plans may be replanned and versioned; finalized RingGroup/DailyAction state is historical snapshot data.
 
 ---
 
@@ -633,27 +671,133 @@ The real Item is created only after user confirmation in current scope. This ses
 
 ---
 
-# 22. Group / Role / Assignment Concepts
+# 22. Sharing / Group / Role / Assignment Concepts
 
-Current conceptual entities:
+Current conceptual entities/capabilities:
 
 ```text
+ShareGrant
+AccessProfile
+FieldVisibilityPolicy
+
 Group
 GroupMembership
 SystemRole
 TaskAssignment
 ```
 
+## 22.1 ShareGrant
+
+Conceptual shape:
+
+```text
+id
+resource_type: Folder | List | Item
+resource_id
+grantee_type: User | Group
+grantee_id
+access_profile
+field_visibility_policy | null
+created_by_user_id
+created_at
+revoked_at | null
+```
+
+Rules:
+
+- Direct sharing does not require Group membership.
+- Sharing does not by itself transfer ownership.
+- Item sharing covers Task, Event, and Routine.
+- Folder/List sharing may provide inherited access to descendants.
+- The exact polymorphic relation/storage strategy is a design decision.
+
+## 22.2 FieldVisibilityPolicy
+
+Field visibility is defined through product/domain field groups, not arbitrary physical database columns.
+
+Representative groups, depending on Item type:
+
+```text
+BasicInformation
+Schedule
+ProgressOrStatus
+Description
+Location
+Attachments
+Tags
+CompletionHistory
+RecordedAmount
+StreakOrStatistics
+Notes
+```
+
+Implementation-only metadata such as sync, audit, authorization, versioning, and storage fields is not user-shareable by default.
+
+The exact group catalog and storage representation remain design decisions.
+
+## 22.3 AccessProfile / Permission Capabilities
+
+Direct sharing uses predefined access profiles. Group membership uses system-defined roles. These are distinct concepts that can map to overlapping permission capabilities.
+
+Representative access profiles:
+
+```text
+Viewer
+Commenter
+Contributor
+Manager
+```
+
+Representative capabilities:
+
+```text
+view
+comment
+edit
+move
+claim
+assign
+manage_structure
+manage_members
+manage_sharing
+send_nudge
+```
+
+Exact role/profile-to-capability mapping belongs to the Authorization Model.
+
+`Nudge`/encouragement is a lightweight permission-controlled interaction and is not required to be stored as a Comment.
+
+## 22.4 Container Inheritance
+
+Conceptual access inheritance:
+
+```text
+Folder
+└── List
+    └── Item
+```
+
+Personal V1 does not require complex explicit-deny exceptions for descendants of an otherwise shared container.
+
+## 22.5 Group / Membership / Assignment
+
 Current scope:
 
 - user can belong to multiple groups;
 - membership has a system-defined role;
-- Task can be assigned to multiple members;
+- Group is a persistent collaboration context rather than the universal sharing mechanism;
+- Task can be assigned to multiple members with valid access;
+- Task may be claimed by an authorized user;
+- assignment is independent from authorization;
 - CustomRole is not current-scope.
 
-Custom roles, richer permissions, organization hierarchy, and full multi-tenancy are future Enterprise scope.
+Future Enterprise scope:
 
----
+- Custom roles;
+- custom/richer permissions;
+- organization hierarchy;
+- manager/subordinate visibility;
+- full multi-tenancy.
 
 # 23. Storage / Inheritance Note
 

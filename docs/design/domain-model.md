@@ -26,7 +26,8 @@ User
 ├── Tag
 ├── RoutineCompletion
 ├── DailyRing
-│   └── DailyRingItem
+│   └── RingGroup
+│       └── DailyAction
 ├── AuditLog
 ├── GoalGenerationLog
 └── AIItemCreationSession
@@ -445,9 +446,12 @@ RoutineCompletion
 Status:
 
 ```text
+In_Progress
 Done
 Won't_Do
 ```
+
+`In_Progress` زمانی استفاده می‌شود که progress/amount برای همان روز ثبت شده ولی target هنوز کامل نشده است. در Partial Routine، رسیدن amount به target یا عبور از آن status را به‌صورت خودکار `Done` می‌کند و amount واقعی می‌تواند از target بیشتر باشد.
 
 Constraint:
 
@@ -722,38 +726,76 @@ count(active rings per day) = min(3, eligible_active_goals)
 
 ---
 
-# 20. DailyRingItem
+# 20. RingGroup و DailyAction
 
-Snapshot عضویت Item در Ring همان روز.
+Daily Ring یک plan روزانه است و membership آن مستقیماً به «خود Item» محدود نمی‌شود.
+
+مدل مفهومی:
 
 ```text
-DailyRingItem
+DailyRing
+└── RingGroup
+    └── DailyAction
+        └── Original Item
+```
+
+## 20.1 RingGroup
+
+```text
+RingGroup
 - id
 - daily_ring_id
-- item_id
-- item_type: Task | Event | RoutineOccurrence
-- base_score
-- priority_weight
-- urgency_weight
-- timing_weight
-- difficulty_estimate
-- expected_effort
-- progress_contribution_rule
+- contribution_weight
+- completion_rule
+- completion_threshold
+- credit_cap | optional
+- is_hard_requirement
 - snapshot_payload | optional
 ```
 
-هدف snapshot:
+`completion_rule` باید بتواند semanticsهایی مانند `All`, `Minimum_Count`, `Minimum_Credit`, `One_Of` و محدودیت credit را نمایندگی کند. شکل storage نهایی این ruleها design concern است.
 
-- تاریخ گذشته با تغییر فیلدهای امروز بازنویسی نشود.
-- تحلیل score همان روز قابل بازسازی باشد.
+## 20.2 DailyAction
 
-## 20.1 Credit rule
+```text
+DailyAction
+- id
+- ring_group_id
+- original_item_id
+- original_item_type: Task | Event | Routine
+- action_kind: Full_Item | Partial_Item
+- action_definition / measurable_target
+- current_progress
+- is_completed
+- difficulty_estimate
+- expected_effort
+- snapshot_payload | optional
+```
 
-Completion فقط Ringی را جلو می‌برد که Item در `DailyRingItem` آن روز عضو باشد.
+DailyAction می‌تواند completion کامل Original Item یا یک بخش معنادار و قابل‌اندازه‌گیری از آن را برای همان Dotick Day نمایندگی کند.
+
+اگر Action فقط بخشی از Item باشد، complete شدن Action به‌تنهایی Original Item را `Done` نمی‌کند.
+
+AI می‌تواند difficulty/effort را تخمین بزند و برای Item بزرگ action روزانه پیشنهاد کند، اما progress و completion rule باید deterministic و قابل بازسازی باشند.
+
+## 20.3 Current-day replan
+
+Plan اولیه در شروع Dotick Day ساخته می‌شود، ولی Ring جاری می‌تواند در همان روز replan شود.
+
+- Item جدید relevant می‌تواند به DailyAction تبدیل شود.
+- حذف Original Item باید Action وابسته را از current plan حذف کند.
+- replan نباید Goalهای روز را بی‌دلیل از ابتدا انتخاب کند.
+- Ring کامل‌شده نباید در اثر replan بعدی دوباره ناقص شود.
+
+هر تغییر current-day که plan را عوض می‌کند باید به‌اندازه‌ای version/audit شود که نتیجه‌ی final قابل بازسازی باشد.
+
+## 20.4 Historical snapshot
+
+پس از finalization، RingGroupها و DailyActionهای Ring همان روز historical snapshot هستند. تغییر آینده‌ی Original Item نباید plan finalized را بازنویسی کند.
 
 ---
 
-# 20.2 Daily target / Norm
+# 20.5 Daily target / Norm
 
 Daily Ring target manually set by user نیست. سیستم آن را بر اساس recent performance و capacity تعیین می‌کند.
 
@@ -854,7 +896,7 @@ Raw/source entities:
 ```text
 Task/Event state changes
 RoutineCompletion
-DailyRing / DailyRingItem
+DailyRing / RingGroup / DailyAction
 AuditLog
 ```
 
@@ -973,30 +1015,160 @@ representation دقیق در design بعدی.
 
 ---
 
-# 29. Group / Role / Assignment
+# 29. Sharing / Group / Role / Assignment
 
-Conceptual entities:
+مدل collaboration میان **Direct Sharing** و **Group Collaboration** تمایز قائل می‌شود. Group مکانیزم اجباری برای اشتراک‌گذاری نیست؛ کاربر می‌تواند بدون عضویت مشترک در Group، دسترسی مشخصی به یک Resource به کاربر دیگری بدهد.
+
+Conceptual entities / capabilities:
 
 ```text
+ShareGrant
+AccessProfile
+FieldVisibilityPolicy
+
 Group
 GroupMembership
 SystemRole
 TaskAssignment
 ```
 
+## 29.1 ShareGrant
+
+`ShareGrant` بیان می‌کند یک User یا Group از چه مسیر مستقیمی به یک Resource دسترسی دارد.
+
+حداقل مدل مفهومی:
+
+```text
+ShareGrant
+- id
+- resource_type: Folder | List | Item
+- resource_id
+- grantee_type: User | Group
+- grantee_id
+- access_profile
+- field_visibility_policy | null
+- created_by_user_id
+- created_at
+- revoked_at | null
+```
+
+این ساختار conceptual است و schema فیزیکی، polymorphic relation strategy و نحوه‌ی resolve کردن effective access در Authorization/Data Design تعیین می‌شود.
+
+اشتراک‌گذاری Resource:
+
+- ownership را به‌تنهایی منتقل نمی‌کند؛
+- می‌تواند مستقل از GroupMembership ایجاد یا revoke شود؛
+- برای `Item` شامل `Task`، `Event` و `Routine` است؛
+- برای containerها شامل `Folder` و `List` است.
+
+## 29.2 FieldVisibilityPolicy
+
+برای Item مشترک، مالک می‌تواند تعیین کند کدام دسته‌های اطلاعات برای دریافت‌کننده قابل مشاهده‌اند.
+
+Visibility بر اساس **field groupهای سطح محصول/domain** تعریف می‌شود، نه column یا field فیزیکی دیتابیس.
+
+نمونه‌ی capability groupها، بسته به نوع Item:
+
+```text
+BasicInformation
+Schedule
+ProgressOrStatus
+Description
+Location
+Attachments
+Tags
+CompletionHistory
+RecordedAmount
+StreakOrStatistics
+Notes
+```
+
+metadata داخلی مانند versioning، sync metadata، audit metadata، authorization data و storage-specific fields صرفاً به دلیل وجود در persistence قابل share شدن نیستند.
+
+catalog دقیق field groupهای هر Item در Authorization/UI Design refine می‌شود.
+
+## 29.3 AccessProfile و Permission Capability
+
+Authorization در سطح مفهومی capability-based است. `AccessProfile` برای Direct Sharing و `SystemRole` برای GroupMembership، bundleهای از پیش تعریف‌شده‌ای از permissionها هستند و یک مفهوم واحد محسوب نمی‌شوند.
+
+Capabilityهای شناخته‌شده می‌توانند شامل موارد زیر باشند:
+
+```text
+view
+comment
+edit
+move
+claim
+assign
+manage_structure
+manage_members
+manage_sharing
+send_nudge
+```
+
+Personal V1 دارای Custom Role یا permission composition دلخواه نیست.
+
+نمونه Access Profileهای user-facing:
+
+```text
+Viewer
+Commenter
+Contributor
+Manager
+```
+
+mapping دقیق profile/role به capability در Authorization Model تعیین می‌شود.
+
+`Nudge` یا encouragement یک interaction سبک و permission-controlled است و لازم نیست به‌عنوان Comment مدل شود.
+
+## 29.4 Container Access Inheritance
+
+دسترسی اعطاشده به container می‌تواند به محتوای داخل آن inherited شود:
+
+```text
+Folder
+└── List
+    └── Item
+```
+
+در Personal V1، explicit-deny exception پیچیده برای descendantهای یک container مشترک requirement فعلی نیست. داده‌ای که باید خصوصی بماند باید خارج از container مشترک نگه‌داری شود یا با policy مستقل share شود.
+
+الگوریتم resolve کردن direct و inherited access، cache strategy و schema مربوطه Design Decision هستند.
+
+## 29.5 Group Collaboration
+
+`Group` یک context پایدار برای collaboration چندنفره است.
+
 Current scope:
 
-- User can belong to multiple groups.
-- Membership has a system-defined role.
-- Task can be assigned to multiple members.
-- CustomRole entity در current version لازم نیست.
+- User می‌تواند عضو چند Group باشد.
+- هر `GroupMembership` یک `SystemRole` از پیش تعریف‌شده دارد.
+- Group می‌تواند روی Resourceهای مشترک collaboration داشته باشد.
+- Task می‌تواند به چند عضو واجد دسترسی assign شود.
+- members با permission مناسب می‌توانند روی List/Kanban مشترک Item ایجاد/ویرایش کنند، Task را claim یا assign کنند، Item را میان Columnها move کنند و Comment ثبت کنند.
+- `CustomRole` در Personal V1 لازم نیست.
 
-Future enterprise:
+Future Enterprise:
 
 - Custom roles
-- richer permissions
+- richer/custom permissions
 - org hierarchy
+- manager/subordinate visibility
 - multi-tenancy
+
+## 29.6 Assignment vs Authorization
+
+`TaskAssignment` مسئولیت انجام کار را بیان می‌کند و از authorization مستقل است.
+
+```text
+Authorization
+= آیا actor اجازه‌ی access/operation روی Task را دارد؟
+
+Assignment
+= چه Userی مسئول Task است؟
+```
+
+Assigned یا claimed شدن Task به‌تنهایی نباید مجوز دسترسی ایجاد کند. Actor باید از Direct Sharing، inherited access یا Group membership معتبر permission لازم را داشته باشد.
 
 ---
 
