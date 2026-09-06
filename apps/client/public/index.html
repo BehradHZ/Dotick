@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#ff7a00" />
+    <meta name="description" content="Dotick development workbench" />
+    <title>Dotick · Workbench</title>
+    <style>
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        margin: 0;
+      }
+      body {
+        background: #f4f1e8;
+        background-image: radial-gradient(#15151524 1px, transparent 1px);
+        background-size: 18px 18px;
+      }
+      #root {
+        display: flex;
+        flex: 1;
+        min-height: 100vh;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      :focus-visible {
+        outline: 3px solid #1564ac;
+        outline-offset: 4px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>Enable JavaScript to use Dotick.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

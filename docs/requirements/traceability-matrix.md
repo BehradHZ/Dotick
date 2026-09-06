@@ -2,11 +2,13 @@
 
 **Document type:** Requirements Traceability Matrix
 
-**Version:** 2.0
+**Version:** 2.1
 
 **Baseline date:** 2026-08-26
 
-**Status:** Reconciled Traceability Baseline for Formal SRS v2.8
+**Implementation reconciliation:** 2026-09-06 — current SRS includes `SRS-SHARE-034`; total/family coverage is updated to 419 without changing requirement behavior.
+
+**Status:** Reconciled Traceability Baseline for Formal SRS v2.9
 
 **Scope:** Personal V1
 
@@ -14,7 +16,7 @@
 
 # 1. Purpose and authority
 
-این baseline از `docs/requirements/srs.md` نسخه 2.8 و `docs/decision-register.md` فعلی regenerate و با Roadmap جاری reconcile شده است.
+این baseline از `docs/requirements/srs.md` نسخه 2.9 و `docs/decision-register.md` فعلی regenerate و با Roadmap جاری reconcile شده است.
 
 در تعارض درباره behavior یا Scope، ترتیب authority فعلی پروژه چنین است:
 
@@ -46,7 +48,7 @@ Traceability Matrix
 |---|---|---|
 | `SD` | `docs/requirements/system-definition.md` | primary current behavior and Scope authority |
 | `DR` | `docs/decision-register.md` | decision rationale، constraints و design handoff |
-| `SRS` | `docs/requirements/srs.md` | formal atomic requirements؛ baseline این ماتریس: v2.8 |
+| `SRS` | `docs/requirements/srs.md` | formal atomic requirements؛ baseline این ماتریس: v2.9 |
 | `DM` | `docs/design/domain-model.md` | conceptual entities، relations و constraints؛ پایین‌تر از SRS در behavioral authority |
 | `RM` | `docs/planning/increment-roadmap.md` | implementation order و owning Increment only |
 | `TM` | `docs/requirements/traceability-matrix.md` | derived trace record؛ lowest authority in this chain |
@@ -72,9 +74,9 @@ Traceability Matrix
 
 | Check | Reconciled result |
 |---|---|
-| Formal SRS baseline | v2.8، dated 2026-08-26 |
-| Normative SRS requirements | **418** |
-| Functional requirements (§3) | **369** |
+| Formal SRS baseline | v2.9، dated 2026-08-26 |
+| Normative SRS requirements | **419** |
+| Functional requirements (§3) | **370** |
 | Interface/constraint requirements (§4) | **15** |
 | Nonfunctional requirements (§5) | **34** |
 | Requirement IDs without a family trace below | **0** |
@@ -83,7 +85,7 @@ Traceability Matrix
 | DRs directly named by normative SRS source preambles | **92** |
 | Intentionally unspecified Current-Scope details | **26** non-normative design/tuning handoffs |
 
-Verification روش هر requirement در همان atomic row از SRS v2.8 نگه‌داری می‌شود و در این سند دوباره copy نشده است؛ این کار از drift میان دو جدول جلوگیری می‌کند. Count و rangeهای زیر تمام 418 ID را پوشش می‌دهند.
+Verification روش هر requirement در همان atomic row از SRS v2.9 نگه‌داری می‌شود و در این سند دوباره copy نشده است؛ این کار از drift میان دو جدول جلوگیری می‌کند. Count و rangeهای زیر تمام 419 ID را پوشش می‌دهند.
 
 # 5. Requirement-family traceability
 
@@ -106,7 +108,7 @@ Verification روش هر requirement در همان atomic row از SRS v2.8 نگ
 | `SRS-VIEW-001..011` | 11 | §3.13 Views and presentation | SD §§1.4، 5.4.7، 6.1، 6.6، 10.6؛ DR-066، DR-133؛ RM I5 for presentation scope | `I5` |
 | `SRS-SYNC-001..010` | 10 | §3.14 Offline use and sync | SD §§6.15، 8.5، 8.6؛ DR-047، DR-109، DR-122؛ DM §30 | `I6` |
 | `SRS-AUDIT-001..009` | 9 | §3.15 Audit، History and Undo | SD §§6.12، 8.3، 8.4؛ DR-036، DR-072، DR-118؛ DM §25 | `I2`: 001..005 foundation؛ `I6`: 006..009 |
-| `SRS-SHARE-001..033` | 33 | §3.16 Sharing، Group، Role and Assignment | SD §§3.1..3.4، 6.14، 7.1، 7.3، 7.4، 10.1؛ DR-054..057، DR-060..063، DR-093، DR-108، DR-109، DR-111، DR-113..115، DR-140؛ DM §29 | `I7` |
+| `SRS-SHARE-001..034` | 34 | §3.16 Sharing، Group، Role and Assignment | SD §§3.1..3.4، 6.14، 7.1، 7.3، 7.4، 10.1؛ DR-054..057، DR-060..063، DR-093، DR-108، DR-109، DR-111، DR-113..115، DR-140؛ DM §29 | `I7` |
 | `SRS-TAG-001..008` | 8 | §3.17 Tag | SD §6.9؛ DR-045، DR-104؛ DM §16 | `I2`: 001،003،005،008؛ `I2 + I9`: 002؛ `I9`: 004،006،007 |
 | `SRS-GOAL-001..015` | 15 | §3.18 Goal and lifecycle | SD §6.9؛ DR-021، DR-023، DR-025، DR-026، DR-045، DR-089؛ DM §17 | `I9`: 001..009،015؛ `I9 + I10`: 010..012،014؛ `I10`: 013 |
 | `SRS-GDISC-001..011` | 11 | §3.19 AI Goal discovery and GoalGenerationLog | SD §§5.4.3، 6.9، 8.9؛ DR-045، DR-046، DR-073، DR-085، DR-086، DR-104، DR-123؛ DM §18 | `I9` |
@@ -175,7 +177,7 @@ Normative SRS source preambleها، با expand کردن rangeهایی مانن�
 | `UNSPEC-023` | PWA service worker/install/offline-storage implementation and browser matrix | Client/PWA Design |
 | `UNSPEC-024` | Notification transport/provider/device registration/retry | Notification Design |
 | `UNSPEC-025` | prompt templates، model-specific parameters and detailed AI evaluation/tuning | AI Specification |
-| `UNSPEC-026` | Time Semantics representation/storage and test-vector catalog | `TIME_SEMANTICS_SPEC.md` / Recurrence & Time Design |
+| `UNSPEC-026` | Time Semantics representation/storage and test-vector catalog | `docs/design/time-semantics-spec.md` / Recurrence & Time Design |
 
 این inventory با SRS §7 و DR-144 هم‌مرز است: اگر Design یک سؤال واقعی Product/Domain کشف کند، آن سؤال باید به workflow تصمیم canonical برگردد و نباید با انتخاب implementation ضمنی بسته شود.
 
@@ -189,6 +191,21 @@ Normative SRS source preambleها، با expand کردن rangeهایی مانن�
 | `SRS-CON-004` | `docs/operations/release-deployment.md` | local development/deployment reality بدون ایجاد supported end-user self-hosting commitment |
 | Increment 0 verification process | `docs/quality/test-strategy.md` | migration، integration، contract و Walking Skeleton gates |
 | Increment risks | `docs/planning/risk-log.md` | architecture، isolation، reproducibility، recovery و cross-Increment risks |
+
+## 8.1 Implemented foundation evidence — 2026-09-06
+
+These are foundation-level checks, not completion claims for the full product requirement families.
+
+| Requirement / gate | Implementation and verification |
+|---|---|
+| `SRS-IF-001..003`, I0 §7.5 | `apps/client/src/api.ts`, `apps/api/dotick/foundation/api.py`, `application.py`; `e2e/walking-skeleton.spec.ts` traverses the actual web/API/PostgreSQL stack |
+| `SRS-IF-005`, `SRS-CON-004` | loopback-only development ports in `compose.yaml`; secure production settings check; production TLS deployment remains a later gate |
+| `SRS-CON-001` | PostgreSQL identity/foundation migrations and API tests; clean container-database migration and readback |
+| `SRS-CON-002..003` | explicit-composition ADR retained; disposable I0 records are isolated from the unimplemented Item schema |
+| `SRS-NFR-SEC-001..003` foundation | Argon2 user model, owner-scoped queries, strict input and log allowlist; `test_foundation.py`, `test_security_baseline.py` |
+| `SRS-DAY-013` | `docs/design/time-semantics-spec.md` |
+| `SRS-DAY-014` foundation | `docs/design/time-vectors.json`, `apps/api/tests/test_time.py`, `apps/client/src/time-vectors.test.ts`; I4/I10 scenarios remain assigned, not marked executed |
+| Increment 0 quality gates | `.github/workflows/ci.yml`, `scripts/check_traceability.py`, `docs/tracking/increment-0-foundation-review.md` |
 
 # 9. Update rules
 

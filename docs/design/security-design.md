@@ -21,6 +21,8 @@
 
 # 3. Authentication baseline
 
+I0 exception: the [developer-only foundation API](foundation-api.md) uses framework HTTP Basic authentication on loopback with explicitly provisioned test/developer accounts. Both environment and enablement guards prevent this workbench running as a product authentication surface. Credentials stay in client memory and are excluded from logs. I1 replaces this temporary adapter with the specified product authentication flows.
+
 - custom User model با UUID پیش از اولین migration.
 - email/password، JWT، Google OAuth و Passkey در Increment 1.
 - password فقط از API hashing استاندارد Django عبور می‌کند؛ Argon2 باید hasher ترجیحی باشد و fallback سازگار فقط برای migration/verification باقی بماند.

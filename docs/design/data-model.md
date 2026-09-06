@@ -1,8 +1,8 @@
 # Dotick Data Design Baseline
 
-> **Status:** Increment 0 baseline; Increment 1 physical scope defined
+> **Status:** Increment 0 baseline; Increment 1 schema proposals require readiness review
 > **Date:** 2026-08-17
-> **Decision source:** DR-054 / ADR-0002
+> **Decision source:** DR-052 / ADR-0002
 > **Database:** PostgreSQL
 
 # 1. Scope
@@ -22,6 +22,8 @@
 - enumهای پرتحول با check constraint/text یا lookup کنترل‌شده طراحی می‌شوند؛ انتخاب دقیق در migration مالک ثبت می‌شود.
 
 # 3. Item persistence strategy
+
+I0 implementation note (2026-09-06): the migrations currently create the UUID `users` model and an isolated `foundation_checkpoints` table (`id`, `owner_id`, `text`, `created_at`). It has an owner/newest-first index, nonempty-text constraint and explicit transactional create. These checkpoints are disposable verification data, not Items. The I1 tables below remain proposals and must be reconciled with current trash/history/sync and Inbox behavior at I1 readiness; none has been silently created from the conceptual model.
 
 ```text
 items

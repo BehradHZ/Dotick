@@ -1,35 +1,29 @@
 # Dotick
 
-Dotick در مرحله‌ی بازطراحی مبتنی بر سند قرار دارد. پیاده‌سازی آزمایشی قبلی از شاخه‌ی اصلی حذف شده است تا توسعه‌ی بعدی بر پایه‌ی نیازمندی‌ها و تصمیم‌های جدید آغاز شود.
+Dotick is being implemented incrementally from its specifications and [roadmap](docs/planning/increment-roadmap.md).
 
-در حال حاضر این مخزن **کد قابل اجرا، dependency یا CI فعال ندارد**، اما Formal SRS، Traceability و baselineهای معماری/داده/امنیت/تست/استقرار Increment 0 ایجاد شده‌اند. مرحله‌ی جاری، scaffold و Walking Skeleton است.
+The current implementation is the **Increment 0 engineering foundation**: Expo web client, Django REST/ASGI API, PostgreSQL migrations, an authenticated developer-only persistence workbench, shared time vectors, automated checks, and CI configuration. Product identity and the Folder/List/Column/Task MVP belong to Increment 1.
 
-## اسناد پروژه
+Follow [environment setup](docs/development/environment-setup.md) to run it, and the [foundation review](docs/tracking/increment-0-foundation-review.md) for verified results and remaining gates. The prototype examples guide visual and interaction design; the specifications define behavior.
 
-نقطه‌ی شروع مستندات، [`project-docs/00-README.md`](project-docs/00-README.md) است.
+## Source of truth
 
-در صورت تعارض میان اسناد، ترتیب اعتبار فعلی چنین است:
+Start at [docs/README.md](docs/README.md). Behavioral authority is:
 
-1. [`project-docs/decision-register.md`](project-docs/decision-register.md)
-2. [`project-docs/02-requirements/system-definition.md`](project-docs/02-requirements/system-definition.md)
-3. [`project-docs/03-design/domain-model.md`](project-docs/03-design/domain-model.md)
-4. [`project-docs/02-requirements/srs.md`](project-docs/02-requirements/srs.md)
-5. [`project-docs/reference/class-fields.md`](project-docs/reference/class-fields.md)
+1. [System Definition](docs/requirements/system-definition.md)
+2. [Decision Register](docs/decision-register.md)
+3. [Formal SRS](docs/requirements/srs.md)
+4. [Domain Model](docs/design/domain-model.md) and design documents
+5. [Roadmap](docs/planning/increment-roadmap.md) and derived references
 
-برنامه و ترتیب توسعه در [`project-docs/01-planning/increment-roadmap.md`](project-docs/01-planning/increment-roadmap.md) ثبت می‌شود.
+The roadmap owns implementation order. It does not change product semantics. The archived previous implementation is not an active source of truth.
 
-## وضعیت بازنشانی
+## Repository
 
-- کد و تست‌های پیاده‌سازی آزمایشی قبلی بخشی از وضعیت فعال پروژه نیستند.
-- workflowهای وابسته به فناوری نسخه‌ی قبلی حذف شده‌اند.
-- پوشه‌ی محلی `archive/` صرفاً برای نگهداری نسخه‌های قبلی است و وارد Git نمی‌شود.
-- پوشه‌ی محلی `resources/skills/` ابزار کمکی توسعه است و وارد Git نمی‌شود.
+- `apps/api`: Django API, custom UUID user model, migrations and tests.
+- `apps/client`: TypeScript + Expo/React Native for Web client and component tests.
+- `e2e`: desktop/mobile client-to-PostgreSQL verification.
+- `docs`: requirements, design, roadmap, setup and verification evidence.
+- `scripts`: traceability checker and local exported-web server.
 
-## شروع پیاده‌سازی جدید
-
-پیش از اضافه‌کردن کد جدید:
-
-1. موارد `OPEN` مؤثر بر Increment موردنظر را در Decision Register تعیین تکلیف کنید.
-2. محدوده و معیارهای پذیرش Increment را از Roadmap استخراج کنید.
-3. ساختار فنی و dependencyها را فقط برای همان Increment ایجاد کنید.
-4. تست‌ها و CI را همراه با اولین برش اجرایی اضافه کنید تا با stack واقعی پروژه هم‌راستا باشند.
+Each increment adds only its own implementation scope, updates traceability, and runs the applicable tests and build gates.

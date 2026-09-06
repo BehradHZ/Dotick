@@ -1,0 +1,14 @@
+.git
+.venv
+node_modules
+**/node_modules
+**/dist
+**/.expo
+.env
+.env.*
+archive
+resources
+.artifacts
+test-results
+playwright-report
+**/__pycache__
