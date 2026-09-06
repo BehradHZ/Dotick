@@ -2,6 +2,13 @@
 
 تمام تغییرات مهم و قابل‌مشاهدهٔ پروژه باید در این فایل ثبت شوند.
 
-> وضعیت: نیازمند شروع در نخستین release یا تغییر محصول
+## Unreleased — Increment 0 foundation (2026-09-06)
+
+- Added locked Django/PostgreSQL and Expo web workspaces, migrations, isolated authenticated checkpoint workbench and responsive prototype-derived styling.
+- Added owner-isolation, input-validation, safe-logging and UTC/DST/calendar checks; CI, local containers and reproducible setup.
+- Verified a fresh Git clone with 33 API tests, 8 client tests and 2 desktop/mobile persistence tests, plus lint, types, migrations and web build.
+- Prepared I1 readiness with canonical Inbox, authentication, deletion and sync/history constraints. Product Task/authentication flows are not yet implemented.
+
+See [foundation review](increment-0-foundation-review.md) and [v0.1.0 candidate](../../releases/v0.1.0.md). Hosted CI and release publication remain pending.
 
 برای هر نسخه یا release، تاریخ، قابلیت‌های افزوده، تغییرات رفتاری، رفع اشکال‌ها، تغییرات امنیتی، موارد deprecated و breaking changeها درج شود. تغییر صرفاً ویراستاری اسناد لازم نیست در این فایل ثبت شود.

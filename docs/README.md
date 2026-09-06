@@ -26,3 +26,5 @@
 تصمیم‌های تثبیت‌شده و باز در [`decision-register.md`](decision-register.md) ثبت می‌شوند و تصمیم‌های معماری تفصیلی در [`design/adr/`](design/adr/) قرار می‌گیرند.
 
 نام فایل‌ها و پوشه‌ها از قرارداد `lowercase-kebab-case` پیروی می‌کند؛ نام‌های قراردادی مانند `README.md` و `CHANGELOG.md` استثنا هستند.
+
+Current implementation: [I0 verification](tracking/increment-0-foundation-review.md). Next scope: [I1 readiness and acceptance plan](tracking/increment-1-readiness.md).

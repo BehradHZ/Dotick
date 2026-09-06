@@ -140,11 +140,11 @@ Normative SRS source preambleها، با expand کردن rangeهایی مانن�
 
 `DR-020`, `DR-022`, `DR-050`, `DR-051`, `DR-052`, `DR-053`, `DR-058`, `DR-059`, `DR-064`, `DR-067`, `DR-069`, `DR-071`, `DR-074`, `DR-075`, `DR-076`, `DR-077`, `DR-078`, `DR-088`, `DR-091`, `DR-092`, `DR-141`, `DR-142`, `DR-143`, `DR-144`.
 
-نبود direct citation در SRS به‌تنهایی traceability gap نیست. این گروه عمدتاً authority/document governance، product/design direction، scope/future boundary یا rationale کلی را ثبت می‌کند. اگر یکی از این DRها behavior الزام‌آور Current Scope ایجاد کند که در SRS v2.8 requirement متناظر ندارد، آن مورد باید ابتدا به‌عنوان SRS coverage defect ثبت و سپس با ID پایدار formalize شود؛ این ماتریس حق ایجاد requirement جایگزین را ندارد.
+نبود direct citation در SRS به‌تنهایی traceability gap نیست. این گروه عمدتاً authority/document governance، product/design direction، scope/future boundary یا rationale کلی را ثبت می‌کند. اگر یکی از این DRها behavior الزام‌آور Current Scope ایجاد کند که در SRS v2.9 requirement متناظر ندارد، آن مورد باید ابتدا به‌عنوان SRS coverage defect ثبت و سپس با ID پایدار formalize شود؛ این ماتریس حق ایجاد requirement جایگزین را ندارد.
 
 ## 6.2 Replaced stale OPEN inventory
 
-فهرست `OPEN-001..025` baseline قبلی حذف شده است، چون وضعیت فعلی را نادرست نشان می‌داد. موضوعات Product/Domain آن فهرست در Decision Register جاری بسته یا consolidate شده‌اند. موارد باقی‌مانده design، representation یا tuning هستند و با `UNSPEC-*`های SRS v2.8 trace می‌شوند.
+فهرست `OPEN-001..025` baseline قبلی حذف شده است، چون وضعیت فعلی را نادرست نشان می‌داد. موضوعات Product/Domain آن فهرست در Decision Register جاری بسته یا consolidate شده‌اند. موارد باقی‌مانده design، representation یا tuning هستند و با `UNSPEC-*`های SRS v2.9 trace می‌شوند.
 
 # 7. Intentionally unspecified Current-Scope handoffs
 
@@ -206,6 +206,7 @@ These are foundation-level checks, not completion claims for the full product re
 | `SRS-DAY-013` | `docs/design/time-semantics-spec.md` |
 | `SRS-DAY-014` foundation | `docs/design/time-vectors.json`, `apps/api/tests/test_time.py`, `apps/client/src/time-vectors.test.ts`; I4/I10 scenarios remain assigned, not marked executed |
 | Increment 0 quality gates | `.github/workflows/ci.yml`, `scripts/check_traceability.py`, `docs/tracking/increment-0-foundation-review.md` |
+| Increment 1 readiness (planned acceptance only) | `docs/tracking/increment-1-readiness.md` maps I1-AC-01..10 to authentication, organization, Task, identity, ownership and UI requirements; no I1 implementation/test completion is claimed |
 
 # 9. Update rules
 
@@ -235,4 +236,4 @@ System Definition section / Decision Register rationale
 
 # 10. Baseline status
 
-این نسخه traceability را تا سطح `Canonical Source -> Formal Requirement Family/ID Range -> Planned Increment -> Verification Method in SRS` برای SRS v2.8 کامل می‌کند. Trace به Analysis، Design، Test Case، Code و Release با ایجاد artifactهای واقعی در Increment مالک تکمیل می‌شود.
+این نسخه traceability را تا سطح `Canonical Source -> Formal Requirement Family/ID Range -> Planned Increment -> Verification Method in SRS` برای SRS v2.9 کامل می‌کند. Trace به Analysis، Design، Test Case، Code و Release با ایجاد artifactهای واقعی در Increment مالک تکمیل می‌شود.

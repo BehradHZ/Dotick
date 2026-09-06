@@ -2,7 +2,7 @@
 
 Date: 2026-09-06. Scope: roadmap §§7.1–7.6 engineering foundation.
 
-Status: implementation and local verification complete; hosted CI execution and release remain pending. Increment 1 has not started. This is a working foundation, not the completed Dotick product.
+Status: implementation and local verification complete; hosted CI execution and release remain pending. Increment 1 product implementation has not started; its [readiness baseline](increment-1-readiness.md) is prepared. This is a working foundation, not the completed Dotick product.
 
 ## Delivered
 
@@ -25,6 +25,7 @@ Status: implementation and local verification complete; hosted CI execution and 
 | Schema drift check and clean database migrations | Passed |
 | Desktop/mobile E2E | 2 passed; saved data survives browser reload and fresh sign-in; no page errors or horizontal overflow |
 | Container build from locked dependencies | API and web images built successfully with isolated dependency installation |
+| Clean Git clone | Commit `02e41e3`, fresh virtual environment/npm install and separate PostgreSQL 18.4 volume: migrations, 33 API tests, 8 client tests, static checks, web export and 2 desktop/mobile E2E passed; servers started from the clone with existing-server reuse disabled |
 | Container smoke | Clean PostgreSQL migration, account provisioning and desktop/mobile persistence workflow passed; API and web run as nonroot |
 | Production settings inspection | Django `check --deploy --fail-level WARNING` passed with workbench disabled |
 | Traceability | 419 unique SRS IDs, exact matrix coverage, valid explicit decision references |
@@ -43,4 +44,4 @@ The prototype HTML remains unchanged. Native client release, PWA install/offline
 
 Before I1 persistence/API design is finalized, reconcile the older data-table proposals with current System Definition and I6 compatibility requirements: stable IDs, version ordering, tombstones/restore, idempotency, history branches and server-current authorization. In particular, do not copy the older container cascade or deletion proposals mechanically into migrations.
 
-Next implementation scope is roadmap Increment 1: identity (email/password, Google and Passkey), preferences/timezone, Folder/List/Column and Inbox invariants, and the basic Task MVP. Follow its readiness/design/TDD gates. A hosted green CI run and increment release record are still required to formally close I0 under the roadmap's completion rule.
+Next implementation scope is roadmap Increment 1: identity (email/password, Google and Passkey), preferences/timezone, Folder/List/Column and Inbox invariants, and the basic Task MVP. Its [readiness baseline](increment-1-readiness.md) records canonical corrections, I6 compatibility and public-boundary acceptance scenarios. A hosted green CI run and completed increment release record are still required to formally close I0 under the roadmap's completion rule. The [v0.1.0 candidate](../../releases/v0.1.0.md) is prepared, not published or tagged.

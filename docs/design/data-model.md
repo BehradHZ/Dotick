@@ -23,7 +23,7 @@
 
 # 3. Item persistence strategy
 
-I0 implementation note (2026-09-06): the migrations currently create the UUID `users` model and an isolated `foundation_checkpoints` table (`id`, `owner_id`, `text`, `created_at`). It has an owner/newest-first index, nonempty-text constraint and explicit transactional create. These checkpoints are disposable verification data, not Items. The I1 tables below remain proposals and must be reconciled with current trash/history/sync and Inbox behavior at I1 readiness; none has been silently created from the conceptual model.
+I0 implementation note (2026-09-06): the migrations currently create the UUID `users` model and an isolated `foundation_checkpoints` table (`id`, `owner_id`, `text`, `created_at`). It has an owner/newest-first index, nonempty-text constraint and explicit transactional create. These checkpoints are disposable verification data, not Items. The I1 tables below remain proposals; the [I1 readiness baseline](../tracking/increment-1-readiness.md) identifies required Inbox, optional Folder, contact/profile and trash/history/sync corrections before migrations are finalized. None has been silently created from the conceptual model.
 
 ```text
 items
@@ -183,7 +183,7 @@ I1 فقط lifecycle پایه را پیاده می‌کند.
 # 6. Delete and history behavior
 
 - Item user-facing با `is_trashed` soft-delete می‌شود.
-- hard delete عمومی API در Personal V1 تعریف نشده است.
+- System Definition §8.4 requires explicit Delete Permanently and a 30-day Trash retention window. Permanent removal of operational state must preserve the required history/audit evidence; exact endpoints and purge implementation belong to the owning increment.
 - حذف Folder/List/Column تا تعریف flow انتقال/حذف children نباید با cascade کور پیاده شود.
 - AuditLog در I2 اضافه می‌شود؛ تا آن زمان API منتشرشده نباید وعده‌ی undo/history بدهد.
 - auth/session cleanup و retention عملیاتی جدا از business soft-delete است.
