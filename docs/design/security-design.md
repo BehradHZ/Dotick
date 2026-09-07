@@ -21,14 +21,14 @@
 
 # 3. Authentication baseline
 
-I0 exception: the [developer-only foundation API](foundation-api.md) uses framework HTTP Basic authentication on loopback with explicitly provisioned test/developer accounts. Both environment and enablement guards prevent this workbench running as a product authentication surface. Credentials stay in client memory and are excluded from logs. I1 replaces this temporary adapter with the specified product authentication flows.
+I0 exception: the [developer-only foundation API](foundation-api.md) uses framework HTTP Basic authentication on loopback with explicitly provisioned test/developer accounts. Both environment and enablement guards prevent this workbench running as a product authentication surface. Credentials stay in client memory and are excluded from logs. The I1 [Authentication Design](authentication-design.md) now implements the verified email/password and revocable JWT session baseline; Google and Passkey remain pending.
 
 - custom User model با UUID پیش از اولین migration.
 - email/password، JWT، Google OAuth و Passkey در Increment 1.
 - password فقط از API hashing استاندارد Django عبور می‌کند؛ Argon2 باید hasher ترجیحی باشد و fallback سازگار فقط برای migration/verification باقی بماند.
 - plaintext password هرگز persist یا log نمی‌شود.
-- reset/recovery token کوتاه‌عمر، single-use و قابل revoke است.
-- access token کوتاه‌عمر است؛ refresh token rotation/revocation در design احراز هویت I1 نهایی می‌شود.
+- reset/recovery code ده دقیقه عمر، single-use، HMAC-digested و پس از پنج تلاش ناموفق consumed است.
+- access token پنج دقیقه و refresh token سی روز عمر دارد؛ refresh در هر استفاده rotate می‌شود و session-specific/all-session revocation در database enforce می‌شود.
 - token در URL یا log قرار نمی‌گیرد.
 - Google/Passkey identity به User داخلی link می‌شود و جای owner identity را نمی‌گیرد.
 
@@ -94,7 +94,7 @@ AuditLog business در Increment 2 اضافه می‌شود و از operational 
 
 # 10. Deferred security decisions
 
-- JWT lifetime/rotation values، Google OAuth callback و Passkey ceremony details: I1 auth design.
+- Google OAuth callback/provider configuration و Passkey ceremony details: ادامهٔ I1 auth design.
 - rate-limit thresholds: endpoint owner Increment.
 - Group authorization model: I7.
 - sync conflict trust model: I6.

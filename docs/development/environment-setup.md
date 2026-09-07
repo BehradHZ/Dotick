@@ -76,6 +76,8 @@ npm audit --audit-level=high
 
 The E2E runner starts the API and exported-web server when they are not already running. It uses the provisioned local account from `.env`. CI provisions an ephemeral account/database. If Chromium's download is unavailable but Chrome is installed, set `PLAYWRIGHT_CHANNEL=chrome` before running E2E; this fallback was used on the current Windows machine. CI installs its matching Chromium build.
 
+If port `8081` is already used or reserved by Windows, set `DOTICK_E2E_WEB_PORT` to a free loopback port and add the matching origin to `DJANGO_CORS_ORIGINS` for that test process. The regular development and Compose port remains `8081`.
+
 For a production configuration check, set `DOTICK_ENV=production` and `DOTICK_FOUNDATION_ENABLED=0` in that process, then run `python -m uv run python apps/api/manage.py check --deploy --fail-level WARNING`. Keep required secrets supplied. The workbench is rejected at startup if enabled outside local/test.
 
 See [dependency review](../quality/foundation-dependency-review.md) for the visible Expo/native-tooling advisory and CI threshold. Full verification evidence and remaining gates are in the [foundation review](../tracking/increment-0-foundation-review.md).

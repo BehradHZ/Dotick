@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -13,6 +14,11 @@ DEBUG = IS_LOCAL and os.getenv("DJANGO_DEBUG", "0") == "1"
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 if len(SECRET_KEY) < 50:
     raise ImproperlyConfigured("DJANGO_SECRET_KEY must contain at least 50 characters.")
+JWT_SIGNING_KEY = os.getenv("DJANGO_JWT_SIGNING_KEY")
+if not JWT_SIGNING_KEY and IS_LOCAL:
+    JWT_SIGNING_KEY = SECRET_KEY
+if not JWT_SIGNING_KEY or len(JWT_SIGNING_KEY) < 50:
+    raise ImproperlyConfigured("DJANGO_JWT_SIGNING_KEY must contain at least 50 characters.")
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 ROOT_URLCONF = "config.urls"
 ASGI_APPLICATION = "config.asgi.application"
@@ -63,6 +69,14 @@ AUTH_PASSWORD_VALIDATORS = [
 USE_TZ = True
 TIME_ZONE = "UTC"
 LANGUAGE_CODE = "en-us"
+EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "no-reply@dotick.local")
+EMAIL_HOST = os.getenv("DJANGO_EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("DJANGO_EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("DJANGO_EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("DJANGO_EMAIL_USE_TLS", "1") == "1"
+EMAIL_TIMEOUT = 10
 CORS_ALLOWED_ORIGINS = os.getenv("DJANGO_CORS_ORIGINS", "http://127.0.0.1:8081").split(",")
 CORS_ALLOW_CREDENTIALS = False
 DATA_UPLOAD_MAX_MEMORY_SIZE = 16_384
@@ -77,10 +91,18 @@ X_FRAME_OPTIONS = "DENY"
 
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "config.errors.api_exception_handler",
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": ["dotick.identity.authentication.SessionJWTAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
 }
 
 LOGGING = {

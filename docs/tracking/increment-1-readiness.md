@@ -1,6 +1,6 @@
 # Increment 1 readiness baseline
 
-Date: 2026-09-06. Status: preparation for roadmap §8; product implementation has not started. I0's hosted CI and release gates remain open. This document refines implementation order and acceptance evidence; it does not change product scope.
+Date: 2026-09-07. Status: implementation in progress. Verified email/password, password reset and revocable JWT sessions are implemented and locally tested; Google, Passkey, external delivery smoke, preferences and the organization/Task slices remain open. I0's hosted CI and release gates also remain open. This document refines implementation order and acceptance evidence; it does not change product scope.
 
 ## Goal and authority
 
@@ -10,7 +10,7 @@ Read System Definition §§6.1, 6.2, 6.13 and 8.3–8.6 first, then Decision Reg
 
 ## Delivery order within I1
 
-1. **Verified email identity:** register, send/verify an email code, sign in with password, reset password, JWT session renewal/revocation and sign out. Use Django's existing password machinery. Select maintained JWT/authentication libraries during implementation; do not write cryptography. Keep the I0 Basic-auth workbench isolated until replacement is verified.
+1. **Verified email identity — implemented locally:** register, send/verify an email code, sign in with password, reset password, JWT session renewal/revocation and sign out. Django password machinery and Simple JWT provide maintained security primitives. The I0 Basic-auth workbench remains isolated until the product client replacement is verified.
 2. **Account bootstrap and first Task:** provision one Inbox and its default Column atomically, plus preferences with an IANA timezone. Create/read one real unscheduled Task through the authenticated client/API/PostgreSQL path. Account bootstrap must remain idempotent under retries.
 3. **Organization and editing:** Folder/List/Column navigation, placement, title/status changes, recoverable deletion and draft-preserving failure states. Verify ownership and concurrent writes at the public API boundary.
 4. **Complete I1 identity:** Google sign-in/linking and optional Passkey enrollment/sign-in, independent fallback recommendation, account presentation and session management. Google-only accounts must work without a password/Passkey. Provider failure must not invalidate otherwise valid sessions.

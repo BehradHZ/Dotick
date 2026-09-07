@@ -5,7 +5,9 @@ from rest_framework.views import exception_handler
 def api_exception_handler(error, context):
     response = exception_handler(error, context)
     if response is not None:
-        response.data = {"error": {"code": str(response.status_code), "details": response.data}}
+        codes = error.get_codes() if hasattr(error, "get_codes") else None
+        code = codes if isinstance(codes, str) else "validation_error"
+        response.data = {"error": {"code": code, "details": response.data}}
     return response
 
 

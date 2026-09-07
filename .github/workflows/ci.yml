@@ -46,7 +46,7 @@ jobs:
           python -m pip install uv==0.12.9
           python -m uv sync --frozen
           npm ci
-          python -c "import os,secrets; open(os.environ['GITHUB_ENV'],'a').write('DJANGO_SECRET_KEY='+secrets.token_urlsafe(64)+'\n')"
+          python -c "import os,secrets; open(os.environ['GITHUB_ENV'],'a').write('DJANGO_SECRET_KEY='+secrets.token_urlsafe(64)+'\nDJANGO_JWT_SIGNING_KEY='+secrets.token_urlsafe(64)+'\n')"
       - name: Static checks and traceability
         run: |
           python -m uv run ruff check apps/api scripts

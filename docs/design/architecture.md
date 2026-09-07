@@ -1,6 +1,6 @@
 # Dotick Architecture Baseline
 
-> **Status:** Increment 0 baseline
+> **Status:** Increment 0 baseline; Increment 1 identity slice in progress
 > **Date:** 2026-08-17
 > **Decision sources:** DR-051, DR-052; client scope DR-066
 > **Scope:** Personal V1 and the Increment 0 Walking Skeleton
@@ -71,6 +71,7 @@ Infrastructure (Django ORM, PostgreSQL, external adapters)
 | Backend language | Python 3.14 | runtime پشتیبانی‌شده در Django/DRF و موجود در محیط فعلی |
 | Backend framework | Django 5.2 LTS | auth، ORM، migration و operational guardrail یکپارچه |
 | REST API | Django REST Framework | validation، serialization، authentication/permission hooks و contract testing |
+| JWT | Simple JWT 5.5.1 / PyJWT 2.13.0 | signed token validation behind database-backed revocable session state |
 | Runtime model | ASGI | مسیر استاندارد برای HTTP و WebSocket آینده |
 | Frontend | TypeScript + Expo SDK 57 + React Native + React Native for Web | client مستقل و mobile-first با reuse میان web/native |
 | Database | PostgreSQL | الزام SRS و integrity/query capability |
@@ -157,7 +158,7 @@ resource باید خنثی و قابل حذف باشد، یا اولین thin sl
 
 - custom User model با UUID باید قبل از اولین migration تثبیت شود.
 - password handling به API استاندارد Django واگذار می‌شود و algorithm policy در `docs/design/security-design.md` است.
-- JWT، Google OAuth و Passkey در Increment 1 پشت adapter/use-caseهای مستقل قرار می‌گیرند.
+- verified email/password و JWT session در [Authentication Design](authentication-design.md) پیاده شده‌اند؛ Google OAuth و Passkey در ادامهٔ Increment 1 پشت adapter/use-caseهای مستقل قرار می‌گیرند.
 - authentication method نباید ownership model را تغییر دهد.
 - queryهای private با owner scope آغاز می‌شوند؛ object lookup بدون scope مجاز نیست.
 - Group authorization تا Increment 7 وارد schema یا abstraction عمومی premature نمی‌شود.

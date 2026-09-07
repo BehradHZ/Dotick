@@ -2,7 +2,7 @@
 
 Date: 2026-09-06. Scope: roadmap §§7.1–7.6 engineering foundation.
 
-Status: implementation and local verification complete; hosted CI execution and release remain pending. Increment 1 product implementation has not started; its [readiness baseline](increment-1-readiness.md) is prepared. This is a working foundation, not the completed Dotick product.
+Status: implementation and local verification complete; hosted CI execution and release remain pending. At this review date, Increment 1 product implementation had not started. Its [readiness baseline](increment-1-readiness.md) now records current progress. This is a working foundation, not the completed Dotick product.
 
 ## Delivered
 

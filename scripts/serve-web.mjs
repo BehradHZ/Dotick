@@ -4,6 +4,11 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 
 const root = resolve('apps/client/dist');
+const configuredPort = process.env.DOTICK_E2E_WEB_PORT ?? '8081';
+const port = Number(configuredPort);
+if (!Number.isInteger(port) || port < 1 || port > 65535) {
+  throw new Error('DOTICK_E2E_WEB_PORT must be an integer between 1 and 65535.');
+}
 const types = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
@@ -31,4 +36,4 @@ createServer(async (request, response) => {
   } catch {
     response.writeHead(404).end();
   }
-}).listen(8081, '127.0.0.1', () => process.stdout.write('Dotick web: http://127.0.0.1:8081\n'));
+}).listen(port, '127.0.0.1', () => process.stdout.write(`Dotick web: http://127.0.0.1:${port}\n`));

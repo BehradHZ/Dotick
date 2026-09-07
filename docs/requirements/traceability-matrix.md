@@ -206,7 +206,8 @@ These are foundation-level checks, not completion claims for the full product re
 | `SRS-DAY-013` | `docs/design/time-semantics-spec.md` |
 | `SRS-DAY-014` foundation | `docs/design/time-vectors.json`, `apps/api/tests/test_time.py`, `apps/client/src/time-vectors.test.ts`; I4/I10 scenarios remain assigned, not marked executed |
 | Increment 0 quality gates | `.github/workflows/ci.yml`, `scripts/check_traceability.py`, `docs/tracking/increment-0-foundation-review.md` |
-| Increment 1 readiness (planned acceptance only) | `docs/tracking/increment-1-readiness.md` maps I1-AC-01..10 to authentication, organization, Task, identity, ownership and UI requirements; no I1 implementation/test completion is claimed |
+| `SRS-AUTH-001/002/004/008/012/013`, I1-AC-01/02 partial | `apps/api/dotick/identity/`, migrations `0002..0003`, `docs/design/authentication-design.md`, `docs/design/openapi.json`, `apps/api/tests/test_identity_api.py`; configured email delivery, Google and Passkey remain open |
+| Increment 1 remaining acceptance | `docs/tracking/increment-1-readiness.md` maps I1-AC-03..10 plus remaining provider work to organization, Task, ownership and UI requirements |
 
 # 9. Update rules
 

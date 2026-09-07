@@ -27,4 +27,4 @@
 
 نام فایل‌ها و پوشه‌ها از قرارداد `lowercase-kebab-case` پیروی می‌کند؛ نام‌های قراردادی مانند `README.md` و `CHANGELOG.md` استثنا هستند.
 
-Current implementation: [I0 verification](tracking/increment-0-foundation-review.md). Next scope: [I1 readiness and acceptance plan](tracking/increment-1-readiness.md).
+Current implementation: [I0 verification](tracking/increment-0-foundation-review.md) and the in-progress I1 [Authentication Design](design/authentication-design.md) / [OpenAPI contract](design/openapi.json). Remaining I1 scope: [readiness and acceptance plan](tracking/increment-1-readiness.md).

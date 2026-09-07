@@ -1,0 +1,376 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Dotick Identity API",
+    "version": "0.2.0",
+    "description": "Executable Increment 1 contract for verified email identity and revocable JWT sessions."
+  },
+  "servers": [{ "url": "/" }],
+  "tags": [{ "name": "Identity" }],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "registerAccount",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted whether or not the email already exists.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/auth/email/resend": {
+      "post": {
+        "operationId": "resendEmailVerification",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/EmailRequest" } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted without disclosing account existence.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/auth/email/verify": {
+      "post": {
+        "operationId": "verifyEmail",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VerificationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Email verified." },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/auth/token": {
+      "post": {
+        "operationId": "createTokenPair",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/TokenRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New revocable session and token pair.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/TokenPair" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/token/refresh": {
+      "post": {
+        "operationId": "rotateRefreshToken",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RefreshRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rotated access and refresh tokens; prior refresh token is invalid.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/RotatedTokens" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logoutCurrentSession",
+        "tags": ["Identity"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "Current session revoked." },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "operationId": "listActiveSessions",
+        "tags": ["Identity"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Active sessions for current account.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SessionList" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "delete": {
+        "operationId": "revokeAllSessions",
+        "tags": ["Identity"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "All account sessions revoked." },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/sessions/{session_id}": {
+      "delete": {
+        "operationId": "revokeSession",
+        "tags": ["Identity"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Selected session revoked." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/auth/password/reset/request": {
+      "post": {
+        "operationId": "requestPasswordReset",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/EmailRequest" } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted without disclosing account existence.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/auth/password/reset/confirm": {
+      "post": {
+        "operationId": "confirmPasswordReset",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PasswordResetConfirmRequest" }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Password changed and all sessions revoked." },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid input or verification code.",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "Unauthorized": {
+        "description": "Credentials, token, or session are invalid.",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "NotFound": {
+        "description": "Owned resource not found.",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      }
+    },
+    "schemas": {
+      "Accepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status"],
+        "properties": { "status": { "const": "accepted" } }
+      },
+      "EmailRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email"],
+        "properties": { "email": { "type": "string", "format": "email", "maxLength": 254 } }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "password", "handle", "display_name"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "password": { "type": "string", "format": "password", "maxLength": 128 },
+          "handle": { "type": "string", "pattern": "^[A-Za-z0-9_]{3,30}$" },
+          "display_name": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      },
+      "VerificationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "code"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "code": { "type": "string", "pattern": "^[0-9]{6}$" }
+        }
+      },
+      "PasswordResetConfirmRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "code", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "code": { "type": "string", "pattern": "^[0-9]{6}$" },
+          "password": { "type": "string", "format": "password", "maxLength": 128 }
+        }
+      },
+      "TokenRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "password": { "type": "string", "format": "password", "maxLength": 128 }
+        }
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["refresh"],
+        "properties": { "refresh": { "type": "string", "maxLength": 4096 } }
+      },
+      "UserIdentity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "handle", "display_name"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "handle": { "type": "string" },
+          "display_name": { "type": "string" }
+        }
+      },
+      "RotatedTokens": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["access", "refresh"],
+        "properties": {
+          "access": { "type": "string" },
+          "refresh": { "type": "string" }
+        }
+      },
+      "TokenPair": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["access", "refresh", "user"],
+        "properties": {
+          "access": { "type": "string" },
+          "refresh": { "type": "string" },
+          "user": { "$ref": "#/components/schemas/UserIdentity" }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "user_agent", "created_at", "last_seen_at", "current"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "user_agent": { "type": "string", "maxLength": 200 },
+          "created_at": { "type": "string", "format": "date-time" },
+          "last_seen_at": { "type": "string", "format": "date-time" },
+          "current": { "type": "boolean" }
+        }
+      },
+      "SessionList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["results"],
+        "properties": {
+          "results": { "type": "array", "items": { "$ref": "#/components/schemas/Session" } }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "examples": [
+                  "validation_error",
+                  "invalid_verification_code",
+                  "authentication_failed",
+                  "token_not_valid",
+                  "not_authenticated",
+                  "not_found"
+                ]
+              },
+              "details": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}

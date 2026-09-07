@@ -10,6 +10,8 @@ from config.observability import JsonFormatter
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 
+TEST_JWT_SIGNING_KEY = "test-only-jwt-key-which-is-longer-than-fifty-characters-123456"
+
 
 @pytest.mark.django_db
 def test_password_is_argon2_and_email_is_unique_ignoring_case(signed_in):
@@ -58,10 +60,34 @@ def test_production_process_refuses_to_enable_the_developer_workbench():
     result = subprocess.run(
         [sys.executable, "apps/api/manage.py", "check"],
         cwd=root,
-        env={**os.environ, "DOTICK_ENV": "production", "DOTICK_FOUNDATION_ENABLED": "1"},
+        env={
+            **os.environ,
+            "DOTICK_ENV": "production",
+            "DOTICK_FOUNDATION_ENABLED": "1",
+            "DJANGO_JWT_SIGNING_KEY": TEST_JWT_SIGNING_KEY,
+        },
         capture_output=True,
         text=True,
         timeout=10,
     )
     assert result.returncode != 0
     assert "foundation workbench is only available in local/test" in result.stderr
+
+
+def test_production_requires_a_separate_jwt_signing_key():
+    root = Path(__file__).resolve().parents[3]
+    result = subprocess.run(
+        [sys.executable, "apps/api/manage.py", "check"],
+        cwd=root,
+        env={
+            **os.environ,
+            "DOTICK_ENV": "production",
+            "DOTICK_FOUNDATION_ENABLED": "0",
+            "DJANGO_JWT_SIGNING_KEY": "",
+        },
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode != 0
+    assert "DJANGO_JWT_SIGNING_KEY must contain at least 50 characters" in result.stderr

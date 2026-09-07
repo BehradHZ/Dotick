@@ -3,6 +3,13 @@ import { existsSync } from 'node:fs';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
+const configuredWebPort = process.env.DOTICK_E2E_WEB_PORT ?? '8081';
+const webPort = Number(configuredWebPort);
+if (!Number.isInteger(webPort) || webPort < 1 || webPort > 65535) {
+  throw new Error('DOTICK_E2E_WEB_PORT must be an integer between 1 and 65535.');
+}
+const webBaseUrl = `http://127.0.0.1:${webPort}`;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -10,7 +17,7 @@ export default defineConfig({
   retries: 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:8081',
+    baseURL: webBaseUrl,
     trace: 'retain-on-failure',
     channel: process.env.PLAYWRIGHT_CHANNEL,
   },
@@ -28,7 +35,7 @@ export default defineConfig({
     },
     {
       command: 'node scripts/serve-web.mjs',
-      url: 'http://127.0.0.1:8081',
+      url: webBaseUrl,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
     },

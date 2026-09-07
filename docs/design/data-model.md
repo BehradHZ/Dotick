@@ -1,6 +1,6 @@
 # Dotick Data Design Baseline
 
-> **Status:** Increment 0 baseline; Increment 1 schema proposals require readiness review
+> **Status:** Increment 0 baseline; Increment 1 identity schema implemented, product schema pending
 > **Date:** 2026-08-17
 > **Decision source:** DR-052 / ADR-0002
 > **Database:** PostgreSQL
@@ -64,11 +64,37 @@ custom Django user model باید پیش از اولین migration ساخته ش
 | `id` | uuid | PK |
 | `email` | varchar | normalized, case-insensitive uniqueness strategy |
 | `password` | varchar | Django encoded hash; never plaintext |
+| `handle` | varchar | required; unique and case-insensitively unique |
+| `display_name` | varchar | required; nonunique |
+| `email_verified_at` | timestamptz nullable | null until successful verification |
 | `is_active` | boolean | not null |
 | `is_staff` | boolean | not null |
 | `date_joined` | timestamptz | not null |
 
-framework-required fields/tables در migration واقعی تکمیل می‌شوند؛ contract محصول نباید به نام داخلی آن‌ها وابسته شود.
+این fields در migrationهای `identity/0001..0003` پیاده شده‌اند؛ contract محصول نباید به نام داخلی framework وابسته شود.
+
+### `identity_verification_challenges`
+
+| Column | Type | Constraint / note |
+|---|---|---|
+| `id` | uuid | PK |
+| `user_id` | uuid | FK users, cascade |
+| `purpose` | varchar | email verification or password reset |
+| `code_digest` | varchar | keyed HMAC digest; never plaintext code |
+| `expires_at` / `consumed_at` | timestamptz | ten-minute and single-use lifecycle |
+| `failed_attempts` | small integer | challenge consumed after five failures |
+| `created_at` | timestamptz | issuance throttling and newest-challenge lookup |
+
+### `identity_auth_sessions`
+
+| Column | Type | Constraint / note |
+|---|---|---|
+| `id` | uuid | PK and JWT `sid` |
+| `user_id` | uuid | FK users, cascade |
+| `refresh_jti` | varchar | unique current refresh identity; replaced on rotation |
+| `user_agent` | varchar | bounded presentation hint, not trusted identity |
+| `created_at` / `last_seen_at` | timestamptz | session presentation and ordering |
+| `revoked_at` | timestamptz nullable | non-null rejects access and refresh tokens |
 
 ### `user_preferences`
 
