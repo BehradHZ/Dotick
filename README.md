@@ -2,7 +2,7 @@
 
 Dotick is being implemented incrementally from its specifications and [roadmap](docs/planning/increment-roadmap.md).
 
-The current implementation contains the verified **Increment 0 engineering foundation** plus the first **Increment 1 identity slice**: email registration/verification, password reset, rotating JWTs and revocable sessions. Google, Passkey, preferences and the Folder/List/Column/Task MVP remain in Increment 1.
+The current implementation contains the verified **Increment 0 engineering foundation** and the locally complete **Increment 1 backend**: product identity (email/password, Google and Passkey), account/profile/contact preferences, Folder/List/Column organization, Inbox bootstrap and the basic Task lifecycle. Increment 1 still needs the product client integration, configured external-provider smoke tests and release gates before the whole increment can be closed.
 
 Follow [environment setup](docs/development/environment-setup.md) to run it, and the [foundation review](docs/tracking/increment-0-foundation-review.md) for verified results and remaining gates. The prototype examples guide visual and interaction design; the specifications define behavior.
 

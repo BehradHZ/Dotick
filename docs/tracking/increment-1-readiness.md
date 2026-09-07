@@ -1,6 +1,6 @@
 # Increment 1 readiness baseline
 
-Date: 2026-09-07. Status: implementation in progress. Verified email/password, password reset and revocable JWT sessions are implemented and locally tested; Google, Passkey, external delivery smoke, preferences and the organization/Task slices remain open. I0's hosted CI and release gates also remain open. This document refines implementation order and acceptance evidence; it does not change product scope.
+Date: 2026-09-08. Status: backend implemented and locally verified; whole Increment still in progress. Identity, account/profile/contacts/preferences, Inbox/Folder/List/Column and basic Task APIs are implemented against PostgreSQL. Product client integration, configured external delivery/provider smoke, hosted CI and release gates remain open. This document refines implementation order and acceptance evidence; it does not change product scope.
 
 ## Goal and authority
 
@@ -11,10 +11,10 @@ Read System Definition §§6.1, 6.2, 6.13 and 8.3–8.6 first, then Decision Reg
 ## Delivery order within I1
 
 1. **Verified email identity — implemented locally:** register, send/verify an email code, sign in with password, reset password, JWT session renewal/revocation and sign out. Django password machinery and Simple JWT provide maintained security primitives. The I0 Basic-auth workbench remains isolated until the product client replacement is verified.
-2. **Account bootstrap and first Task:** provision one Inbox and its default Column atomically, plus preferences with an IANA timezone. Create/read one real unscheduled Task through the authenticated client/API/PostgreSQL path. Account bootstrap must remain idempotent under retries.
-3. **Organization and editing:** Folder/List/Column navigation, placement, title/status changes, recoverable deletion and draft-preserving failure states. Verify ownership and concurrent writes at the public API boundary.
-4. **Complete I1 identity:** Google sign-in/linking and optional Passkey enrollment/sign-in, independent fallback recommendation, account presentation and session management. Google-only accounts must work without a password/Passkey. Provider failure must not invalidate otherwise valid sessions.
-5. **Integration and release:** desktop/mobile acceptance, real delivery/provider configuration smoke, migrations, API contract verification, security failures and regression checks. Email-only success does not complete I1.
+2. **Account bootstrap and first Task — backend implemented locally:** one Inbox/default Column and IANA preference are provisioned atomically and concurrently idempotently. The Task HTTP API persists unscheduled Persian/English titles in PostgreSQL.
+3. **Organization and editing — backend implemented locally:** personal Folder/List/Column CRUD, optional Folder placement, manual order, Task move/title/status, owner isolation, version conflict, retry idempotency and recoverable deletion are covered at the HTTP boundary.
+4. **Complete I1 identity — backend implemented locally:** Google sign-in/explicit linking, optional Passkey enrollment/sign-in, independent password fallback, profile/timezone presentation, verified secondary contacts and session management are executable. Provider simulations do not replace configured integration smoke.
+5. **Integration and release — in progress:** migrations and the complete backend OpenAPI/regression gates are local-green. Product desktop/mobile integration, real delivery/provider configuration smoke, hosted CI and release publication remain.
 
 Scheduling, Event/Routine implementation, collaboration, full offline reconciliation, branching-history UI and additional views retain their owning increments. Their known invariants constrain this design now.
 
@@ -48,7 +48,7 @@ The older `data-model.md` tables are proposals, not a migration specification. `
 
 ## Acceptance plan at public boundaries
 
-These cases are the roadmap's Stage E plan. They are not executed product tests yet. Implement one failing behavior test and its vertical slice at a time during Stage F.
+These cases are the roadmap's Stage E plan. Backend evidence now exists for I1-AC-01..09; product-client evidence remains required where the boundary explicitly includes desktop/mobile UI. Each implemented backend behavior was introduced through a failing public-boundary test.
 
 | ID | Observable scenario | Boundary / trace |
 |---|---|---|
@@ -65,7 +65,8 @@ These cases are the roadmap's Stage E plan. They are not executed product tests 
 
 ## Remaining engineering inputs
 
-- Commit an executable I1 OpenAPI contract alongside the first endpoint implementation, including error/version/idempotency behavior. `foundation-api.md` documents only I0 checkpoints.
-- Select auth library versions and record account-linking, challenge expiry/rate limits, JWT storage/rotation, CSRF/CORS and session revocation in the authentication/security design before exposing product auth.
+- Integrate the product Expo client with the committed I1 OpenAPI contract. Replace the I0 Basic-auth checkpoint screen and verify account-to-Task flows on desktop and mobile without treating prototype demo state as persistence.
 - Supply deployment-specific email delivery settings, Google client/redirect configuration and WebAuthn relying-party/origin settings for real integration smoke. Automated tests can use local mail capture and provider simulations; those are not evidence of configured external delivery.
+- Supply and smoke-test the phone-contact delivery adapter. Until configured, phone verification correctly reports delivery unavailable; it is not a release-ready external channel.
+- Run the complete client/API/PostgreSQL E2E and hosted CI gates, then create the Increment 1 review/release record. Local backend tests alone do not close I1-AC-04/05/10 at their client boundaries.
 - Finish I0's hosted green CI and release record. The [I0 review](increment-0-foundation-review.md) remains the source for foundation evidence and its limits.

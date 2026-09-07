@@ -13,12 +13,25 @@ from rest_framework.exceptions import APIException, NotFound, ValidationError
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from dotick.identity.models import AuthSession, VerificationChallenge
+from dotick.identity.models import (
+    AccountContact,
+    AuthSession,
+    ContactVerificationChallenge,
+    ExternalIdentity,
+    PasskeyChallenge,
+    PasskeyCredential,
+    VerificationChallenge,
+)
+from dotick.identity.providers.google import verify_google_credential
+from dotick.identity.providers.passkeys import get_passkey_ceremony
 
 VERIFICATION_TTL = timedelta(minutes=10)
 CHALLENGE_COOLDOWN = timedelta(minutes=1)
 CHALLENGE_HOURLY_LIMIT = 5
 MAX_CODE_ATTEMPTS = 5
+PASSKEY_CHALLENGE_TTL = timedelta(minutes=5)
+RECENT_AUTH_TTL = timedelta(minutes=10)
+UNSET = object()
 
 
 class InvalidVerificationCode(APIException):
@@ -37,6 +50,54 @@ class InvalidRefreshToken(APIException):
     status_code = 401
     default_detail = "Refresh token is invalid or revoked."
     default_code = "token_not_valid"
+
+
+class AccountLinkRequired(APIException):
+    status_code = 409
+    default_detail = "Sign in to the existing account before linking Google."
+    default_code = "account_link_required"
+
+
+class ExternalIdentityConflict(APIException):
+    status_code = 409
+    default_detail = "This Google identity is already linked to another account."
+    default_code = "external_identity_conflict"
+
+
+class RecentAuthenticationRequired(APIException):
+    status_code = 403
+    default_detail = "Recent authentication is required."
+    default_code = "recent_authentication_required"
+
+
+class InvalidPasskeyChallenge(APIException):
+    status_code = 400
+    default_detail = "Invalid, expired or consumed Passkey challenge."
+    default_code = "invalid_passkey_challenge"
+
+
+class PasskeyAlreadyRegistered(APIException):
+    status_code = 409
+    default_detail = "This Passkey is already registered."
+    default_code = "passkey_already_registered"
+
+
+class HandleUnavailable(APIException):
+    status_code = 409
+    default_detail = "This handle is unavailable."
+    default_code = "handle_unavailable"
+
+
+class ContactUnavailable(APIException):
+    status_code = 409
+    default_detail = "This contact is already active on another account."
+    default_code = "contact_unavailable"
+
+
+class ContactDeliveryUnavailable(APIException):
+    status_code = 503
+    default_detail = "Contact verification delivery is unavailable."
+    default_code = "contact_delivery_unavailable"
 
 
 def normalize_email(email):
@@ -276,23 +337,439 @@ def _tokens_for_session(*, user, session):
     return {"access": str(refresh.access_token), "refresh": str(refresh)}
 
 
-@transaction.atomic
-def create_token_pair(*, email, password, user_agent=""):
-    user = authenticate(username=normalize_email(email), password=password)
-    if user is None or user.email_verified_at is None:
-        raise InvalidCredentials
+def _public_user(user):
+    return {
+        "email": user.email,
+        "handle": user.handle,
+        "display_name": user.display_name,
+    }
+
+
+def create_token_pair_for_user(*, user, user_agent=""):
     session = AuthSession.objects.create(
         user=user,
         refresh_jti=f"pending-{uuid.uuid4()}",
         user_agent=user_agent[:200],
     )
+    return {**_tokens_for_session(user=user, session=session), "user": _public_user(user)}
+
+
+def ensure_recent_authentication(session):
+    if session.created_at <= timezone.now() - RECENT_AUTH_TTL:
+        raise RecentAuthenticationRequired
+
+
+def account_presentation(*, user):
+    try:
+        account_timezone = user.preferences.timezone
+    except AttributeError:
+        account_timezone = None
     return {
-        **_tokens_for_session(user=user, session=session),
-        "user": {
-            "email": user.email,
-            "handle": user.handle,
-            "display_name": user.display_name,
+        "id": user.id,
+        "email": user.email,
+        "handle": user.handle,
+        "display_name": user.display_name,
+        "profile_picture_url": user.profile_picture_url,
+        "timezone": account_timezone,
+        "authentication_methods": {
+            "password": user.has_usable_password(),
+            "google": ExternalIdentity.objects.filter(
+                user=user, provider=ExternalIdentity.Provider.GOOGLE
+            ).exists(),
+            "passkey": PasskeyCredential.objects.filter(user=user).exists(),
         },
+    }
+
+
+@transaction.atomic
+def update_account(
+    *,
+    user_id,
+    handle=UNSET,
+    display_name=UNSET,
+    profile_picture_url=UNSET,
+    timezone_name=UNSET,
+):
+    from dotick.organization.models import UserPreferences
+
+    user = get_user_model().objects.select_for_update().get(id=user_id)
+    changed_fields = []
+    if handle is not UNSET:
+        user.handle = handle.strip()
+        changed_fields.append("handle")
+    if display_name is not UNSET:
+        user.display_name = display_name.strip()
+        changed_fields.append("display_name")
+    if profile_picture_url is not UNSET:
+        user.profile_picture_url = profile_picture_url or None
+        changed_fields.append("profile_picture_url")
+    if changed_fields:
+        try:
+            with transaction.atomic():
+                user.save(update_fields=changed_fields)
+        except IntegrityError as error:
+            raise HandleUnavailable from error
+    if timezone_name is not UNSET:
+        UserPreferences.objects.update_or_create(
+            user=user,
+            defaults={"timezone": timezone_name},
+        )
+    return get_user_model().objects.get(id=user.id)
+
+
+@transaction.atomic
+def set_password(*, user, session, password, current_password=None):
+    ensure_recent_authentication(session)
+    if user.has_usable_password() and not user.check_password(current_password or ""):
+        raise InvalidCredentials
+    try:
+        validate_password(password, user=user)
+    except DjangoValidationError as error:
+        raise ValidationError({"password": error.messages}) from error
+    user.set_password(password)
+    user.save(update_fields=["password"])
+    AuthSession.objects.filter(user=user, revoked_at__isnull=True).exclude(id=session.id).update(
+        revoked_at=timezone.now()
+    )
+
+
+def _contact_code_digest(*, contact_id, code):
+    return salted_hmac(
+        "dotick.identity.contact-verification-code",
+        f"{contact_id}:{code}",
+    ).hexdigest()
+
+
+def _deliver_contact_code(*, kind, value, code):
+    from django.conf import settings
+
+    deliverer = getattr(settings, "CONTACT_CODE_DELIVERER", None)
+    if callable(deliverer):
+        deliverer(kind=kind, value=value, code=code)
+        return
+    if kind == AccountContact.Kind.EMAIL:
+        send_mail(
+            subject="Verify your Dotick contact",
+            message=f"Your Dotick contact verification code is {code}. It expires in 10 minutes.",
+            from_email=None,
+            recipient_list=[value],
+        )
+        return
+    raise ContactDeliveryUnavailable
+
+
+def request_contact_verification(*, user, kind, value):
+    normalized = value.strip().lower() if kind == AccountContact.Kind.EMAIL else value.strip()
+    if (
+        kind == AccountContact.Kind.EMAIL
+        and get_user_model().objects.filter(email__iexact=normalized).exists()
+    ):
+        raise ContactUnavailable
+    with transaction.atomic():
+        contact, _ = AccountContact.objects.get_or_create(
+            user=user,
+            kind=kind,
+            normalized_value=normalized,
+            defaults={"value": normalized},
+        )
+        if contact.verified_at is not None:
+            return contact
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        now = timezone.now()
+        ContactVerificationChallenge.objects.filter(
+            contact=contact,
+            consumed_at__isnull=True,
+        ).update(consumed_at=now)
+        ContactVerificationChallenge.objects.create(
+            contact=contact,
+            code_digest=_contact_code_digest(contact_id=contact.id, code=code),
+            expires_at=now + VERIFICATION_TTL,
+        )
+    _deliver_contact_code(kind=contact.kind, value=contact.value, code=code)
+    return contact
+
+
+def verify_contact(*, user, contact_id, code):
+    valid = False
+    conflict = False
+    with transaction.atomic():
+        try:
+            contact = AccountContact.objects.select_for_update().get(
+                id=contact_id,
+                user=user,
+                verified_at__isnull=True,
+            )
+            challenge = (
+                ContactVerificationChallenge.objects.select_for_update()
+                .filter(contact=contact, consumed_at__isnull=True)
+                .latest("created_at")
+            )
+        except AccountContact.DoesNotExist, ContactVerificationChallenge.DoesNotExist:
+            pass
+        else:
+            now = timezone.now()
+            expected = _contact_code_digest(contact_id=contact.id, code=code)
+            if (
+                challenge.expires_at <= now
+                or challenge.failed_attempts >= MAX_CODE_ATTEMPTS
+                or not constant_time_compare(challenge.code_digest, expected)
+            ):
+                challenge.failed_attempts += 1
+                if challenge.failed_attempts >= MAX_CODE_ATTEMPTS:
+                    challenge.consumed_at = now
+                challenge.save(update_fields=["failed_attempts", "consumed_at"])
+            elif (
+                AccountContact.objects.filter(
+                    kind=contact.kind,
+                    normalized_value=contact.normalized_value,
+                    verified_at__isnull=False,
+                )
+                .exclude(user=user)
+                .exists()
+            ):
+                conflict = True
+            else:
+                try:
+                    with transaction.atomic():
+                        contact.verified_at = now
+                        contact.save(update_fields=["verified_at"])
+                except IntegrityError:
+                    conflict = True
+                else:
+                    challenge.consumed_at = now
+                    challenge.save(update_fields=["consumed_at"])
+                    valid = True
+    if conflict:
+        raise ContactUnavailable
+    if not valid:
+        raise InvalidVerificationCode
+
+
+def list_contacts(*, user):
+    return AccountContact.objects.filter(user=user, verified_at__isnull=False).order_by(
+        "kind", "created_at"
+    )
+
+
+def delete_contact(*, user, contact_id):
+    deleted, _ = AccountContact.objects.filter(id=contact_id, user=user).delete()
+    if not deleted:
+        raise NotFound("Contact not found.")
+
+
+@transaction.atomic
+def create_token_pair(*, email, password, user_agent=""):
+    user = authenticate(username=normalize_email(email), password=password)
+    if user is None or user.email_verified_at is None:
+        raise InvalidCredentials
+    return create_token_pair_for_user(user=user, user_agent=user_agent)
+
+
+@transaction.atomic
+def sign_in_with_google(*, credential, user_agent=""):
+    claims = verify_google_credential(credential)
+    now = timezone.now()
+    identity = (
+        ExternalIdentity.objects.select_for_update()
+        .select_related("user")
+        .filter(provider=ExternalIdentity.Provider.GOOGLE, subject=claims["subject"])
+        .first()
+    )
+    if identity is not None:
+        if not identity.user.is_active:
+            raise InvalidCredentials
+        identity.provider_email = claims["email"]
+        identity.last_used_at = now
+        identity.save(update_fields=["provider_email", "last_used_at"])
+        user = identity.user
+    else:
+        user_model = get_user_model()
+        if user_model.objects.filter(email__iexact=claims["email"]).exists():
+            raise AccountLinkRequired
+        try:
+            with transaction.atomic():
+                user = user_model.objects.create_user(
+                    email=claims["email"],
+                    password=None,
+                    display_name=claims["display_name"],
+                    email_verified_at=now,
+                    is_active=True,
+                )
+                ExternalIdentity.objects.create(
+                    user=user,
+                    provider=ExternalIdentity.Provider.GOOGLE,
+                    subject=claims["subject"],
+                    provider_email=claims["email"],
+                    last_used_at=now,
+                )
+        except IntegrityError as error:
+            identity = (
+                ExternalIdentity.objects.select_related("user")
+                .filter(
+                    provider=ExternalIdentity.Provider.GOOGLE,
+                    subject=claims["subject"],
+                )
+                .first()
+            )
+            if identity is not None:
+                user = identity.user
+            elif user_model.objects.filter(email__iexact=claims["email"]).exists():
+                raise AccountLinkRequired from error
+            else:
+                raise ExternalIdentityConflict from error
+    return {
+        **create_token_pair_for_user(user=user, user_agent=user_agent),
+        "fallback_recommended": not user.has_usable_password(),
+    }
+
+
+@transaction.atomic
+def link_google_identity(*, user, session, credential):
+    ensure_recent_authentication(session)
+    claims = verify_google_credential(credential)
+    if normalize_email(claims["email"]) != normalize_email(user.email):
+        raise ValidationError({"credential": ["Google email must match the account email."]})
+    identity = (
+        ExternalIdentity.objects.select_for_update()
+        .filter(provider=ExternalIdentity.Provider.GOOGLE, subject=claims["subject"])
+        .first()
+    )
+    if identity is not None and identity.user_id != user.id:
+        raise ExternalIdentityConflict
+    if identity is None:
+        try:
+            ExternalIdentity.objects.create(
+                user=user,
+                provider=ExternalIdentity.Provider.GOOGLE,
+                subject=claims["subject"],
+                provider_email=claims["email"],
+            )
+        except IntegrityError as error:
+            raise ExternalIdentityConflict from error
+
+
+def _passkey_output(row):
+    return {
+        "id": row.id,
+        "name": row.name,
+        "device_type": row.device_type,
+        "backed_up": row.backed_up,
+        "created_at": row.created_at,
+        "last_used_at": row.last_used_at,
+    }
+
+
+@transaction.atomic
+def begin_passkey_registration(*, user, session, name):
+    ensure_recent_authentication(session)
+    raw_challenge = secrets.token_bytes(32)
+    row = PasskeyChallenge.objects.create(
+        user=user,
+        purpose=PasskeyChallenge.Purpose.REGISTRATION,
+        challenge=raw_challenge,
+        credential_name=name.strip(),
+        expires_at=timezone.now() + PASSKEY_CHALLENGE_TTL,
+    )
+    options = get_passkey_ceremony().registration_options(
+        user=user,
+        challenge=raw_challenge,
+    )
+    return {"challenge_id": row.id, "public_key": options}
+
+
+@transaction.atomic
+def finish_passkey_registration(*, user, challenge_id, credential):
+    now = timezone.now()
+    try:
+        challenge = PasskeyChallenge.objects.select_for_update().get(
+            id=challenge_id,
+            user=user,
+            purpose=PasskeyChallenge.Purpose.REGISTRATION,
+            consumed_at__isnull=True,
+            expires_at__gt=now,
+        )
+    except PasskeyChallenge.DoesNotExist as error:
+        raise InvalidPasskeyChallenge from error
+    challenge.consumed_at = now
+    challenge.save(update_fields=["consumed_at"])
+    verified = get_passkey_ceremony().verify_registration(
+        credential=credential,
+        challenge=bytes(challenge.challenge),
+    )
+    try:
+        row = PasskeyCredential.objects.create(
+            user=user,
+            credential_id=verified["credential_id"],
+            public_key=verified["public_key"],
+            sign_count=verified["sign_count"],
+            device_type=verified["device_type"],
+            backed_up=verified["backed_up"],
+            transports=credential.get("response", {}).get("transports", []),
+            name=challenge.credential_name,
+        )
+    except IntegrityError as error:
+        raise PasskeyAlreadyRegistered from error
+    return _passkey_output(row)
+
+
+def list_passkeys(*, user):
+    return [_passkey_output(row) for row in PasskeyCredential.objects.filter(user=user)]
+
+
+def delete_passkey(*, user, passkey_id):
+    deleted, _ = PasskeyCredential.objects.filter(id=passkey_id, user=user).delete()
+    if not deleted:
+        raise NotFound("Passkey not found.")
+
+
+def begin_passkey_authentication():
+    raw_challenge = secrets.token_bytes(32)
+    row = PasskeyChallenge.objects.create(
+        purpose=PasskeyChallenge.Purpose.AUTHENTICATION,
+        challenge=raw_challenge,
+        expires_at=timezone.now() + PASSKEY_CHALLENGE_TTL,
+    )
+    options = get_passkey_ceremony().authentication_options(challenge=raw_challenge)
+    return {"challenge_id": row.id, "public_key": options}
+
+
+@transaction.atomic
+def finish_passkey_authentication(*, challenge_id, credential, user_agent=""):
+    now = timezone.now()
+    try:
+        challenge = PasskeyChallenge.objects.select_for_update().get(
+            id=challenge_id,
+            purpose=PasskeyChallenge.Purpose.AUTHENTICATION,
+            consumed_at__isnull=True,
+            expires_at__gt=now,
+        )
+    except PasskeyChallenge.DoesNotExist as error:
+        raise InvalidPasskeyChallenge from error
+    challenge.consumed_at = now
+    challenge.save(update_fields=["consumed_at"])
+    credential_id = str(credential.get("id", ""))
+    try:
+        stored = (
+            PasskeyCredential.objects.select_for_update()
+            .select_related("user")
+            .get(
+                credential_id=credential_id,
+                user__is_active=True,
+            )
+        )
+    except PasskeyCredential.DoesNotExist as error:
+        raise InvalidCredentials from error
+    verified = get_passkey_ceremony().verify_authentication(
+        credential=credential,
+        challenge=bytes(challenge.challenge),
+        stored_credential=stored,
+    )
+    stored.sign_count = verified["new_sign_count"]
+    stored.last_used_at = now
+    stored.save(update_fields=["sign_count", "last_used_at"])
+    return {
+        **create_token_pair_for_user(user=stored.user, user_agent=user_agent),
+        "fallback_recommended": False,
     }
 
 

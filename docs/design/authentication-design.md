@@ -1,22 +1,23 @@
 # Dotick Authentication Design
 
-> **Status:** Increment 1 email/password baseline; Google and Passkey adapters pending
-> **Date:** 2026-09-07
-> **Decision sources:** System Definition §6.13; DR-048, DR-061, DR-128; SRS-AUTH-001..013
+> **Status:** Increment 1 backend implemented locally; configured provider smoke pending
+> **Date:** 2026-09-08
+> **Decision sources:** System Definition §6.13; DR-048, DR-061, DR-128, DR-140; SRS-AUTH-001..015
 
 ## 1. Scope
 
-This design defines the shared Account identity, verified email/password flow and revocable JWT session boundary. It also fixes the account-linking rules that later Google and Passkey adapters must follow. Provider-specific implementation remains in Increment 1 delivery order 4.
+This design defines the shared Account identity, verified contacts, email/password, Google, Passkey and revocable JWT session boundaries. These adapters and their PostgreSQL persistence are implemented behind the public Increment 1 API. Real deployment credentials, provider callbacks/browser ceremonies and delivery smoke remain release evidence rather than automated-provider simulations.
 
 The public API contract is [`openapi.json`](openapi.json). The I0 HTTP Basic workbench remains isolated behind its local/test-only guard and is not a product authentication method.
 
 ## 2. Account identity
 
 - Internal Account identity is the existing UUID `User.id`; authentication methods never replace it.
-- Every Account has a case-insensitively unique mutable `handle`, a nonunique `display_name`, and an optional profile picture added with the later presentation slice.
+- Every Account has a case-insensitively unique mutable `handle`, a nonunique `display_name`, an optional profile-picture URL and one shared IANA timezone preference.
 - Product registration accepts handles matching `[A-Za-z0-9_]{3,30}`. Framework-created developer accounts receive a generated collision-resistant handle so the database invariant remains true.
 - Email is normalized to trimmed lowercase and remains case-insensitively unique.
 - A registration email may exist as a pending credential candidate, but the Account stays inactive and `email_verified_at` stays null until verification succeeds. Pending email must not authenticate or participate in contact discovery.
+- Secondary email/phone contacts live separately from the primary login email. E.164 is required for phone input. Only verified contacts appear in the active-contact API; pending values and challenges cannot be used for discovery.
 
 ## 3. Password and email verification
 
@@ -48,16 +49,18 @@ The public API contract is [`openapi.json`](openapi.json). The I0 HTTP Basic wor
 
 ## 6. Google and Passkey linking rules
 
-- A signed-in User may link a Google identity only after a state/PKCE-protected provider flow and recent Account authentication. Provider subject is the stable external key; email alone is not an external identity key.
+- The client obtains a Google ID credential through the provider's protected flow; the API validates signature, audience, expiry and verified email with `google-auth` 2.57.1. A signed-in User may link it only after recent Account authentication. Provider subject is the stable external key; email alone is not an external identity key.
 - A signed-out Google flow resolves an already-linked provider subject. If none exists and the provider asserts a verified unused email, it may create a new Account. If that email already belongs to another Account, Dotick does not silently link it; the User must authenticate to the existing Account and complete an explicit link flow.
-- Passkeys are independent credentials bound to Dotick's WebAuthn relying party and the internal User UUID. Enrollment requires an authenticated/recently authenticated Account or a controlled registration ceremony.
+- Passkeys use `webauthn` 3.0.0 and are independent discoverable credentials bound to the configured Dotick RP, allowed origin and internal User UUID. User verification is required. Registration requires a session created within ten minutes. Registration/authentication challenges are 32 random bytes, expire after five minutes and become unusable after successful verification.
 - Google-only Accounts remain valid without a password or Passkey, but the UI must recommend an independent fallback. Provider outage does not revoke otherwise valid Dotick sessions.
-- Provider identities and Passkey credentials will use separate tables and adapters. Their migrations are not created before those flows have executable acceptance tests.
+- Provider identities, Passkey credentials/challenges and contact credentials use separate tables/adapters around the same User UUID. Credential public keys and counters are persisted; private-key material never reaches Dotick.
+- A Google-only Account can add a validated password through recent authenticated session or enroll a Passkey. Existing password changes require the current password and revoke other sessions. The response explicitly indicates whether an independent fallback is still recommended.
 
 ## 7. Failure and verification rules
 
 - Public errors use the stable envelope `{"error":{"code":...,"details":...}}`.
 - Invalid credentials, unknown Accounts and inactive/unverified Accounts share the same authentication failure.
 - Invalid, expired, consumed and locked verification codes share the same verification failure.
-- Tests observe behavior through the HTTP API and PostgreSQL. Email is replaced only at its external adapter boundary.
-- I1-AC-01 and I1-AC-02 are partially implemented by `apps/api/tests/test_identity_api.py`; configured provider delivery, Google and Passkey remain open.
+- Tests observe behavior through the HTTP API and PostgreSQL. Google assertion verification, WebAuthn ceremony verification and delivery are replaced only at external adapter boundaries; one test also executes the real WebAuthn option generator.
+- `apps/api/tests/test_identity_api.py` covers email/password/session failures. `test_federated_identity_api.py` covers Google-only/linking/takeover prevention, independent fallback, Passkey enrollment/sign-in/challenge lifecycle, account presentation and verified contacts.
+- Public ceremony endpoints require deployment edge rate limiting in addition to the database challenge lifecycle. Real email/phone delivery, Google credentials and browser-authenticator smoke remain pending because they need deployment-specific services/devices.

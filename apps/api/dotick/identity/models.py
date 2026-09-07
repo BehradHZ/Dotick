@@ -41,6 +41,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     handle = models.CharField(max_length=30, unique=True)
     display_name = models.CharField(max_length=120)
+    profile_picture_url = models.URLField(max_length=2048, null=True, blank=True)
     email_verified_at = models.DateTimeField(null=True, blank=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -90,3 +91,120 @@ class AuthSession(models.Model):
     class Meta:
         db_table = "identity_auth_sessions"
         indexes = [models.Index(fields=["user", "-last_seen_at"], name="identity_session_user")]
+
+
+class ExternalIdentity(models.Model):
+    class Provider(models.TextChoices):
+        GOOGLE = "google", "Google"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="external_identities")
+    provider = models.CharField(max_length=32, choices=Provider.choices)
+    subject = models.CharField(max_length=255)
+    provider_email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "identity_external_identities"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "subject"], name="identity_external_provider_subject_unique"
+            ),
+            models.UniqueConstraint(
+                fields=["user", "provider"], name="identity_external_user_provider_unique"
+            ),
+        ]
+
+
+class PasskeyCredential(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="passkeys")
+    credential_id = models.CharField(max_length=1024, unique=True)
+    public_key = models.BinaryField()
+    sign_count = models.PositiveBigIntegerField(default=0)
+    device_type = models.CharField(max_length=32, blank=True)
+    backed_up = models.BooleanField(default=False)
+    transports = models.JSONField(default=list)
+    name = models.CharField(max_length=120)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "identity_passkey_credentials"
+        indexes = [models.Index(fields=["user", "-created_at"], name="identity_passkey_user")]
+
+
+class PasskeyChallenge(models.Model):
+    class Purpose(models.TextChoices):
+        REGISTRATION = "registration", "Registration"
+        AUTHENTICATION = "authentication", "Authentication"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="passkey_challenges",
+        null=True,
+        blank=True,
+    )
+    purpose = models.CharField(max_length=24, choices=Purpose.choices)
+    challenge = models.BinaryField()
+    credential_name = models.CharField(max_length=120, blank=True)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "identity_passkey_challenges"
+        indexes = [
+            models.Index(fields=["purpose", "expires_at"], name="identity_passkey_challenge")
+        ]
+
+
+class AccountContact(models.Model):
+    class Kind(models.TextChoices):
+        EMAIL = "email", "Email"
+        PHONE = "phone", "Phone"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="contacts")
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    value = models.CharField(max_length=254)
+    normalized_value = models.CharField(max_length=254)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "identity_account_contacts"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "kind", "normalized_value"],
+                name="identity_contact_user_value_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["kind", "normalized_value"],
+                condition=models.Q(verified_at__isnull=False),
+                name="identity_contact_verified_value_unique",
+            ),
+        ]
+
+
+class ContactVerificationChallenge(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contact = models.ForeignKey(
+        AccountContact,
+        on_delete=models.CASCADE,
+        related_name="verification_challenges",
+    )
+    code_digest = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "identity_contact_verification_challenges"
+        indexes = [
+            models.Index(fields=["contact", "-created_at"], name="identity_contact_challenge")
+        ]

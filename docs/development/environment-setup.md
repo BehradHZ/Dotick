@@ -1,6 +1,6 @@
 # Development environment
 
-Status: Increment 0 implementation, 2026-09-06. Run commands from the repository root.
+Status: Increment 1 backend implementation, 2026-09-08. Run commands from the repository root.
 
 ## Prerequisites
 
@@ -22,6 +22,8 @@ python -m uv run python apps/api/manage.py create_developer
 ```
 
 The initializer generates private secrets in the ignored `.env` and preserves existing values. The developer email is `developer@example.test`; read `DOTICK_DEVELOPMENT_PASSWORD` in `.env` for its password. The provisioning command refuses to silently replace an existing account's password.
+
+Google sign-in additionally needs `GOOGLE_OAUTH_CLIENT_ID`. Passkey ceremonies need the deployed WebAuthn relying-party ID and exact browser origins in `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGINS`; local defaults target `localhost` and the Expo web origin. Phone-contact delivery is an application adapter and must be configured by the deployment before that endpoint is exposed. Automated tests replace only these external provider/delivery boundaries.
 
 If a PostgreSQL server already uses port `55432`, choose a free `PGPORT` in `.env` before starting Compose. A local PostgreSQL 18 installation can also be used with a dedicated database/user; set its connection fields instead. Tests create and destroy `test_<PGDATABASE>`, so the development database role needs `CREATEDB`. Never point the test commands at production.
 

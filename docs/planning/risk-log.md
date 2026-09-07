@@ -1,16 +1,16 @@
 # Dotick Risk Register
 
-> **Status:** Increment 0 implementation / Increment 1 readiness
-> **Date:** 2026-09-06
+> **Status:** Increment 1 backend implemented locally
+> **Date:** 2026-09-08
 > **Scale:** Probability (P) and Impact (I): 1 low — 5 high; Score = P × I
 
 | ID | Risk | P | I | Score | Mitigation / preventive control | Trigger / evidence | Owner stage | Status |
 |---|---|---:|---:|---:|---|---|---|---|
 | R-001 | scope expansion across future features delays first usable slice | 4 | 4 | 16 | enforce Increment gates; no empty future modules/schema | I1 work depends on I2+ implementation | every Increment | Open |
 | R-002 | conceptual inheritance leaks into fragile ORM/schema coupling | 3 | 4 | 12 | DR-052, explicit composition, architecture inspection | subtype change requires hidden ORM behavior | I0/I1 | Mitigated |
-| R-003 | cross-user data leakage from unscoped queries | 3 | 5 | 15 | owner-scoped repository/service patterns and negative tests | lookup by raw id before scope | I1 | Open |
-| R-004 | multi-auth scope makes I1 too large | 4 | 4 | 16 | verified email/JWT slice now isolated; add Google/Passkey through explicit linking adapters | provider work changes internal User identity | I1 | Partially mitigated |
-| R-005 | frontend/backend contract drift | 3 | 4 | 12 | validated `openapi.json`; contract tests; generated types only from committed contract | serializer/client models edited independently | I1+ | Partially mitigated |
+| R-003 | cross-user data leakage from unscoped queries | 3 | 5 | 15 | owner-scoped repository/service patterns and negative HTTP tests | lookup by raw id before scope | I1 | Backend mitigated; client/release review pending |
+| R-004 | multi-auth scope makes I1 too large | 4 | 4 | 16 | Google/Passkey/contact/password methods use separate credential tables and adapters around one User/session identity | provider work changes internal User identity | I1 | Backend mitigated; configured provider smoke pending |
+| R-005 | frontend/backend contract drift | 3 | 4 | 12 | validated full-I1 `openapi.json`; route-set contract test; client must consume committed contract | serializer/client models edited independently | I1+ | Backend mitigated; client integration pending |
 | R-006 | PostgreSQL behavior hidden by SQLite/fakes | 3 | 4 | 12 | PostgreSQL in integration/CI; migration test on clean DB | tests pass locally but constraints fail in deployment | I0+ | Mitigated |
 | R-007 | timezone/day-boundary defects corrupt credited dates | 4 | 5 | 20 | UTC instants, IANA timezone, controllable clock, DST test matrix | naive datetime enters persistence/domain | I1/I4/I10 | Open |
 | R-008 | historical edits or sync overwrite user data | 3 | 5 | 15 | version metadata now; audit I2; sync spec I6; backup/restore | lost update or non-reconstructable edit | I1/I2/I6 | Open |

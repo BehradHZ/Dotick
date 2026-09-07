@@ -52,6 +52,8 @@ testی که فقط implementation detail را mirror می‌کند ارزش acce
 
 # 5. Increment 1 critical suite
 
+Backend cases below execute against the public HTTP API and PostgreSQL. Client restart/draft-preservation and configured-provider cases remain integration/release gates.
+
 - email/password happy/error paths؛
 - Google unavailable و fallback behavior؛
 - Passkey registration/authentication boundaries؛

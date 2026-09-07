@@ -1,6 +1,6 @@
 # Dotick Architecture Baseline
 
-> **Status:** Increment 0 baseline; Increment 1 identity slice in progress
+> **Status:** Increment 1 backend implemented locally; client/release integration pending
 > **Date:** 2026-08-17
 > **Decision sources:** DR-051, DR-052; client scope DR-066
 > **Scope:** Personal V1 and the Increment 0 Walking Skeleton
@@ -138,7 +138,7 @@ resource باید خنثی و قابل حذف باشد، یا اولین thin sl
 # 8. API boundaries
 
 - endpointها در Increment مالک و در OpenAPI تعریف می‌شوند؛ global endpoint inventory از قبل ساخته نمی‌شود.
-- JSON field naming و error envelope در اولین contract Increment 1 ثابت می‌شوند.
+- JSON field naming و stable error envelope در contract کامل backend Increment 1 تثبیت شده‌اند.
 - validation syntactic در serializer/interface و validation business در domain/application انجام می‌شود.
 - API نباید Django model shape را به‌طور خودکار contract عمومی کند.
 - authorization باید پیش از fetch/serialization داده‌ی خصوصی اعمال شود.
@@ -158,7 +158,8 @@ resource باید خنثی و قابل حذف باشد، یا اولین thin sl
 
 - custom User model با UUID باید قبل از اولین migration تثبیت شود.
 - password handling به API استاندارد Django واگذار می‌شود و algorithm policy در `docs/design/security-design.md` است.
-- verified email/password و JWT session در [Authentication Design](authentication-design.md) پیاده شده‌اند؛ Google OAuth و Passkey در ادامهٔ Increment 1 پشت adapter/use-caseهای مستقل قرار می‌گیرند.
+- verified email/password/contact، Google assertion، Passkey و revocable JWT session در [Authentication Design](authentication-design.md) پشت adapter/use-caseهای مستقل پیاده شده‌اند؛ credentialهای deployment-specific هنوز release smoke می‌خواهند.
+- `identity` Account/credential/session boundary را مالک است؛ `organization` Inbox/Folder/List/Column/preferences، `items` identity/ownership/version/source و `tasks` status/use case پایه را با composition صریح جدا نگه می‌دارند.
 - authentication method نباید ownership model را تغییر دهد.
 - queryهای private با owner scope آغاز می‌شوند؛ object lookup بدون scope مجاز نیست.
 - Group authorization تا Increment 7 وارد schema یا abstraction عمومی premature نمی‌شود.
@@ -197,7 +198,7 @@ resource باید خنثی و قابل حذف باشد، یا اولین thin sl
 
 موارد زیر عمداً در این baseline بسته نشده‌اند:
 
-- endpointهای دقیق و error envelope تا Increment 1 API design.
+- endpointهای Increment 2+ تا Increment مالک؛ endpointها و error envelope مربوط به I1 در `openapi.json` تثبیت شده‌اند.
 - WebSocket channel topology تا Increment 7.
 - background queue/Redis تا اولین use case نیازمند آن.
 - offline sync metadata تا Increment 6.

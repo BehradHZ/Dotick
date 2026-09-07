@@ -32,6 +32,9 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "dotick.identity",
+    "dotick.organization",
+    "dotick.items",
+    "dotick.tasks",
     "dotick.foundation",
 ]
 MIDDLEWARE = [
@@ -71,6 +74,12 @@ TIME_ZONE = "UTC"
 LANGUAGE_CODE = "en-us"
 EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "no-reply@dotick.local")
+GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+WEBAUTHN_RP_ID = os.getenv("WEBAUTHN_RP_ID", "localhost" if IS_LOCAL else "")
+WEBAUTHN_RP_NAME = os.getenv("WEBAUTHN_RP_NAME", "Dotick")
+WEBAUTHN_ORIGINS = os.getenv("WEBAUTHN_ORIGINS", "http://localhost:8081" if IS_LOCAL else "").split(
+    ","
+)
 EMAIL_HOST = os.getenv("DJANGO_EMAIL_HOST", "localhost")
 EMAIL_PORT = int(os.getenv("DJANGO_EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("DJANGO_EMAIL_HOST_USER", "")

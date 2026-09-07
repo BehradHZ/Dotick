@@ -2,12 +2,16 @@
 
 تمام تغییرات مهم و قابل‌مشاهدهٔ پروژه باید در این فایل ثبت شوند.
 
-## Unreleased — Increment 1 identity (2026-09-07)
+## Unreleased — Increment 1 backend (2026-09-08)
 
 - Added verified email registration, resend throttling and password reset using single-use ten-minute codes.
 - Added five-minute access tokens, rotating 30-day refresh tokens, active-session listing and specific/current/all-session revocation.
 - Added unique handles and display names, append-only identity migrations, a validated OpenAPI contract and dedicated production JWT signing key.
-- Google, Passkey, external delivery smoke and the Folder/List/Column/Task vertical slice remain pending.
+- Added Google-only sign-in and explicit account linking, optional WebAuthn Passkeys, independent password fallback, account/profile/timezone presentation and separately verified secondary contacts.
+- Added atomic account bootstrap, exactly one Inbox/default Column, personal Folder/List/Column CRUD and ordering, explicit recoverable container deletion, and owner-scoped Trash/restore.
+- Added explicit Item/Task composition, stable UUID identity, manual provenance, Task create/read/edit/move/status/Trash/restore, optimistic versions and idempotent creation.
+- Expanded the validated OpenAPI 3.1 contract to every published Increment 1 backend route and added PostgreSQL behavior tests for concurrency, isolation, conflicts and recovery.
+- Product client integration, configured email/Google/WebAuthn/phone delivery smoke and release publication remain pending; the locally verified backend is not the whole Increment 1 release.
 
 ## Increment 0 foundation candidate (2026-09-06)
 

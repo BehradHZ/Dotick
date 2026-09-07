@@ -1,8 +1,8 @@
-# Increment 0 dependency review
+# Dependency review
 
-Date: 2026-09-06. Scope: locked API and Expo web foundation dependencies.
+Date: 2026-09-08. Scope: locked Increment 1 API and Expo web dependencies.
 
-`pip-audit` reports no known vulnerabilities in the resolved Python environment. `npm audit` reports ten moderate package entries, all originating from one advisory: [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq) in `uuid@7.0.3`, through `xcode@3.0.1` and Expo's native project tooling. There are no high/critical entries in the inspected lockfile.
+`pip-audit` reports no known vulnerabilities in the resolved Python environment, including the locked `google-auth` 2.57.1 and `webauthn` 3.0.0 identity dependencies. The last npm inspection reported ten moderate package entries, all originating from one advisory: [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq) in `uuid@7.0.3`, through `xcode@3.0.1` and Expo's native project tooling. There were no high/critical entries in that inspected lockfile; rerun npm audit at the final I1 client gate.
 
 The vulnerable operations described by the advisory are v3/v5/v6 calls with caller-supplied buffers. The installed `xcode/lib/pbxProject.js` uses `uuid.v4()` without a supplied buffer, to generate Xcode project identifiers. The current client build targets web only and has no Xcode/native generation flow. This inspection does not establish that the dependency itself is fixed.
 

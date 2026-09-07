@@ -7,7 +7,10 @@ def api_exception_handler(error, context):
     if response is not None:
         codes = error.get_codes() if hasattr(error, "get_codes") else None
         code = codes if isinstance(codes, str) else "validation_error"
-        response.data = {"error": {"code": code, "details": response.data}}
+        details = response.data
+        if hasattr(error, "current"):
+            details = {"message": response.data["detail"], "current": error.current}
+        response.data = {"error": {"code": code, "details": details}}
     return response
 
 

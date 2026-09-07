@@ -9,9 +9,11 @@ dependencies = [
     "django-cors-headers==4.9.0",
     "djangorestframework==3.18.0",
     "djangorestframework-simplejwt==5.5.1",
+    "google-auth==2.57.1",
     "psycopg[binary]==3.3.5",
     "python-dotenv==1.2.3",
     "uvicorn==0.52.4",
+    "webauthn==3.0.0",
 ]
 
 [tool.pytest.ini_options]

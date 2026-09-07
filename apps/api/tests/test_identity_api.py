@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from django.core import mail
+from django.urls import get_resolver
 from openapi_spec_validator import validate
 from rest_framework.test import APIClient
 
@@ -288,12 +289,12 @@ def test_user_can_revoke_one_session_or_all_devices(settings):
     assert third.get(SESSIONS_URL).status_code == 401
 
 
-def test_openapi_contract_covers_published_identity_routes():
+def test_openapi_contract_covers_published_increment_1_routes():
     root = Path(__file__).resolve().parents[3]
     contract = json.loads((root / "docs/design/openapi.json").read_text(encoding="utf-8"))
     validate(contract)
     assert contract["openapi"] == "3.1.0"
-    assert set(contract["paths"]) == {
+    expected_paths = {
         "/api/v1/auth/register",
         "/api/v1/auth/email/resend",
         "/api/v1/auth/email/verify",
@@ -304,7 +305,42 @@ def test_openapi_contract_covers_published_identity_routes():
         "/api/v1/auth/sessions/{session_id}",
         "/api/v1/auth/password/reset/request",
         "/api/v1/auth/password/reset/confirm",
+        "/api/v1/auth/password",
+        "/api/v1/auth/google",
+        "/api/v1/auth/google/link",
+        "/api/v1/auth/passkeys",
+        "/api/v1/auth/passkeys/{passkey_id}",
+        "/api/v1/auth/passkeys/registration/options",
+        "/api/v1/auth/passkeys/registration/verify",
+        "/api/v1/auth/passkeys/authentication/options",
+        "/api/v1/auth/passkeys/authentication/verify",
+        "/api/v1/account",
+        "/api/v1/account/bootstrap",
+        "/api/v1/account/contacts",
+        "/api/v1/account/contacts/verify",
+        "/api/v1/account/contacts/{contact_id}",
+        "/api/v1/folders",
+        "/api/v1/folders/{folder_id}",
+        "/api/v1/folders/{folder_id}/restore",
+        "/api/v1/trash/folders",
+        "/api/v1/lists",
+        "/api/v1/lists/{list_id}",
+        "/api/v1/lists/{list_id}/restore",
+        "/api/v1/trash/lists",
+        "/api/v1/lists/{list_id}/columns",
+        "/api/v1/columns/{column_id}",
+        "/api/v1/tasks",
+        "/api/v1/tasks/{task_id}",
+        "/api/v1/tasks/{task_id}/restore",
+        "/api/v1/trash/tasks",
     }
+    routed_paths = {
+        "/" + re.sub(r"<uuid:([^>]+)>", r"{\1}", str(pattern.pattern))
+        for pattern in get_resolver().url_patterns
+        if str(pattern.pattern).startswith("api/v1/")
+        and not str(pattern.pattern).startswith("api/v1/foundation/")
+    }
+    assert set(contract["paths"]) == expected_paths == routed_paths
     assert contract["components"]["schemas"]["Error"]["required"] == ["error"]
 
 
