@@ -1,0 +1,36 @@
+{
+  "instants": [
+    { "input": "2026-09-06T12:00:00+03:30", "utc": "2026-09-06T08:30:00+00:00" },
+    { "input": "2026-01-01T00:30:00+14:00", "utc": "2025-12-31T10:30:00+00:00" },
+    { "input": "2026-09-06T12:00:00Z", "utc": "2026-09-06T12:00:00+00:00" }
+  ],
+  "wall_times": [
+    { "local": "2026-03-29T02:30:00", "zone": "Europe/Berlin", "error": "nonexistent" },
+    { "local": "2026-10-25T02:30:00", "zone": "Europe/Berlin", "error": "ambiguous" },
+    { "local": "2026-10-25T02:30:00", "zone": "Europe/Berlin", "fold": 0, "utc": "2026-10-25T00:30:00+00:00" },
+    { "local": "2026-10-25T02:30:00", "zone": "Europe/Berlin", "fold": 1, "utc": "2026-10-25T01:30:00+00:00" },
+    { "local": "2026-09-06T12:00:00", "zone": "Asia/Tehran", "utc": "2026-09-06T08:30:00+00:00" },
+    { "local": "2026-03-08T02:30:00", "zone": "America/New_York", "error": "nonexistent" }
+  ],
+  "all_day": [
+    { "date": "2026-03-29", "zone": "Europe/Berlin", "start": "2026-03-28T23:00:00+00:00", "end": "2026-03-29T22:00:00+00:00", "hours": 23 },
+    { "date": "2026-10-25", "zone": "Europe/Berlin", "start": "2026-10-24T22:00:00+00:00", "end": "2026-10-25T23:00:00+00:00", "hours": 25 },
+    { "date": "2026-09-06", "zone": "UTC", "start": "2026-09-06T00:00:00+00:00", "end": "2026-09-07T00:00:00+00:00", "hours": 24 },
+    { "date": "2011-12-30", "zone": "Pacific/Apia", "error": "nonexistent" }
+  ],
+  "calendar_dates": [
+    { "gregorian": "2024-03-20", "persian": "1403-01-01" },
+    { "gregorian": "2025-03-20", "persian": "1403-12-30" },
+    { "gregorian": "2025-03-21", "persian": "1404-01-01" },
+    { "gregorian": "2026-03-21", "persian": "1405-01-01" }
+  ],
+  "owning_increment_vectors": [
+    { "owner": "I4", "case": "Gregorian monthly recurrence anchored at January 31", "expected": "Do not silently move the permanent anchor after a short month; apply the canonical recurrence policy." },
+    { "owner": "I4", "case": "Jalali 1403-12-30 recurring yearly", "expected": "Preserve the Jalali anchor and explicitly handle non-leap Esfand; no Gregorian-year substitution." },
+    { "owner": "I10", "case": "00:30, default midnight boundary, no credited-day choice", "expected": "Source action may exist; day-based score, ring and streak effects remain unresolved." },
+    { "owner": "I10", "case": "05:59 with explicit 06:00 boundary", "expected": "Attribute to the previous Dotick Day." },
+    { "owner": "I10", "case": "Boundary changes from 06:00 to 08:00 during an open day", "expected": "Keep the open interval fixed; activate the change starting with the next Dotick Day." },
+    { "owner": "I10", "case": "Account timezone changes during an open Dotick Day", "expected": "Keep open and historical interval instants fixed; calculate future boundaries using the new timezone." },
+    { "owner": "I10", "case": "Historical completion corrected after ring finalization", "expected": "Do not rewrite finalized ring/statistical snapshots." }
+  ]
+}
