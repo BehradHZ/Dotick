@@ -449,7 +449,7 @@ Review:
 
 > **Implementation checkpoint — 2026-09-06:** scaffold, developer-only client/API/PostgreSQL walking skeleton, time baseline, and verification tooling now exist. See [the foundation review](../tracking/increment-0-foundation-review.md) for evidence and outstanding release gates.
 >
-> **Increment 1 backend checkpoint — 2026-09-08:** identity (email/password, Google, Passkey, verified contacts and revocable sessions), account/profile/timezone, atomic Inbox bootstrap, Folder/List/Column and the basic Task/Trash/version/idempotency APIs are implemented with PostgreSQL tests and a validated full-backend OpenAPI contract. Product client integration, configured external delivery/provider smoke, hosted CI and release publication remain open; therefore the whole Increment is not closed. See [I1 readiness](../tracking/increment-1-readiness.md).
+> **Increment 1 local implementation checkpoint — 2026-09-08:** identity, account, organization and basic Task APIs are implemented, with a minimal Expo client for sign-in, Inbox/Lists, Task create/edit/move/status and Trash/restore. Component tests, web/Android bundles and desktop/mobile client-to-PostgreSQL E2E are green locally. Configured external delivery/provider smoke, hosted CI and release publication remain open; therefore the whole Increment is not closed. See [I1 readiness](../tracking/increment-1-readiness.md) and [client review](../tracking/increment-1-client-review.md).
 
 ## Goal
 

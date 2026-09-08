@@ -3,7 +3,10 @@
     "name": "Dotick",
     "slug": "dotick",
     "version": "0.1.0",
-    "platforms": ["web"],
+    "platforms": ["android", "ios", "web"],
+    "scheme": "dotick",
+    "android": { "package": "app.dotick.mobile" },
+    "ios": { "bundleIdentifier": "app.dotick.mobile", "supportsTablet": true },
     "web": { "bundler": "metro", "output": "single", "name": "Dotick" }
   }
 }

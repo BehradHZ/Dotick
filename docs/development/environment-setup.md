@@ -1,6 +1,6 @@
 # Development environment
 
-Status: Increment 1 backend implementation, 2026-09-08. Run commands from the repository root.
+Status: Increment 1 backend and minimal Expo client, 2026-09-08. Run commands from the repository root.
 
 ## Prerequisites
 
@@ -41,9 +41,27 @@ In another:
 npm run dev
 ```
 
-Open `http://127.0.0.1:8081`, sign in, and save a checkpoint. Refresh retrieves persisted data. Reloading the browser clears in-memory credentials; sign in again to verify persistence.
+Open `http://127.0.0.1:8081`. Sign in, create a Task in Inbox or a new List, change its status/placement, and use Trash/restore. Reloading clears in-memory tokens; sign in again to verify PostgreSQL persistence.
 
 The web client defaults to API `http://127.0.0.1:8000`. To change it, set `EXPO_PUBLIC_API_URL` in the client build environment and update `DJANGO_CORS_ORIGINS`. Expo public variables are bundled into the client and must never contain secrets.
+
+### Open on a phone with Expo Go
+
+Keep computer and phone on the same trusted private network. Find the computer's LAN IPv4 address, then include that exact address in the API host allowlist and bind the API to the LAN interface:
+
+```text
+Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike '127.*'}
+$env:DJANGO_ALLOWED_HOSTS='127.0.0.1,localhost,<LAN-IP>'
+python -m uv run uvicorn config.asgi:application --app-dir apps/api --host 0.0.0.0 --port 8000 --no-access-log
+```
+
+In another terminal:
+
+```text
+npm run start:mobile --workspace @dotick/client
+```
+
+Scan the QR code in Expo Go. The client normally derives the API address from the Expo LAN host. If it does not, enter `http://<LAN-IP>:8000` in the sign-in screen's **API address** field. Allow Python/Node through the private-network firewall if prompted. Do not expose this development server on a public network.
 
 ## Run the built containers
 

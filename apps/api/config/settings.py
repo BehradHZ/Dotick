@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from corsheaders.defaults import default_headers
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -88,6 +89,7 @@ EMAIL_USE_TLS = os.getenv("DJANGO_EMAIL_USE_TLS", "1") == "1"
 EMAIL_TIMEOUT = 10
 CORS_ALLOWED_ORIGINS = os.getenv("DJANGO_CORS_ORIGINS", "http://127.0.0.1:8081").split(",")
 CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_HEADERS = (*default_headers, "if-match")
 DATA_UPLOAD_MAX_MEMORY_SIZE = 16_384
 SECURE_SSL_REDIRECT = not IS_LOCAL
 SESSION_COOKIE_SECURE = not IS_LOCAL

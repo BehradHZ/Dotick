@@ -1,9 +1,10 @@
+import re
+
 import pytest
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.utils import timezone
 from rest_framework.test import APIClient
-
-from apps.api.tests.test_organization_api import _authenticated_client
 
 pytestmark = pytest.mark.django_db
 GOOGLE_URL = "/api/v1/auth/google"
@@ -18,6 +19,43 @@ PASSKEY_REGISTRATION_OPTIONS_URL = "/api/v1/auth/passkeys/registration/options"
 PASSKEY_REGISTRATION_VERIFY_URL = "/api/v1/auth/passkeys/registration/verify"
 PASSKEY_AUTHENTICATION_OPTIONS_URL = "/api/v1/auth/passkeys/authentication/options"
 PASSKEY_AUTHENTICATION_VERIFY_URL = "/api/v1/auth/passkeys/authentication/verify"
+
+
+def _authenticated_client(settings, suffix="owner"):
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    email = f"workspace-{suffix}@example.test"
+    password = "Workspace-owner-password-for-tests-8!"
+    anonymous = APIClient()
+    assert (
+        anonymous.post(
+            "/api/v1/auth/register",
+            {
+                "email": email,
+                "password": password,
+                "handle": f"workspace_{suffix}",
+                "display_name": "Workspace Owner",
+            },
+            format="json",
+        ).status_code
+        == 202
+    )
+    code = re.search(r"\b\d{6}\b", mail.outbox[-1].body).group()
+    assert (
+        anonymous.post(
+            "/api/v1/auth/email/verify",
+            {"email": email, "code": code},
+            format="json",
+        ).status_code
+        == 204
+    )
+    access = anonymous.post(
+        TOKEN_URL,
+        {"email": email, "password": password},
+        format="json",
+    ).json()["access"]
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+    return client, {"email": email, "password": password}
 
 
 class FakePasskeyCeremony:

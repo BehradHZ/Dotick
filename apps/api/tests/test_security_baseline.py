@@ -55,6 +55,18 @@ def test_untrusted_origin_is_not_granted_cross_origin_access(client):
     assert "Access-Control-Allow-Origin" not in response
 
 
+def test_trusted_client_can_send_task_version_precondition(client, settings):
+    settings.CORS_ALLOWED_ORIGINS = ["http://client.example"]
+    response = client.options(
+        "/api/v1/tasks/00000000-0000-4000-8000-000000000000",
+        HTTP_ORIGIN="http://client.example",
+        HTTP_ACCESS_CONTROL_REQUEST_METHOD="DELETE",
+        HTTP_ACCESS_CONTROL_REQUEST_HEADERS="authorization,if-match",
+    )
+    assert response["Access-Control-Allow-Origin"] == "http://client.example"
+    assert "if-match" in response["Access-Control-Allow-Headers"].lower().split(", ")
+
+
 def test_production_process_refuses_to_enable_the_developer_workbench():
     root = Path(__file__).resolve().parents[3]
     result = subprocess.run(

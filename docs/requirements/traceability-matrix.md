@@ -208,8 +208,8 @@ These are foundation-level checks, not completion claims for the full product re
 | Increment 0 quality gates | `.github/workflows/ci.yml`, `scripts/check_traceability.py`, `docs/tracking/increment-0-foundation-review.md` |
 | `SRS-AUTH-001..015`, I1-AC-01/02/09 backend | `apps/api/dotick/identity/`, migrations `0002..0007`, `docs/design/authentication-design.md`, `docs/design/openapi.json`, `apps/api/tests/test_identity_api.py`, `test_federated_identity_api.py`; configured external delivery/provider smoke remains open |
 | `SRS-ORG-001..005`, `SRS-DAY-002`, I1-AC-03/08 backend | `apps/api/dotick/organization/`, `organization/0001_initial.py`, `apps/api/tests/test_organization_api.py`; atomic concurrent bootstrap, Inbox/default Column, optional Folder, ordering and recoverable container lifecycle |
-| `SRS-ITEM-002..009`, `SRS-TASK-001/014/020`, I1-AC-04..08 backend | `apps/api/dotick/items/`, `dotick/tasks/`, their initial migrations and `test_organization_api.py`; explicit composition, owner/source identity, optimistic version, idempotency and Task Trash/restore |
-| Increment 1 remaining acceptance | `docs/tracking/increment-1-readiness.md` retains product client/E2E, configured provider/delivery, hosted CI and release evidence; backend completion is not whole-increment completion |
+| `SRS-ITEM-002..009`, `SRS-TASK-001/014/020`, I1-AC-04..08 | `apps/api/dotick/items/`, `dotick/tasks/`, `apps/client/src/`, API/component tests and `e2e/walking-skeleton.spec.ts`; explicit composition, owner/source identity, optimistic version, idempotency and Task Trash/restore |
+| Increment 1 remaining acceptance | `docs/tracking/increment-1-readiness.md` retains configured provider/delivery, hosted CI and release evidence; local backend/client completion is not whole-increment release completion |
 
 # 9. Update rules
 

@@ -32,8 +32,6 @@ coverage/
 test-results/
 playwright-report/
 .artifacts/
-graphify-out/
-.graphify_cache/
 
 # فایل‌های محلی سیستم‌عامل و ویرایشگر
 .DS_Store

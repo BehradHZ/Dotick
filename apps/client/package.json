@@ -5,6 +5,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start --web --localhost",
+    "start:mobile": "expo start --lan",
     "build": "expo export --platform web",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -12,6 +13,8 @@
   "dependencies": {
     "@expo/metro-runtime": "57.0.15",
     "expo": "57.0.20",
+    "expo-constants": "57.0.17",
+    "expo-crypto": "57.0.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",

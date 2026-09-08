@@ -1,6 +1,8 @@
 import uuid
 
 import pytest
+from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from rest_framework.test import APIClient
 
 pytestmark = pytest.mark.django_db
@@ -62,3 +64,21 @@ def test_inactive_account_cannot_read_its_data(signed_in):
     user.is_active = False
     user.save()
     assert client.get(URL).status_code == 401
+
+
+def test_developer_provisioning_creates_a_verified_product_account(monkeypatch):
+    email = "local-developer@example.test"
+    password = "Only-for-local-development-8!"
+    monkeypatch.setenv("DOTICK_DEVELOPMENT_PASSWORD", password)
+
+    call_command("create_developer", email=email)
+
+    user = get_user_model().objects.get(email=email)
+    assert user.is_active
+    assert user.email_verified_at is not None
+    response = APIClient().post(
+        "/api/v1/auth/token",
+        {"email": email, "password": password},
+        format="json",
+    )
+    assert response.status_code == 200

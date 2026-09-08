@@ -1,6 +1,6 @@
 # Increment 1 backend review
 
-Date: 2026-09-08. Result: locally complete backend checkpoint; not an Increment 1 release.
+Date: 2026-09-08. Result: locally complete backend checkpoint; not an Increment 1 release. Client work completed later the same day is recorded separately in [Increment 1 client review](increment-1-client-review.md).
 
 ## Delivered boundary
 
