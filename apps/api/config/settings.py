@@ -33,7 +33,6 @@ ALLOWED_HOSTS = [
     host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -81,11 +80,14 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ["PGDATABASE"],
+        "USER": os.environ["PGUSER"],
+        "PASSWORD": os.environ["PGPASSWORD"],
+        "HOST": os.environ["PGHOST"],
+        "PORT": os.environ["PGPORT"],
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
