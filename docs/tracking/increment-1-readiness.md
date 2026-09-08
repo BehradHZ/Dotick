@@ -10,7 +10,7 @@ Read System Definition §§6.1, 6.2, 6.13 and 8.3–8.6 first, then Decision Reg
 
 ## Delivery order within I1
 
-1. **Verified email identity — implemented locally:** register, send/verify an email code, sign in with password, reset password, JWT session renewal/revocation and sign out. Django password machinery and Simple JWT provide maintained security primitives. The product client now uses JWT sign-in; the I0 Basic-auth workbench is no longer the active UI.
+1. **Verified email identity — implemented locally:** register, send/verify/resend an email code, sign in with password, reset password, JWT session renewal/revocation and sign out. These signed-out email flows are connected in the product client. Django password machinery and Simple JWT provide maintained security primitives. The I0 Basic-auth workbench is no longer the active UI.
 2. **Account bootstrap and first Task — backend implemented locally:** one Inbox/default Column and IANA preference are provisioned atomically and concurrently idempotently. The Task HTTP API persists unscheduled Persian/English titles in PostgreSQL.
 3. **Organization and editing — backend implemented locally:** personal Folder/List/Column CRUD, optional Folder placement, manual order, Task move/title/status, owner isolation, version conflict, retry idempotency and recoverable deletion are covered at the HTTP boundary.
 4. **Complete I1 identity — backend implemented locally:** Google sign-in/explicit linking, optional Passkey enrollment/sign-in, independent password fallback, profile/timezone presentation, verified secondary contacts and session management are executable. Provider simulations do not replace configured integration smoke.

@@ -1,6 +1,6 @@
 # Dotick Authentication Design
 
-> **Status:** Increment 1 backend implemented locally; configured provider smoke pending
+> **Status:** Increment 1 backend and sign-in client implemented locally; configured provider smoke pending
 > **Date:** 2026-09-08
 > **Decision sources:** System Definition §6.13; DR-048, DR-061, DR-128, DR-140; SRS-AUTH-001..015
 
@@ -8,7 +8,7 @@
 
 This design defines the shared Account identity, verified contacts, email/password, Google, Passkey and revocable JWT session boundaries. These adapters and their PostgreSQL persistence are implemented behind the public Increment 1 API. Real deployment credentials, provider callbacks/browser ceremonies and delivery smoke remain release evidence rather than automated-provider simulations.
 
-The public API contract is [`openapi.json`](openapi.json). The I0 HTTP Basic workbench remains isolated behind its local/test-only guard and is not a product authentication method.
+The public API contract is [`openapi.json`](openapi.json). The Expo client implements password sign-in, registration/email verification, password recovery, Google credential handoff on configured web builds and browser Passkey sign-in. The I0 HTTP Basic workbench remains isolated behind its local/test-only guard and is not a product authentication method.
 
 ## 2. Account identity
 

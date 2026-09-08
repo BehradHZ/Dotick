@@ -6,6 +6,8 @@ Date: 2026-09-08. Result: usable minimal client locally verified; not an Increme
 
 - Expo client targets Android, iOS and web while retaining the approved comic-inspired paper/ink/orange visual direction.
 - Email/password sign-in uses revocable JWT access/refresh sessions; credentials and tokens remain in memory.
+- Account registration, six-digit email verification/resend and password reset/confirmation are available from the signed-out client.
+- Configured web builds can hand a Google ID credential to the backend and perform a browser WebAuthn Passkey ceremony. Provider-specific native builds remain a release input.
 - First sign-in bootstraps the account Inbox/default Column and IANA timezone.
 - Users can open Inbox/Lists, create Lists and Tasks, edit title, choose Todo/Done/Won't_Do, move a Task between Lists, refresh and sign out.
 - Ordinary Task deletion uses the current version and remains recoverable through Trash/restore.
@@ -14,7 +16,7 @@ Date: 2026-09-08. Result: usable minimal client locally verified; not an Increme
 
 ## Local verification evidence
 
-- 8 Vitest component/time-vector tests passed, including sign-in/bootstrap, persisted Inbox rendering, draft retention after network failure, versioned status update and sign-out privacy.
+- 11 Vitest auth/component/time-vector tests passed, including registration/verification, password recovery, safe validation errors, sign-in/bootstrap, persisted Inbox rendering, draft retention after network failure, versioned status update and sign-out privacy.
 - TypeScript, ESLint and Prettier checks passed.
 - Expo web export and Android native bundle passed under SDK 57.
 - Playwright desktop and mobile workflows passed against the real Django API and PostgreSQL: sign in, bootstrap Inbox, create, reload/reauthenticate, retrieve, complete and trash.
@@ -23,7 +25,7 @@ Date: 2026-09-08. Result: usable minimal client locally verified; not an Increme
 
 ## Deliberate limits
 
-- UI exposes the initial usable workflow, not every I1 backend management surface. Registration/email verification, Google, Passkey, profile/contact/session management, Folder management and custom Column management still use API boundaries only.
+- UI exposes complete signed-out email identity flows plus configured web Google/Passkey sign-in. Passkey enrollment, Google linking, profile/contact/session management, Folder management and custom Column management still use API boundaries only.
 - Tokens are intentionally session-memory only; app restart requires sign-in. Durable secure credential storage belongs to a later security-reviewed client slice.
 - Permanent deletion, 30-day purge execution, scheduling, Events/Routines, comments, audit/history, offline synchronization and collaboration retain later roadmap ownership.
 - Real email, Google, WebAuthn authenticator and phone delivery require configured environment smoke evidence.

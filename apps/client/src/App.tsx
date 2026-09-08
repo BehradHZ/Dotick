@@ -9,15 +9,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import {
-  ApiError,
-  type ApiSession,
-  type ListRecord,
-  type Task,
-  type TaskStatus,
-  defaultApiUrl,
-  signIn as openSession,
-} from './api';
+import { ApiError, type ApiSession, type ListRecord, type Task, type TaskStatus } from './api';
+import AuthScreen from './AuthScreen';
 
 const colors = {
   paper: '#fffdf7',
@@ -97,9 +90,6 @@ function localTimezone() {
 export default function App() {
   const { width } = useWindowDimensions();
   const narrow = width < 760;
-  const [apiUrl, setApiUrl] = useState(defaultApiUrl);
-  const [email, setEmail] = useState('developer@example.test');
-  const [password, setPassword] = useState('');
   const [session, setSession] = useState<ApiSession | null>(null);
   const [lists, setLists] = useState<ListRecord[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -140,22 +130,6 @@ export default function App() {
     );
   }
 
-  async function signIn() {
-    if (busy || !email.trim() || !password || !apiUrl.trim()) return;
-    clearFeedback();
-    setBusy(true);
-    try {
-      const nextSession = await openSession(apiUrl, email.trim(), password);
-      await loadWorkspace(nextSession);
-      setSession(nextSession);
-      setPassword('');
-    } catch (failure) {
-      setError(message(failure));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function refresh() {
     if (!session || busy) return;
     clearFeedback();
@@ -180,7 +154,6 @@ export default function App() {
     setTaskDraft('');
     setListDraft('');
     setEditing(null);
-    setPassword('');
     clearFeedback();
   }
 
@@ -282,81 +255,12 @@ export default function App() {
 
   if (!session) {
     return (
-      <ScrollView style={styles.page} contentContainerStyle={styles.loginPage}>
-        <View style={styles.brandRow}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>✓</Text>
-          </View>
-          <View>
-            <Text style={styles.brandName}>Dotick</Text>
-            <Text style={styles.muted}>Turn loose thoughts into done work.</Text>
-          </View>
-        </View>
-        <View style={[styles.loginLayout, narrow && styles.loginLayoutNarrow]}>
-          <View style={styles.loginIntro}>
-            <Text style={styles.eyebrow}>INCREMENT 1 · TASKS</Text>
-            <Text accessibilityRole="header" style={[styles.hero, narrow && styles.heroNarrow]}>
-              Clear head.{`\n`}Small steps.
-            </Text>
-            <Text style={styles.introText}>
-              Capture tasks in Inbox, organize them in Lists, finish work, and recover mistakes from
-              Trash.
-            </Text>
-          </View>
-          <View style={styles.card}>
-            <Text style={styles.eyebrow}>WELCOME BACK</Text>
-            <Text accessibilityRole="header" style={styles.cardTitle}>
-              Sign in
-            </Text>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              accessibilityLabel="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              editable={!busy}
-              style={styles.input}
-            />
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              accessibilityLabel="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="current-password"
-              editable={!busy}
-              style={styles.input}
-              onSubmitEditing={() => void signIn()}
-            />
-            <Text style={styles.label}>API address</Text>
-            <TextInput
-              accessibilityLabel="API address"
-              value={apiUrl}
-              onChangeText={setApiUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!busy}
-              style={styles.input}
-            />
-            <Button
-              title="Sign in"
-              disabled={busy || !email.trim() || !password || !apiUrl.trim()}
-              onPress={() => void signIn()}
-            />
-            <Text style={styles.caption}>
-              Credentials and tokens stay only in this open session.
-            </Text>
-            {busy && <ActivityIndicator accessibilityLabel="Working" color={colors.orange} />}
-            {error !== '' && (
-              <Text accessibilityRole="alert" style={styles.error}>
-                {error}
-              </Text>
-            )}
-          </View>
-        </View>
-      </ScrollView>
+      <AuthScreen
+        onAuthenticated={async (nextSession) => {
+          await loadWorkspace(nextSession);
+          setSession(nextSession);
+        }}
+      />
     );
   }
 

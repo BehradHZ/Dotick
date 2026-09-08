@@ -40,6 +40,10 @@ type Bootstrap = {
 };
 
 type ErrorBody = { detail?: string; code?: string; [key: string]: unknown };
+type PasskeyOptions = {
+  challenge_id: string;
+  public_key: PublicKeyCredentialRequestOptionsJSON;
+};
 
 export class ApiError extends Error {
   constructor(
@@ -73,11 +77,35 @@ function bodyMessage(body: unknown) {
   if (!body || typeof body !== 'object') return undefined;
   const error = body as ErrorBody;
   if (typeof error.detail === 'string') return error.detail;
+  if (error.error && typeof error.error === 'object') {
+    const envelope = error.error as ErrorBody & { details?: unknown };
+    if (typeof envelope.details === 'string') return envelope.details;
+    if (envelope.details && typeof envelope.details === 'object') {
+      return bodyMessage(envelope.details);
+    }
+  }
   for (const value of Object.values(error)) {
     if (typeof value === 'string') return value;
     if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
   }
   return undefined;
+}
+
+export function identityApi(baseUrl: string) {
+  const post = <T>(path: string, body: object) =>
+    rawRequest<T>(baseUrl, path, { method: 'POST', body: JSON.stringify(body) });
+  return {
+    register: (input: { email: string; password: string; handle: string; display_name: string }) =>
+      post<{ status: 'accepted' }>('/api/v1/auth/register', input),
+    verifyEmail: (email: string, code: string) =>
+      post<void>('/api/v1/auth/email/verify', { email, code }),
+    resendVerification: (email: string) =>
+      post<{ status: 'accepted' }>('/api/v1/auth/email/resend', { email }),
+    requestPasswordReset: (email: string) =>
+      post<{ status: 'accepted' }>('/api/v1/auth/password/reset/request', { email }),
+    confirmPasswordReset: (email: string, code: string, password: string) =>
+      post<void>('/api/v1/auth/password/reset/confirm', { email, code, password }),
+  };
 }
 
 async function readBody(response: Response) {
@@ -117,11 +145,7 @@ async function rawRequest<T>(baseUrl: string, path: string, init: RequestInit = 
   }
 }
 
-export async function signIn(baseUrl: string, email: string, password: string) {
-  const tokens = await rawRequest<Tokens>(baseUrl, '/api/v1/auth/token', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
+function sessionFromTokens(baseUrl: string, tokens: Tokens) {
   let access = tokens.access;
   let refresh = tokens.refresh;
 
@@ -188,6 +212,89 @@ export async function signIn(baseUrl: string, email: string, password: string) {
       }),
     logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }, false),
   };
+}
+
+export async function signIn(baseUrl: string, email: string, password: string) {
+  const tokens = await rawRequest<Tokens>(baseUrl, '/api/v1/auth/token', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  return sessionFromTokens(baseUrl, tokens);
+}
+
+export async function signInWithGoogleCredential(baseUrl: string, credential: string) {
+  const tokens = await rawRequest<Tokens>(baseUrl, '/api/v1/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({ credential }),
+  });
+  return sessionFromTokens(baseUrl, tokens);
+}
+
+function decodeBase64Url(value: string) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='));
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function encodeBase64Url(value: ArrayBuffer) {
+  const binary = String.fromCharCode(...new Uint8Array(value));
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export async function signInWithPasskey(baseUrl: string) {
+  if (
+    typeof navigator === 'undefined' ||
+    !navigator.credentials ||
+    typeof PublicKeyCredential === 'undefined'
+  ) {
+    throw new Error('Passkeys are unavailable on this device.');
+  }
+  const options = await rawRequest<PasskeyOptions>(
+    baseUrl,
+    '/api/v1/auth/passkeys/authentication/options',
+    { method: 'POST', body: '{}' },
+  );
+  const publicKey: PublicKeyCredentialRequestOptions = {
+    challenge: decodeBase64Url(options.public_key.challenge),
+    rpId: options.public_key.rpId,
+    timeout: options.public_key.timeout,
+    userVerification: options.public_key.userVerification as
+      UserVerificationRequirement | undefined,
+    allowCredentials: options.public_key.allowCredentials?.map((credential) => ({
+      ...credential,
+      id: decodeBase64Url(credential.id),
+    })) as PublicKeyCredentialDescriptor[] | undefined,
+  };
+  let credential: Credential | null;
+  try {
+    credential = await navigator.credentials.get({ publicKey });
+  } catch (error) {
+    throw new Error('Passkey sign-in was cancelled or failed.', { cause: error });
+  }
+  if (!(credential instanceof PublicKeyCredential)) {
+    throw new Error('Passkey sign-in did not return a credential.');
+  }
+  const response = credential.response as AuthenticatorAssertionResponse;
+  const tokens = await rawRequest<Tokens>(baseUrl, '/api/v1/auth/passkeys/authentication/verify', {
+    method: 'POST',
+    body: JSON.stringify({
+      challenge_id: options.challenge_id,
+      credential: {
+        id: credential.id,
+        rawId: encodeBase64Url(credential.rawId),
+        type: credential.type,
+        authenticatorAttachment: credential.authenticatorAttachment,
+        clientExtensionResults: credential.getClientExtensionResults(),
+        response: {
+          clientDataJSON: encodeBase64Url(response.clientDataJSON),
+          authenticatorData: encodeBase64Url(response.authenticatorData),
+          signature: encodeBase64Url(response.signature),
+          userHandle: response.userHandle ? encodeBase64Url(response.userHandle) : null,
+        },
+      },
+    }),
+  });
+  return sessionFromTokens(baseUrl, tokens);
 }
 
 export type ApiSession = Awaited<ReturnType<typeof signIn>>;
