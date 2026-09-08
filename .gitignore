@@ -10,3 +10,8 @@ apps/api/db.sqlite3
 node_modules/
 .expo/
 dist/
+
+# Environment variables
+.env
+.env.*
+!.env.example
