@@ -11,6 +11,14 @@
   },
   "scripts": {
     "client": "npm run start --workspace @dotick/client",
-    "client:web": "npm run web --workspace @dotick/client"
+    "client:web": "npm run web --workspace @dotick/client",
+    "format:client": "prettier apps/client --write",
+    "format:client:check": "prettier apps/client --check",
+    "lint:client": "npm exec --workspace @dotick/client expo lint"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~57.0.2",
+    "prettier": "3.9.6"
   }
 }
