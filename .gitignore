@@ -1,17 +1,36 @@
 # Python
 .venv/
+venv/
 __pycache__/
 *.py[cod]
 
 # Django local database
 apps/api/db.sqlite3
 
+# Environment
+.env
+.env.*
+!.env.example
+
 # Node / Expo
 node_modules/
 .expo/
 dist/
+build/
 
-# Environment variables
-.env
-.env.*
-!.env.example
+# Tests / tooling
+coverage/
+.pytest_cache/
+.ruff_cache/
+test-results/
+playwright-report/
+.artifacts/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

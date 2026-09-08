@@ -7,3 +7,20 @@ dependencies = [
     "djangorestframework==3.18.0",
     "python-dotenv==1.2.3",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff==0.16.6",
+]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+exclude = ["node_modules"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*.py" = ["E501"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
