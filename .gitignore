@@ -1,0 +1,12 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Django local database
+apps/api/db.sqlite3
+
+# Node / Expo
+node_modules/
+.expo/
+dist/

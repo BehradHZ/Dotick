@@ -1,0 +1,16 @@
+{
+  "name": "dotick",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/client"
+  ],
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
+  "scripts": {
+    "client": "npm run start --workspace @dotick/client",
+    "client:web": "npm run web --workspace @dotick/client"
+  }
+}
