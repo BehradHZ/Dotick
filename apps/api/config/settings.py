@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "dotick.identity.apps.IdentityConfig",
 ]
 
 MIDDLEWARE = [
