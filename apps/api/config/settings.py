@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "dotick.identity.apps.IdentityConfig",
+    "dotick.foundation.apps.FoundationConfig",
 ]
 
 AUTH_USER_MODEL = "identity.User"
@@ -137,3 +138,5 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ]
+
+FOUNDATION_ENABLED = os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"
