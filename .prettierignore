@@ -1,5 +1,5 @@
 node_modules/
-.expo/
 dist/
-build/
-coverage/
+archive/
+resources/
+package-lock.json

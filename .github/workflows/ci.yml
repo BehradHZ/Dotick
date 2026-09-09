@@ -1,0 +1,155 @@
+name: Increment 0 Foundation
+
+on:
+  pull_request:
+  push:
+    branches: [main, codex, test]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_USER: dotick
+          POSTGRES_PASSWORD: ci-database-only
+          POSTGRES_DB: dotick_dev
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U dotick -d dotick_dev"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      DOTICK_ENV: test
+      DOTICK_FOUNDATION_ENABLED: '1'
+      DJANGO_DEBUG: '0'
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_CORS_ORIGINS: http://127.0.0.1:8081,http://localhost:8081
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: dotick_dev
+      PGUSER: dotick
+      PGPASSWORD: ci-database-only
+      DOTICK_DEVELOPMENT_PASSWORD: CI-verification-only-9!
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version-file: .python-version
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install only locked dependencies
+        run: |
+          python -m pip install uv==0.12.9
+          python -m uv sync --frozen
+          npm ci
+          python -c "import os,secrets; open(os.environ['GITHUB_ENV'],'a').write('DJANGO_SECRET_KEY='+secrets.token_urlsafe(64)+'\n')"
+
+      - name: Ruff, ESLint, Prettier and TypeScript
+        run: |
+          python -m uv run ruff check apps/api scripts
+          python -m uv run ruff format --check apps/api scripts
+          npm run lint
+          npm run format:check
+          npm run typecheck
+
+      - name: Traceability check
+        run: python scripts/check_traceability.py
+
+      - name: Migration and schema drift checks
+        run: |
+          python -m uv run python apps/api/manage.py makemigrations --check --dry-run
+          python -m uv run python apps/api/manage.py migrate --noinput
+          python -m uv run python apps/api/manage.py showmigrations
+          python -m uv run python scripts/check_migrations.py
+          python -m uv run python scripts/verify_clean_database.py
+
+      - name: Backend and golden-time tests
+        run: |
+          python -m uv run python apps/api/manage.py test dotick
+          python -m uv run pytest
+
+      - name: Django production deployment check
+        env:
+          DOTICK_ENV: production
+          DOTICK_FOUNDATION_ENABLED: '0'
+        run: python -m uv run python apps/api/manage.py check --deploy --fail-level WARNING
+
+      - name: Frontend component, network and time-vector tests
+        run: npm test
+
+      - name: Client web export
+        run: npm run build
+
+      - name: Desktop and mobile Walking Skeleton E2E
+        run: |
+          npx playwright install --with-deps chromium
+          python -m uv run python apps/api/manage.py create_developer
+          npm run test:e2e
+
+      - name: Python dependency audit
+        run: python -m uv run pip-audit
+
+      - name: npm dependency audit
+        run: npm audit --audit-level=high
+
+      - name: Secret scan
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.28.0 git /repo --redact --no-banner --log-opts=-1
+
+      - name: Build non-root deployment containers
+        run: |
+          docker build -f apps/api/Dockerfile -t dotick-api:ci .
+          docker build -f apps/client/Dockerfile -t dotick-web:ci .
+
+      - name: Container smoke and persistence after API restart
+        run: |
+          cat > .env <<'EOF'
+          DOTICK_ENV=local
+          DOTICK_FOUNDATION_ENABLED=1
+          DJANGO_DEBUG=0
+          DJANGO_SECRET_KEY=ci-compose-only-secret-key-that-is-long-enough-and-never-used-outside-ci-123456789
+          DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,testserver
+          DJANGO_CORS_ORIGINS=http://127.0.0.1:8081,http://localhost:8081
+          PGHOST=127.0.0.1
+          PGPORT=55432
+          PGDATABASE=dotick_dev
+          PGUSER=dotick
+          PGPASSWORD=ci-compose-database-only
+          DOTICK_DEVELOPMENT_PASSWORD=CI-verification-only-9!
+          EOF
+          export PGPORT=55432
+          export PGPASSWORD=ci-compose-database-only
+          docker compose up -d postgres
+          docker compose run --rm api python apps/api/manage.py migrate --noinput
+          docker compose up -d api web
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/ready && break || sleep 1; done
+          curl -fsS http://127.0.0.1:8081/ >/dev/null
+          docker compose exec -T api python apps/api/manage.py create_developer
+          AUTH=$(printf 'developer@example.test:CI-verification-only-9!' | base64 -w0)
+          curl -fsS -X POST http://127.0.0.1:8000/api/v1/foundation/checkpoints \
+            -H "Authorization: Basic $AUTH" \
+            -H 'Content-Type: application/json' \
+            -d '{"text":"container-restart-persistence"}' >/dev/null
+          docker compose restart api
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/ready && break || sleep 1; done
+          curl -fsS http://127.0.0.1:8000/api/v1/foundation/checkpoints \
+            -H "Authorization: Basic $AUTH" | grep -F 'container-restart-persistence'
+          test "$(docker compose exec -T api id -u | tr -d '\r')" != '0'
+          test "$(docker compose exec -T web id -u | tr -d '\r')" != '0'
+
+      - name: Container cleanup
+        if: always()
+        run: |
+          PGPORT=55432 PGPASSWORD=ci-compose-database-only docker compose down -v --remove-orphans || true
+          rm -f .env

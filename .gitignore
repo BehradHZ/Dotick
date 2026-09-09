@@ -1,36 +1,45 @@
-# Python
+# نادیده گرفتن پوشه‌های آرشیو در کل پروژه
+archive/
+**/archive/
+
+# منابع مهارتی محلی و مخزن‌های ثالث
+resources/skills/
+
+# دارایی‌های آزمایشی و بدون مصرف‌کننده‌ی نسخه‌ی قبلی
+assets/fonts/
+
+# نادیده گرفتن محیط مجازی پایتون
 .venv/
 venv/
+
+# نادیده گرفتن فایل‌های cache پایتون
 __pycache__/
-*.py[cod]
+*.pyc
 
-# Django local database
-apps/api/db.sqlite3
-
-# Environment
+# نادیده گرفتن فایل‌های تنظیمات محیطی
 .env
 .env.*
 !.env.example
 
-# Node / Expo
+# وابستگی‌ها و خروجی‌های build/test
 node_modules/
-.expo/
 dist/
 build/
-
-# Tests / tooling
 coverage/
 .pytest_cache/
 .ruff_cache/
+.expo/
 test-results/
 playwright-report/
 .artifacts/
+graphify-out/
+.graphify_cache/
 
-# Editors / OS
-.vscode/
-.idea/
+# فایل‌های محلی سیستم‌عامل و ویرایشگر
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
 
-# Logs
+# لاگ‌های محلی
 *.log

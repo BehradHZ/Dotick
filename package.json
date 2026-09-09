@@ -10,15 +10,29 @@
     "npm": ">=11 <12"
   },
   "scripts": {
-    "client": "npm run start --workspace @dotick/client",
-    "client:web": "npm run web --workspace @dotick/client",
-    "format:client": "prettier apps/client --write",
-    "format:client:check": "prettier apps/client --check",
-    "lint:client": "npm exec --workspace @dotick/client expo lint"
+    "dev": "npm run start --workspace @dotick/client",
+    "build": "npm run build --workspace @dotick/client",
+    "typecheck": "npm run typecheck --workspace @dotick/client",
+    "lint": "eslint apps/client e2e scripts/*.mjs playwright.config.ts",
+    "format:check": "prettier --check apps/client e2e scripts/*.mjs *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
+    "test": "npm run test --workspace @dotick/client",
+    "test:e2e": "playwright test",
+    "check:docs": "python scripts/check_traceability.py"
   },
   "devDependencies": {
-    "eslint": "^9.39.5",
-    "eslint-config-expo": "~57.0.2",
-    "prettier": "3.9.6"
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "26.4.1",
+    "@types/react": "19.2.18",
+    "eslint": "10.10.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.12.0",
+    "jsdom": "30.0.1",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0",
+    "vitest": "5.0.0"
   }
 }
