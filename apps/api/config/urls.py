@@ -18,10 +18,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from config.operations import health
+from config.operations import health, ready
 
 urlpatterns = [
     path("health", health),
+    path("ready", ready),
     path("admin/", admin.site.urls),
     path("foundation/", include("dotick.foundation.urls")),
 ]

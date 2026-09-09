@@ -90,6 +90,9 @@ DATABASES = {
         "PASSWORD": os.environ["PGPASSWORD"],
         "HOST": os.environ["PGHOST"],
         "PORT": os.environ["PGPORT"],
+        "OPTIONS": {
+            "connect_timeout": 2,
+        },
     }
 }
 
