@@ -11,5 +11,6 @@ class RequestIDMiddleware:
         response = self.get_response(request)
 
         response["X-Request-ID"] = request.request_id
+        response["Cache-Control"] = "no-store"
 
         return response

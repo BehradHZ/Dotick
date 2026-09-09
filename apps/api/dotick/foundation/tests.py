@@ -253,3 +253,18 @@ class RequestIDTests(TestCase):
         self.assertIn("X-Request-ID", response)
 
         uuid.UUID(response["X-Request-ID"])
+
+
+def test_success_response_disables_caching(self):
+    response = Client().get("/health")
+
+    self.assertEqual(response["Cache-Control"], "no-store")
+
+
+def test_error_response_disables_caching(self):
+    response = Client().get(
+        "/api/v1/foundation/checkpoints",
+    )
+
+    self.assertEqual(response.status_code, 401)
+    self.assertEqual(response["Cache-Control"], "no-store")
