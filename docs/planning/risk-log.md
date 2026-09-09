@@ -1,7 +1,7 @@
 # Dotick Risk Register
 
 > **Status:** Increment 1 backend implemented locally
-> **Date:** 2026-09-08
+> **Date:** 2026-09-09
 > **Scale:** Probability (P) and Impact (I): 1 low — 5 high; Score = P × I
 
 | ID | Risk | P | I | Score | Mitigation / preventive control | Trigger / evidence | Owner stage | Status |
@@ -16,7 +16,7 @@
 | R-008 | historical edits or sync overwrite user data | 3 | 5 | 15 | version metadata now; audit I2; sync spec I6; backup/restore | lost update or non-reconstructable edit | I1/I2/I6 | Open |
 | R-009 | archive implementation silently becomes active authority | 3 | 3 | 9 | canonical authority rules; new ADRs; archive ignored by Git | design justified only by archive document | all | Mitigated |
 | R-010 | optional realtime/queue infrastructure adds premature complexity | 3 | 3 | 9 | add Channels/Redis/worker only in owning Increment | unused service required for local startup | I0-I7 | Mitigated |
-| R-011 | dependency/runtime versions drift across machines | 3 | 4 | 12 | committed lockfiles, pinned runtimes/images, clean-clone CI | unpinned `latest` or non-reproducible install | I0 | Locally mitigated by locked container builds; hosted CI pending |
+| R-011 | dependency/runtime versions drift across machines | 3 | 4 | 12 | committed lockfiles, pinned runtimes/images, clean hosted CI | unpinned `latest` or non-reproducible install | I0 | Mitigated; hosted CI clean lock installs and container builds passed 2026-09-09 |
 | R-012 | migrations cause irreversible data loss | 2 | 5 | 10 | migration tests, backup before risky change, restore rehearsal | destructive migration without staged rollout | I1+ | Open |
 | R-013 | AI/provider outage breaks core task management | 2 | 5 | 10 | adapter isolation; AI not readiness dependency; failure tests | core endpoint imports/calls provider synchronously | I8+ | Open |
 | R-014 | design handoffs or stale references become implicit product decisions | 3 | 4 | 12 | current SRS §7 + Traceability gate + ADR/DR review | code/schema follows an old OPEN claim despite canonical closure | every Increment | Open |

@@ -1,62 +1,82 @@
 # Increment 0 implementation review
 
-Date: 2026-09-06. Scope: roadmap §§7.1–7.6 engineering foundation.
+Date: 2026-09-09. Scope: roadmap §§7.1–7.6 engineering foundation.
 
-Status: implementation and local verification complete; hosted CI execution and release remain pending. At this review date, Increment 1 product implementation had not started. Its [readiness baseline](increment-1-readiness.md) now records current progress. This is a working foundation, not the completed Dotick product.
+**Status: CLOSED.** Increment 0 is implemented on branch `test` at implementation commit `88aa5986a5673224a3d4ea78fca164f742e9d83e`. Hosted GitHub Actions run `34330581198` completed successfully against that commit and passed every configured foundation gate.
 
 ## Delivered
 
-- Locked Python/Django/DRF/PostgreSQL and TypeScript/Expo 57/React Native for Web workspaces.
-- Custom UUID user model before the initial migration, Argon2 hashing, and case-insensitive email uniqueness.
-- Disposable developer-only checkpoints, with authenticated owner-scoped create/list/read, explicit transaction, strict input, and stable UUID/UTC metadata.
-- Responsive workbench drawing paper/orange/black-border styling from the supplied prototype; real API states, draft-preserving errors, refresh and sign-out.
-- Health/readiness, bounded input, generic errors, request IDs, private/no-store responses and structured logs without payloads or credentials.
-- Time Semantics baseline, executable UTC/DST/all-day/Jalali vectors and explicit I4/I10 acceptance handoffs.
-- CI workflow, dependency/secret checks, nonroot container builds and loopback-only developer Compose topology.
-- Current document/decision links and SRS-to-matrix coverage, including the previously untraced `SRS-SHARE-034` (419 requirements total).
+- Locked Python 3.14 / Django / DRF / PostgreSQL and Node 24 / Expo / React Native for Web workspaces.
+- Custom UUID user model before the initial migration, Argon2 password hashing, and case-insensitive email uniqueness.
+- Disposable developer-only Foundation Checkpoints with authenticated owner-scoped create/list/read, strict validation, stable error envelopes, request IDs, no-store responses, bounded request bodies, and structured allowlisted logging.
+- Golden Time Vector execution for UTC normalization, timezone offsets, DST gaps/overlaps, 23/24/25-hour all-day intervals, skipped calendar days, and Gregorian-to-Jalali conversion.
+- A real responsive Walking Skeleton client replacing the default Expo screen.
+- Developer-only sign-in against the Foundation REST API. Credentials exist only in React memory; they are not written to browser storage or persisted across reloads.
+- Sign-out clears credentials, private checkpoint state, draft state, errors/notices, and the password field.
+- Checkpoint create/list UI with loading, error, retry, refresh, draft-preservation-on-failure, and successful retry behavior.
+- End-to-end `Client → REST → Application → ORM → PostgreSQL → Client` persistence flow.
+- Vitest + Testing Library component/network tests and Playwright desktop/mobile E2E coverage.
+- Backend and web Docker images, non-root runtime users, and Compose topology for PostgreSQL + API + web.
+- GitHub Actions gates for locked installs, Ruff, ESLint, Prettier, TypeScript, schema drift, clean migrations, backend tests, frontend tests, web export, E2E, dependency audits, secret scan, Django deployment checks, container builds, container smoke, and restart persistence.
 
-## Verification
+## Hosted verification
 
-| Check | Result |
+| Gate | Result |
 |---|---|
-| Python test suite | 33 passed against PostgreSQL 18.4; includes actual database-outage readiness, owner isolation, validation, hashing, time vectors and production workbench rejection |
-| Client component/calendar tests | 8 passed |
-| TypeScript, ESLint, Prettier, Ruff | Passed |
-| Schema drift check and clean database migrations | Passed |
-| Desktop/mobile E2E | 2 passed; saved data survives browser reload and fresh sign-in; no page errors or horizontal overflow |
-| Container build from locked dependencies | API and web images built successfully with isolated dependency installation |
-| Clean Git clone | Commit `02e41e3`, fresh virtual environment/npm install and separate PostgreSQL 18.4 volume: migrations, 33 API tests, 8 client tests, static checks, web export and 2 desktop/mobile E2E passed; servers started from the clone with existing-server reuse disabled |
-| Container smoke | Clean PostgreSQL migration, account provisioning and desktop/mobile persistence workflow passed; API and web run as nonroot |
-| Production settings inspection | Django `check --deploy --fail-level WARNING` passed with workbench disabled |
-| Traceability | 419 unique SRS IDs, exact matrix coverage, valid explicit decision references |
-| Python dependency audit | No known vulnerabilities reported |
-| npm dependency audit | No high/critical findings; ten moderate entries from one native-tooling advisory, reviewed in `docs/quality/foundation-dependency-review.md` |
-| Source secret scan | Gitleaks v8.28.0 reported no leaks in the current source snapshot |
-| Hosted CI / release | Workflow added; no remote run or release claimed |
+| Clean hosted checkout | Passed; GitHub Actions initialized a clean checkout of `88aa5986` |
+| Python locked install | Passed with `uv sync --frozen` from `uv.lock` |
+| Frontend locked install | Passed with `npm ci` from `package-lock.json` |
+| Ruff | Passed |
+| ESLint | Passed |
+| Prettier check | Passed |
+| TypeScript check | Passed |
+| Traceability | Passed; 419 unique requirements with exact coverage and valid decision references |
+| Schema drift | Passed; `makemigrations --check --dry-run` reported no changes |
+| Existing PostgreSQL migration graph | Passed; all migrations applied and `showmigrations` reported applied entries |
+| Clean-database migration | Passed against a separately created empty PostgreSQL database, then dropped |
+| Django backend suite | 30 tests passed |
+| Golden Time backend suite | 14 tests passed |
+| Client component/network/calendar suite | 8 tests passed |
+| Client web export | Passed |
+| Walking Skeleton E2E | 2 tests passed: desktop Chrome and mobile iPhone-13 viewport |
+| Reload and re-sign-in persistence | Passed in both E2E projects |
+| Django `check --deploy` | Passed with Foundation workbench disabled in production mode |
+| Python dependency audit | Passed; no known vulnerabilities reported |
+| npm dependency audit | Passed at high-severity gate; 10 moderate Expo/native-tooling transitive findings remain reviewed debt |
+| Secret scan | Passed; Gitleaks reported no committed leaks |
+| API image build | Passed |
+| Web image build | Passed |
+| Non-root runtime | Passed for both API and web containers |
+| Container smoke | Passed |
+| Persistence after API restart | Passed; a created Checkpoint remained retrievable after restarting the API container |
+| Hosted CI | **Green** — run `34330581198` |
 
-Windows verification used Python 3.14.5, Node 24.19.0, npm 11.17.0 and installed Chrome. The Playwright Chromium download returned a regional 403, so the documented Chrome channel was used for local E2E. Docker images also built on Linux with clean lockfile installs. CI installs its own matching Chromium build.
+## Self-review
 
-### Backend verification refresh — 2026-09-09
+The Increment 0 implementation was reviewed against its intended boundary rather than future product behavior.
 
-The remaining I0 backend gaps were closed and verified against PostgreSQL 18.4 on the `test`
-branch. `manage.py test dotick` discovered and passed 30 tests. The output explicitly included the
-generic-500 and both `Cache-Control: no-store` tests that had previously been module-level and
-undiscovered, plus below/at/above 16 KiB request-body cases and sensitive-log exclusion. Django
-system checks, Ruff lint/format, and migration drift checks passed.
+- Foundation Checkpoints remain a neutral disposable verification resource and do not establish Task, Event, Routine, recurrence, history, sync, or deletion semantics.
+- HTTP Basic is limited to the local/test Foundation workbench and is not presented as product authentication.
+- Client credentials are stored only in component memory. Reloading requires a new developer sign-in, and sign-out removes private client state.
+- Failed API saves preserve the checkpoint draft; a later retry can persist the same text.
+- Foundation reads are owner-scoped and cross-user access remains hidden.
+- Golden Time tests consume the shared `docs/design/time-vectors.json` catalog rather than duplicating expected values in test code.
+- `owning_increment_vectors` for recurrence and Dotick-Day behavior remain acceptance handoffs to I4/I10; Increment 0 does not falsely claim those product behaviors as implemented.
+- Production settings keep the Foundation workbench disabled and pass Django deployment checks.
+- The newer backend hardening already present on `test` was preserved while the verified I0 client, temporal, container, E2E, and CI pieces were selectively ported from the exact Codex I0 snapshot (`02e41e3`) rather than merging later Increment 1 implementation.
 
-The configured development database reported no unapplied migrations and `showmigrations` marked
-`identity.0001_initial` and `foundation.0001_initial` (and every Django migration) with `[X]`.
-`python -m uv run python scripts/verify_clean_database.py` then created a separate empty database,
-applied the complete migration graph without intervention, repeated the unapplied-migration check,
-printed the fully applied migration list, and dropped the temporary database. This refresh does not
-claim a new hosted CI execution or release publication.
+## Intentional technical debt
 
-## Readiness decisions and limits
+| ID | Debt | Rationale / owner |
+|---|---|---|
+| TD-I0-001 | Developer-only HTTP Basic transport | Intentionally temporary for the isolated Foundation Walking Skeleton; replaced by product authentication in I1. |
+| TD-I0-002 | Foundation `Checkpoint` resource | Deliberately disposable engineering evidence, not a product Item model. Product domain persistence belongs to owning increments. |
+| TD-I0-003 | 10 moderate npm audit findings in Expo/native tooling transitive dependencies | No high/critical finding blocks I0. The available forced remediation would introduce an inappropriate breaking Expo change; review during framework/toolchain upgrades. |
+| TD-I0-004 | Web-focused Walking Skeleton | Native distribution, installable PWA/offline behavior, and product UI belong to later owning increments. |
+| TD-I0-005 | No production release/tag/deployment claim | This Increment closes the engineering foundation gates only. Public release publication and production operational readiness are separate lifecycle actions. |
 
-The roadmap explicitly permits a disposable neutral resource for I0. Checkpoints are not Items and do not establish product status, persistence, history, sync, or deletion behavior. HTTP Basic and developer provisioning are isolated temporary transports; the workbench cannot be enabled under production settings. There is no demo bypass that chooses an actor from a client-supplied ID.
+## Closure decision
 
-The prototype HTML remains unchanged. Native client release, PWA install/offline mechanics, provider credentials, product authentication and Task/Event/Routine screens have not been claimed complete. All remain with their roadmap owners.
+All Increment 0 engineering gates requested for the Foundation baseline have executable evidence and the hosted CI run is green. No remaining item in the Increment 0 gate list blocks continuation to Increment 1.
 
-Before I1 persistence/API design is finalized, reconcile the older data-table proposals with current System Definition and I6 compatibility requirements: stable IDs, version ordering, tombstones/restore, idempotency, history branches and server-current authorization. In particular, do not copy the older container cascade or deletion proposals mechanically into migrations.
-
-Next implementation scope is roadmap Increment 1: identity (email/password, Google and Passkey), preferences/timezone, Folder/List/Column and Inbox invariants, and the basic Task MVP. Its [readiness baseline](increment-1-readiness.md) records canonical corrections, I6 compatibility and public-boundary acceptance scenarios. A hosted green CI run and completed increment release record are still required to formally close I0 under the roadmap's completion rule. The [v0.1.0 candidate](../../releases/v0.1.0.md) is prepared, not published or tagged.
+**Increment 0 is formally closed as of 2026-09-09.**
