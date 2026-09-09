@@ -12,6 +12,12 @@ from dotick.foundation import application
 class CheckpointInput(serializers.Serializer):
     text = serializers.CharField(max_length=240, trim_whitespace=True)
 
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and set(data) - set(self.fields):
+            raise serializers.ValidationError({"input": "Unknown fields are not accepted."})
+
+        return super().to_internal_value(data)
+
 
 class CheckpointOutput(serializers.Serializer):
     id = serializers.UUIDField()
