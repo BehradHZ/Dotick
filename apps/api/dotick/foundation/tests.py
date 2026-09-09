@@ -1,4 +1,5 @@
 import base64
+import uuid
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -213,3 +214,42 @@ def test_unhandled_api_error_uses_generic_envelope(self, mocked_list):
         "sensitive internal error",
         response.content.decode(),
     )
+
+
+class RequestIDTests(TestCase):
+    def test_response_contains_server_generated_request_id(self):
+        response = Client().get("/health")
+
+        request_id = response["X-Request-ID"]
+
+        self.assertIsInstance(uuid.UUID(request_id), uuid.UUID)
+
+    def test_each_request_gets_a_different_request_id(self):
+        first_response = Client().get("/health")
+        second_response = Client().get("/health")
+
+        self.assertNotEqual(
+            first_response["X-Request-ID"],
+            second_response["X-Request-ID"],
+        )
+
+    def test_client_supplied_request_id_is_not_trusted(self):
+        response = Client().get(
+            "/health",
+            HTTP_X_REQUEST_ID="client-controlled-id",
+        )
+
+        self.assertNotEqual(
+            response["X-Request-ID"],
+            "client-controlled-id",
+        )
+
+    def test_error_response_contains_request_id(self):
+        response = Client().get(
+            "/api/v1/foundation/checkpoints",
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("X-Request-ID", response)
+
+        uuid.UUID(response["X-Request-ID"])
