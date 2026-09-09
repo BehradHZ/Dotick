@@ -139,4 +139,8 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ]
 
-FOUNDATION_ENABLED = os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"
+DOTICK_ENV = os.getenv("DOTICK_ENV", "local").strip().lower()
+
+IS_LOCAL = DOTICK_ENV in {"local", "test"}
+
+FOUNDATION_ENABLED = IS_LOCAL and os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"

@@ -16,9 +16,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        environment = os.getenv("DOTICK_ENV", "local")
-
-        if not settings.FOUNDATION_ENABLED or environment not in {"local", "test"}:
+        if not settings.FOUNDATION_ENABLED or not settings.IS_LOCAL:
             raise CommandError(
                 "Developer provisioning is available only for the local/test foundation workbench."
             )
