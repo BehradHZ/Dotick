@@ -82,6 +82,10 @@ python scripts/check_traceability.py
 python -m uv run ruff check apps/api scripts
 python -m uv run ruff format --check apps/api scripts
 python -m uv run python apps/api/manage.py makemigrations --check --dry-run
+python -m uv run python apps/api/manage.py migrate --noinput
+python -m uv run python apps/api/manage.py showmigrations
+python -m uv run python scripts/verify_clean_database.py
+python -m uv run python apps/api/manage.py test dotick
 python -m uv run pytest
 npm run lint
 npm run format:check
@@ -93,6 +97,11 @@ npm run test:e2e
 python -m uv run pip-audit
 npm audit --audit-level=high
 ```
+
+`verify_clean_database.py` creates a uniquely named empty PostgreSQL database, applies every
+migration, checks for unapplied migrations, prints `showmigrations`, and drops the verification
+database even when a check fails. It uses the local PostgreSQL settings without printing
+credentials. The configured role therefore needs `CREATEDB` for this check.
 
 The E2E runner starts the API and exported-web server when they are not already running. It uses the provisioned local account from `.env`. CI provisions an ephemeral account/database. If Chromium's download is unavailable but Chrome is installed, set `PLAYWRIGHT_CHANNEL=chrome` before running E2E; this fallback was used on the current Windows machine. CI installs its matching Chromium build.
 

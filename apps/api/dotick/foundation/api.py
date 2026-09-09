@@ -2,11 +2,18 @@ from django.conf import settings
 from django.http import Http404
 from rest_framework import serializers
 from rest_framework.authentication import BasicAuthentication
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.foundation import application
+
+
+class PayloadTooLarge(APIException):
+    status_code = 413
+    default_detail = "Request body exceeds the 16 KiB limit."
+    default_code = "payload_too_large"
 
 
 class CheckpointInput(serializers.Serializer):
@@ -32,6 +39,13 @@ class FoundationView(APIView):
     def initial(self, request, *args, **kwargs):
         if not settings.FOUNDATION_ENABLED:
             raise Http404
+
+        content_length = int(request.META.get("CONTENT_LENGTH") or 0)
+        maximum = settings.FOUNDATION_MAX_REQUEST_BODY_BYTES
+
+        if content_length > maximum or len(request.body) > maximum:
+            raise PayloadTooLarge
+
         return super().initial(request, *args, **kwargs)
 
 

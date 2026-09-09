@@ -52,6 +52,7 @@ AUTH_USER_MODEL = "identity.User"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "config.middleware.RequestIDMiddleware",
+    "config.observability.RequestLoggingMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -148,7 +149,40 @@ DOTICK_ENV = os.getenv("DOTICK_ENV", "local").strip().lower()
 IS_LOCAL = DOTICK_ENV in {"local", "test"}
 
 FOUNDATION_ENABLED = IS_LOCAL and os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"
+FOUNDATION_MAX_REQUEST_BODY_BYTES = 16 * 1024
 
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "config.errors.api_exception_handler",
+}
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "config.observability.JsonFormatter",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": os.getenv("LOG_LEVEL", "INFO"),
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "dotick.http": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
 }

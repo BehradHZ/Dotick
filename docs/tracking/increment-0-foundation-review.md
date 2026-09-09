@@ -36,6 +36,21 @@ Status: implementation and local verification complete; hosted CI execution and 
 
 Windows verification used Python 3.14.5, Node 24.19.0, npm 11.17.0 and installed Chrome. The Playwright Chromium download returned a regional 403, so the documented Chrome channel was used for local E2E. Docker images also built on Linux with clean lockfile installs. CI installs its own matching Chromium build.
 
+### Backend verification refresh — 2026-09-09
+
+The remaining I0 backend gaps were closed and verified against PostgreSQL 18.4 on the `test`
+branch. `manage.py test dotick` discovered and passed 30 tests. The output explicitly included the
+generic-500 and both `Cache-Control: no-store` tests that had previously been module-level and
+undiscovered, plus below/at/above 16 KiB request-body cases and sensitive-log exclusion. Django
+system checks, Ruff lint/format, and migration drift checks passed.
+
+The configured development database reported no unapplied migrations and `showmigrations` marked
+`identity.0001_initial` and `foundation.0001_initial` (and every Django migration) with `[X]`.
+`python -m uv run python scripts/verify_clean_database.py` then created a separate empty database,
+applied the complete migration graph without intervention, repeated the unapplied-migration check,
+printed the fully applied migration list, and dropped the temporary database. This refresh does not
+claim a new hosted CI execution or release publication.
+
 ## Readiness decisions and limits
 
 The roadmap explicitly permits a disposable neutral resource for I0. Checkpoints are not Items and do not establish product status, persistence, history, sync, or deletion behavior. HTTP Basic and developer provisioning are isolated temporary transports; the workbench cannot be enabled under production settings. There is no demo bypass that chooses an actor from a client-supplied ID.

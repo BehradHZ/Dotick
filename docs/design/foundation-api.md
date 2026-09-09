@@ -18,4 +18,7 @@ Private endpoints require a developer account via HTTP Basic. The client retains
 
 Invalid input returns `400`; unsupported content type `415`; missing/invalid credentials `401`; bodies larger than 16 KiB `413`. Errors use `{"error":{"code":"...","details":...}}`, with optional details only for expected validation/auth errors. Internal errors never return exception text. Responses include a server-generated request ID and `Cache-Control: no-store`. Structured logging uses an explicit field allowlist and excludes bodies, credentials and exception messages.
 
-Evidence: API/authorization tests in `apps/api/tests`, component network/failure tests in `apps/client/src/App.test.tsx`, and desktop/mobile PostgreSQL persistence checks in `e2e/walking-skeleton.spec.ts`.
+Evidence: Foundation API, boundary, logging, and authorization tests in
+`apps/api/dotick/foundation/tests.py`; identity tests in `apps/api/dotick/identity/tests.py`;
+component network/failure tests in `apps/client/src/App.test.tsx`; and desktop/mobile PostgreSQL
+persistence checks in `e2e/walking-skeleton.spec.ts`.

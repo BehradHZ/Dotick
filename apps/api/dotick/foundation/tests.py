@@ -1,7 +1,10 @@
 import base64
+import json
+import logging
 import uuid
 from unittest.mock import patch
 
+from config.observability import JsonFormatter
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import Client, TestCase, TransactionTestCase, override_settings
@@ -35,6 +38,7 @@ class ReadyEndpointTests(TransactionTestCase):
 @override_settings(FOUNDATION_ENABLED=True)
 class FoundationCheckpointAPITests(TestCase):
     checkpoint_url = "/api/v1/foundation/checkpoints"
+    max_request_body_bytes = 16 * 1024
 
     @classmethod
     def setUpTestData(cls):
@@ -192,28 +196,72 @@ class FoundationCheckpointAPITests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-
-@patch(
-    "dotick.foundation.application.list_checkpoints",
-    side_effect=RuntimeError("sensitive internal error"),
-)
-def test_unhandled_api_error_uses_generic_envelope(self, mocked_list):
-    response = self.client.get(self.checkpoint_url)
-
-    self.assertEqual(response.status_code, 500)
-    self.assertEqual(
-        response.json(),
-        {
-            "error": {
-                "code": "internal_error",
-            }
-        },
+    @patch(
+        "dotick.foundation.application.list_checkpoints",
+        side_effect=RuntimeError("sensitive internal error"),
     )
+    def test_unhandled_api_error_uses_generic_envelope(self, mocked_list):
+        response = self.client.get(self.checkpoint_url)
 
-    self.assertNotIn(
-        "sensitive internal error",
-        response.content.decode(),
-    )
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.json(),
+            {
+                "error": {
+                    "code": "internal_error",
+                }
+            },
+        )
+
+        self.assertNotIn(
+            "sensitive internal error",
+            response.content.decode(),
+        )
+
+    def test_request_body_below_limit_is_accepted(self):
+        response = self._post_json_body(self.max_request_body_bytes - 1)
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_request_body_at_limit_is_accepted(self):
+        response = self._post_json_body(self.max_request_body_bytes)
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_request_body_above_limit_returns_stable_413(self):
+        with self.assertLogs("dotick.http", level="INFO") as captured:
+            response = self._post_json_body(self.max_request_body_bytes + 1)
+
+        self.assertEqual(response.status_code, 413)
+        self.assertEqual(
+            response.json(),
+            {
+                "error": {
+                    "code": "payload_too_large",
+                    "details": {
+                        "detail": "Request body exceeds the 16 KiB limit.",
+                    },
+                }
+            },
+        )
+        self.assertNotIn("Within limit", response.content.decode())
+
+        serialized_logs = "\n".join(JsonFormatter().format(record) for record in captured.records)
+
+        self.assertNotIn("Within limit", serialized_logs)
+
+    def _post_json_body(self, size):
+        body = b'{"text":"Within limit"}'
+        body += b" " * (size - len(body))
+
+        self.assertEqual(len(body), size)
+
+        return self.client.generic(
+            "POST",
+            self.checkpoint_url,
+            data=body,
+            content_type="application/json",
+        )
 
 
 class RequestIDTests(TestCase):
@@ -255,16 +303,114 @@ class RequestIDTests(TestCase):
         uuid.UUID(response["X-Request-ID"])
 
 
-def test_success_response_disables_caching(self):
-    response = Client().get("/health")
+class CacheControlTests(TestCase):
+    def test_success_response_disables_caching(self):
+        response = Client().get("/health")
 
-    self.assertEqual(response["Cache-Control"], "no-store")
+        self.assertEqual(response["Cache-Control"], "no-store")
+
+    def test_error_response_disables_caching(self):
+        response = Client().get(
+            "/api/v1/foundation/checkpoints",
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response["Cache-Control"], "no-store")
 
 
-def test_error_response_disables_caching(self):
-    response = Client().get(
-        "/api/v1/foundation/checkpoints",
-    )
+class StructuredLoggingTests(TestCase):
+    def test_json_formatter_emits_only_allowlisted_fields(self):
+        record = logging.LogRecord(
+            name="dotick.http",
+            level=logging.INFO,
+            pathname=__file__,
+            lineno=1,
+            msg="sensitive message",
+            args=(),
+            exc_info=None,
+        )
 
-    self.assertEqual(response.status_code, 401)
-    self.assertEqual(response["Cache-Control"], "no-store")
+        record.event = "http_request"
+        record.request_id = "request-id"
+        record.route = "api/v1/foundation/checkpoints"
+        record.status = 200
+        record.duration_ms = 12.5
+
+        record.password = "secret-password"
+        record.credential = "secret-credential"
+        record.token = "secret-token"
+        record.authorization = "Basic secret"
+        record.cookie = "sessionid=secret-session"
+        record.body = '{"password":"secret"}'
+        record.exception_message = "sensitive internal exception"
+        record.connection_string = "postgresql://user:password@localhost/database"
+        record.secret_key = "sensitive-django-secret-key"
+        record.environment = {"PRIVATE_ENVIRONMENT_VALUE": "sensitive-environment-value"}
+
+        payload = json.loads(JsonFormatter().format(record))
+
+        self.assertEqual(
+            set(payload),
+            {
+                "timestamp",
+                "level",
+                "service",
+                "event",
+                "request_id",
+                "route",
+                "status",
+                "duration_ms",
+            },
+        )
+
+        serialized = json.dumps(payload)
+
+        self.assertNotIn("secret-password", serialized)
+        self.assertNotIn("secret-credential", serialized)
+        self.assertNotIn("secret-token", serialized)
+        self.assertNotIn("Basic secret", serialized)
+        self.assertNotIn("secret-session", serialized)
+        self.assertNotIn("postgresql://", serialized)
+        self.assertNotIn("sensitive internal exception", serialized)
+        self.assertNotIn("sensitive-django-secret-key", serialized)
+        self.assertNotIn("sensitive-environment-value", serialized)
+        self.assertNotIn("sensitive message", serialized)
+
+    def test_request_log_contains_response_request_id(self):
+        with self.assertLogs("dotick.http", level="INFO") as captured:
+            response = Client().get("/health")
+
+        request_log = next(
+            record
+            for record in captured.records
+            if getattr(record, "event", None) == "http_request"
+        )
+
+        payload = json.loads(JsonFormatter().format(request_log))
+
+        self.assertEqual(
+            payload["request_id"],
+            response["X-Request-ID"],
+        )
+        self.assertEqual(payload["event"], "http_request")
+        self.assertEqual(payload["method"], "GET")
+        self.assertEqual(payload["route"], "health")
+        self.assertEqual(payload["status"], 200)
+
+    def test_request_log_excludes_credentials_cookies_and_body(self):
+        with self.assertLogs("dotick.http", level="INFO") as captured:
+            response = Client().post(
+                "/api/v1/foundation/checkpoints",
+                data=b'{"text":"sensitive-request-body"}',
+                content_type="application/json",
+                HTTP_AUTHORIZATION="Bearer sensitive-auth-token",
+                HTTP_COOKIE="sessionid=sensitive-session-secret",
+            )
+
+        self.assertEqual(response.status_code, 401)
+
+        serialized_logs = "\n".join(JsonFormatter().format(record) for record in captured.records)
+
+        self.assertNotIn("sensitive-request-body", serialized_logs)
+        self.assertNotIn("sensitive-auth-token", serialized_logs)
+        self.assertNotIn("sensitive-session-secret", serialized_logs)
