@@ -24,5 +24,5 @@ urlpatterns = [
     path("health", health),
     path("ready", ready),
     path("admin/", admin.site.urls),
-    path("foundation/", include("dotick.foundation.urls")),
+    path("api/v1/foundation/", include("dotick.foundation.urls")),
 ]
