@@ -147,3 +147,7 @@ DOTICK_ENV = os.getenv("DOTICK_ENV", "local").strip().lower()
 IS_LOCAL = DOTICK_ENV in {"local", "test"}
 
 FOUNDATION_ENABLED = IS_LOCAL and os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"
+
+REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "config.errors.api_exception_handler",
+}

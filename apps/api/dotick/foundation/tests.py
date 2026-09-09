@@ -1,4 +1,5 @@
 import base64
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.db import connection
@@ -62,6 +63,17 @@ class FoundationCheckpointAPITests(TestCase):
         response = client.get(self.checkpoint_url)
 
         self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json(),
+            {
+                "error": {
+                    "code": "not_authenticated",
+                    "details": {
+                        "detail": "Authentication credentials were not provided.",
+                    },
+                }
+            },
+        )
 
     def test_post_creates_checkpoint_for_authenticated_owner(self):
         response = self.client.post(
@@ -120,6 +132,17 @@ class FoundationCheckpointAPITests(TestCase):
         response = self.client.get(f"{self.checkpoint_url}/{checkpoint.id}")
 
         self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json(),
+            {
+                "error": {
+                    "code": "not_found",
+                    "details": {
+                        "detail": "Not found.",
+                    },
+                }
+            },
+        )
 
     def test_post_rejects_blank_text(self):
         response = self.client.post(
@@ -150,9 +173,43 @@ class FoundationCheckpointAPITests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "error": {
+                    "code": "validation_error",
+                    "details": {
+                        "input": "Unknown fields are not accepted.",
+                    },
+                }
+            },
+        )
 
     @override_settings(FOUNDATION_ENABLED=False)
     def test_foundation_api_is_hidden_when_disabled(self):
         response = self.client.get(self.checkpoint_url)
 
         self.assertEqual(response.status_code, 404)
+
+
+@patch(
+    "dotick.foundation.application.list_checkpoints",
+    side_effect=RuntimeError("sensitive internal error"),
+)
+def test_unhandled_api_error_uses_generic_envelope(self, mocked_list):
+    response = self.client.get(self.checkpoint_url)
+
+    self.assertEqual(response.status_code, 500)
+    self.assertEqual(
+        response.json(),
+        {
+            "error": {
+                "code": "internal_error",
+            }
+        },
+    )
+
+    self.assertNotIn(
+        "sensitive internal error",
+        response.content.decode(),
+    )

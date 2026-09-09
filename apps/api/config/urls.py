@@ -20,6 +20,10 @@ from django.urls import include, path
 
 from config.operations import health, ready
 
+handler400 = "config.errors.bad_request"
+handler404 = "config.errors.not_found"
+handler500 = "config.errors.server_error"
+
 urlpatterns = [
     path("health", health),
     path("ready", ready),
