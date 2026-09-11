@@ -52,6 +52,8 @@ testی که فقط implementation detail را mirror می‌کند ارزش acce
 
 # 5. Increment 1 critical suite
 
+Backend cases below execute against the public HTTP API and PostgreSQL. Client restart/draft-preservation and configured-provider cases remain integration/release gates.
+
 - email/password happy/error paths؛
 - Google unavailable و fallback behavior؛
 - Passkey registration/authentication boundaries؛
@@ -105,6 +107,6 @@ merge با gate قرمز مجاز نیست. flaky test باید defect تلقی�
 # 10. Test result artifacts
 
 - CI result منبع اجرای معمول است.
-- benchmark، security review و test execution دستی در `project-docs/05-quality/reports/` ثبت می‌شود.
+- benchmark، security review و test execution دستی در `docs/quality/reports/` ثبت می‌شود.
 - release/increment review نتیجه را به Requirement IDها متصل می‌کند.
 - test ID یا path فقط بعد از ایجاد واقعی وارد Traceability می‌شود.

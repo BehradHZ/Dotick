@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en" data-appearance="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Dotick — Tasks / Item Detail Prototype</title>
+<style>
+:root{
+  --bg:#f4f1e8;--paper:#fffdf7;--paper-2:#f8f4e9;--ink:#151515;--muted:#69675f;
+  --orange:#ff7a00;--orange-soft:#ffe2bf;--yellow:#ffd84d;--red:#ff4c4c;--red-soft:#ffd5d5;
+  --blue:#55a7ff;--blue-soft:#dcedff;--green:#56c878;--green-soft:#daf4e2;--purple:#a576ff;
+  --border:2px solid var(--ink);--shadow:4px 4px 0 var(--ink);--shadow-sm:2px 2px 0 var(--ink);
+  --radius:14px;--dock-h:58px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}
+body{min-height:100vh;background:var(--bg);overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;z-index:-2;background-image:radial-gradient(circle,rgba(0,0,0,.17) 1.05px,transparent 1.2px);background-size:18px 18px;background-position:0 0;pointer-events:none}
+body:after{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(115deg,rgba(255,255,255,.35),transparent 35%,rgba(255,122,0,.035) 70%,transparent);pointer-events:none}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.icon-btn{width:38px;height:38px;border:var(--border);background:var(--paper);border-radius:11px;display:grid;place-items:center;font-weight:900;box-shadow:var(--shadow-sm);transition:.16s transform,.16s box-shadow,.16s background}
+.icon-btn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--ink)}
+.icon-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.app{min-height:100vh;padding:24px 24px 112px;max-width:1680px;margin:0 auto}
+.topbar{height:56px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}.brand-mark{width:38px;height:38px;background:var(--orange);border:var(--border);border-radius:10px;box-shadow:var(--shadow-sm);display:grid;place-items:center;font-size:20px;font-weight:1000;transform:rotate(-2deg)}
+.brand-name{font-weight:1000;font-size:20px;letter-spacing:-.6px}.crumb{font-size:12px;color:var(--muted);font-weight:750;margin-top:1px}
+.top-actions{display:flex;align-items:center;gap:9px}.avatar{width:38px;height:38px;border-radius:50%;border:var(--border);background:var(--yellow);box-shadow:var(--shadow-sm);display:grid;place-items:center;font-weight:950}
+.workspace{display:grid;grid-template-columns:255px minmax(470px,1fr) 440px;gap:14px;min-height:calc(100vh - 210px);align-items:start}
+.pane{background:var(--paper);border:var(--border);box-shadow:var(--shadow);border-radius:18px;overflow:hidden;min-width:0}
+.sidebar{height:calc(100vh - 126px);position:sticky;top:18px;display:flex;flex-direction:column}
+.sidebar-head,.list-head,.detail-head{padding:15px 16px;border-bottom:var(--border)}
+.sidebar-title-row{display:flex;align-items:center;justify-content:space-between}.eyebrow{text-transform:uppercase;font-size:10px;letter-spacing:1.4px;font-weight:950;color:var(--muted)}
+.sidebar-title{font-weight:1000;font-size:17px;margin-top:2px}
+.sidebar-scroll{padding:10px;overflow:auto;flex:1}.nav-section{margin-bottom:16px}.nav-label{font-size:10px;text-transform:uppercase;letter-spacing:1.1px;font-weight:950;color:var(--muted);padding:6px 8px}
+.nav-row{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;border-radius:10px;padding:9px 10px;font-weight:800;text-align:left;transition:.15s}.nav-row:hover{background:#00000008}.nav-row.active{background:var(--orange-soft);outline:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink)}
+.nav-row .count{margin-left:auto;font-size:11px;color:var(--muted);font-weight:900}.folder-toggle{width:18px;text-align:center}.folder-title{font-size:12px;font-weight:950;padding:8px 8px 5px;display:flex;align-items:center;gap:7px}.folder-lists{padding-left:13px}
+.sidebar-foot{border-top:var(--border);padding:12px}.storage-note{font-size:10px;line-height:1.45;color:var(--muted);font-weight:750}
+.main-list{min-height:calc(100vh - 126px)}
+.list-head{padding:14px 16px 12px;background:linear-gradient(180deg,var(--paper),var(--paper-2))}.list-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.list-title-wrap{min-width:0}.list-title{font-size:25px;font-weight:1000;letter-spacing:-.7px;display:flex;align-items:center;gap:9px}.list-sub{font-size:11px;color:var(--muted);font-weight:800;margin-top:3px}.list-actions{display:flex;gap:7px;align-items:center}
+.list-options-wrap{position:relative}
+.list-options-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:60;min-width:210px;padding:8px;border:2px solid var(--ink);border-radius:12px;background:var(--paper);box-shadow:3px 3px 0 var(--ink)}
+.list-options-menu[hidden]{display:none}
+.list-options-label{font-size:8px;font-weight:1000;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);padding:2px 3px 7px}
+.list-options-menu .segmented{width:100%;box-sizing:border-box}
+.list-options-menu .seg-btn{flex:1}
+.viewbar{display:block;margin-top:10px}
+.segmented{display:flex;padding:3px;border:2px solid var(--ink);border-radius:10px;background:var(--paper);box-shadow:2px 2px 0 var(--ink)}.seg-btn{border:0;background:transparent;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:900}.seg-btn.active{background:var(--ink);color:#fff}.viewmeta{display:none}
+.quick-capture{margin:0;border:2px solid var(--ink);border-radius:11px;background:var(--paper);box-shadow:2px 2px 0 var(--ink);overflow:hidden;transition:.18s}.quick-capture:focus-within{box-shadow:3px 3px 0 var(--orange);transform:translate(-1px,-1px)}
+.capture-line{display:flex;align-items:center;gap:7px;padding:6px 8px}.circle-plus{width:21px;height:21px;border-radius:50%;border:1.7px solid var(--ink);display:grid;place-items:center;font-weight:1000;font-size:12px;background:var(--orange-soft);flex:0 0 auto}.capture-input{border:0;background:transparent;outline:none;width:100%;font-weight:800;font-size:12px}.capture-tools{display:none;gap:5px;padding:0 8px 7px 36px;flex-wrap:wrap}.quick-capture:focus-within .capture-tools{display:flex}.tiny-chip{border:1.5px solid var(--ink);background:var(--paper-2);border-radius:8px;padding:3px 6px;font-size:9px;font-weight:900}.tiny-chip.orange{background:var(--orange-soft)}
+.group-head-right,.board-col-head-right{display:flex;align-items:center;gap:7px}
+.column-add{width:22px;height:22px;border:1.5px solid var(--ink);border-radius:7px;background:var(--paper);display:grid;place-items:center;font-size:14px;font-weight:1000;line-height:1;box-shadow:1.5px 1.5px 0 var(--ink);cursor:pointer;transition:.12s transform,.12s box-shadow,.12s background}
+.column-add:hover{background:var(--orange-soft);transform:translate(-1px,-1px);box-shadow:2.5px 2.5px 0 var(--ink)}
+.items-scroll{padding:6px 14px 18px}.group{margin-top:11px}.group-head{display:flex;align-items:center;justify-content:space-between;padding:8px 4px 7px;border-bottom:1.5px dashed #0006}.group-name{font-size:12px;font-weight:1000;display:flex;align-items:center;gap:7px}.group-count{font-size:10px;color:var(--muted);font-weight:900}.item-row{position:relative;display:grid;grid-template-columns:29px minmax(0,1fr) auto;gap:9px;align-items:center;padding:10px 7px;margin:4px 0;border:2px solid transparent;border-radius:11px;transition:.15s background,.15s border,.15s transform,.15s box-shadow}.item-row:hover{background:var(--paper-2);border-color:#0003}.item-row.selected{background:var(--orange-soft);border-color:var(--ink);box-shadow:2px 2px 0 var(--ink)}.item-row.event.selected{background:var(--blue-soft)}
+.check{width:22px;height:22px;border:2px solid var(--ink);border-radius:7px;background:#fff;display:grid;place-items:center;font-size:12px;font-weight:1000}.check.done{background:var(--green)}.event-icon{width:24px;height:24px;border:2px solid var(--ink);border-radius:6px;background:var(--blue);display:grid;place-items:center;font-size:11px;font-weight:1000}.item-title{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.item-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}.meta{font-size:9.5px;font-weight:850;color:var(--muted);display:inline-flex;align-items:center;gap:4px}.meta.danger{color:#b91515}.meta.blue{color:#1765a9}.meta.block{background:var(--red-soft);border:1px solid #a51111;padding:1px 5px;border-radius:6px;color:#8f1010}.priority-mark{width:8px;height:24px;border-radius:5px;border:1.5px solid var(--ink)}.p-ui{background:linear-gradient(#ff5050 50%,#ffd84d 50%)}.p-important{background:var(--yellow)}.p-urgent{background:var(--red)}.p-none{background:#ddd}.row-more{border:0;background:transparent;font-size:18px;font-weight:1000;opacity:.55}.item-row:hover .row-more{opacity:1}
+.board{display:none;padding:13px;grid-template-columns:repeat(3,minmax(200px,1fr));gap:10px;align-items:start}.board.active{display:grid}.items-scroll.hidden{display:none}.board-col{background:var(--paper-2);border:2px solid var(--ink);border-radius:13px;min-height:390px;box-shadow:2px 2px 0 var(--ink);padding:8px}.board-col-head{display:flex;justify-content:space-between;font-size:11px;font-weight:1000;padding:5px 4px 9px}.board-card{border:2px solid var(--ink);border-radius:10px;background:var(--paper);padding:9px;margin-bottom:8px;box-shadow:2px 2px 0 var(--ink)}.board-card-title{font-size:11px;font-weight:900}.board-card-meta{font-size:9px;color:var(--muted);font-weight:800;margin-top:6px}
+.timeline-view{display:none;padding:13px 14px 18px;overflow:auto}
+.timeline-view.active{display:block}
+.timeline-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.timeline-period{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:1000}
+.timeline-period button{width:29px;height:29px;border:1.5px solid var(--ink);background:var(--paper);border-radius:8px;font-weight:1000;box-shadow:1.5px 1.5px 0 var(--ink)}
+.timeline-tools{display:flex;gap:6px;align-items:center}
+.timeline-chip{border:1.5px solid var(--ink);background:var(--paper);border-radius:8px;padding:6px 8px;font-size:9px;font-weight:950}
+.timeline-shell{min-width:810px;border:2px solid var(--ink);border-radius:14px;background:var(--paper);box-shadow:3px 3px 0 var(--ink);overflow:hidden}
+.timeline-head{display:grid;grid-template-columns:150px repeat(7,minmax(92px,1fr));background:var(--paper-2);border-bottom:2px solid var(--ink)}
+.timeline-corner{padding:10px 11px;font-size:9px;font-weight:1000;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-right:2px solid var(--ink)}
+.timeline-day{padding:8px 4px 7px;text-align:center;border-right:1px dashed #0004;min-height:48px}
+.timeline-day:last-child{border-right:0}
+.timeline-day .dow{display:block;font-size:8px;text-transform:uppercase;color:var(--muted);font-weight:950;letter-spacing:.5px}
+.timeline-day .date{display:inline-grid;place-items:center;margin-top:3px;min-width:25px;height:25px;border-radius:8px;font-size:11px;font-weight:1000}
+.timeline-day.today .date{background:var(--orange);border:1.5px solid var(--ink);box-shadow:1.5px 1.5px 0 var(--ink)}
+.timeline-lane{display:grid;grid-template-columns:150px minmax(0,1fr);min-height:73px;border-bottom:1.5px solid #0005}
+.timeline-lane:last-child{border-bottom:0}
+.timeline-lane-label{padding:10px 11px;border-right:2px solid var(--ink);background:linear-gradient(90deg,var(--paper-2),var(--paper));display:flex;flex-direction:column;justify-content:center;gap:3px}
+.timeline-lane-name{font-size:10px;font-weight:1000}
+.timeline-lane-count{font-size:8px;color:var(--muted);font-weight:900}
+.timeline-grid{position:relative;display:grid;grid-template-columns:repeat(7,minmax(92px,1fr));grid-auto-rows:26px;align-content:center;padding:9px 0;min-height:72px;background-image:linear-gradient(to right,transparent calc(100% - 1px),rgba(0,0,0,.16) calc(100% - 1px));background-size:calc(100% / 7) 100%}
+.timeline-bar{position:relative;z-index:2;margin:2px 5px;border:2px solid var(--ink);border-radius:8px;background:var(--orange-soft);box-shadow:1.5px 1.5px 0 var(--ink);padding:4px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:9px;font-weight:950;line-height:14px;cursor:pointer;transition:.15s transform,.15s box-shadow}
+.timeline-bar:hover{transform:translate(-1px,-1px);box-shadow:2.5px 2.5px 0 var(--ink)}
+.timeline-bar.event{background:var(--blue-soft)}
+.timeline-bar.overdue{background:var(--red-soft)}
+.timeline-bar.done{background:var(--green-soft);opacity:.7;text-decoration:line-through}
+.timeline-bar.blocked:after{content:"BLOCKED";position:absolute;right:4px;top:3px;font-size:6px;letter-spacing:.4px;background:var(--red);color:#fff;border:1px solid var(--ink);border-radius:4px;padding:1px 3px}
+.timeline-unscheduled{margin-top:10px;border:2px dashed #0006;border-radius:12px;background:rgba(255,255,255,.55);padding:9px 10px}
+.timeline-unscheduled-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.timeline-unscheduled-title{font-size:9px;font-weight:1000;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
+.timeline-unscheduled-note{font-size:8px;color:var(--muted);font-weight:850}
+.timeline-unscheduled-items{display:flex;gap:7px;flex-wrap:wrap}
+.unscheduled-card{border:1.5px solid var(--ink);background:var(--paper);border-radius:8px;padding:7px 9px;font-size:9px;font-weight:900;box-shadow:1.5px 1.5px 0 var(--ink);cursor:pointer}
+.timeline-now{position:absolute;z-index:1;top:0;bottom:0;width:2px;background:var(--red);left:calc((100% / 7) * .55)}
+.timeline-now:before{content:"";position:absolute;top:0;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--red);border:1px solid var(--ink)}
+
+.detail{height:calc(100vh - 126px);position:sticky;top:18px;display:flex;flex-direction:column}.detail-head{padding:11px 13px;background:linear-gradient(180deg,var(--paper),var(--paper-2))}.detail-topline{display:flex;align-items:center;justify-content:space-between;gap:8px}.detail-type{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:1px}.type-dot{width:22px;height:22px;border:2px solid var(--ink);border-radius:7px;display:grid;place-items:center;background:var(--orange)}.type-dot.event{background:var(--blue)}.type-dot.routine{background:var(--yellow)}.detail-tools{display:flex;gap:6px}.detail-tools .icon-btn{width:32px;height:32px;border-radius:9px;box-shadow:none}
+.proto-switch{display:flex;gap:4px;margin-top:9px;background:#00000008;padding:3px;border-radius:8px}.proto-switch button{flex:1;border:0;background:transparent;border-radius:6px;padding:4px;font-size:9px;font-weight:950;text-transform:uppercase;color:var(--muted)}.proto-switch button.active{background:var(--ink);color:#fff}.prototype-label{font-size:8px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-top:6px;text-align:right}
+.detail-scroll{padding:13px 14px 26px;overflow:auto;flex:1}.title-edit{display:flex;align-items:flex-start;gap:10px}.title-check{width:28px;height:28px;border:2px solid var(--ink);border-radius:9px;background:#fff;display:grid;place-items:center;font-weight:1000;flex:0 0 auto;margin-top:3px}.title-check.event{border-radius:8px;background:var(--blue-soft)}.title-check.routine{border-radius:50%;background:var(--yellow)}.detail-title-input{border:0;background:transparent;outline:none;width:100%;font-size:21px;font-weight:1000;line-height:1.2;letter-spacing:-.5px;padding:2px 0;resize:none;height:56px}.status-line{display:flex;gap:6px;margin:6px 0 12px 38px;flex-wrap:wrap}.pill{display:inline-flex;align-items:center;gap:4px;border:1.5px solid var(--ink);border-radius:999px;padding:4px 8px;font-size:9px;font-weight:950;background:var(--paper-2)}.pill.orange{background:var(--orange-soft)}.pill.red{background:var(--red-soft)}.pill.green{background:var(--green-soft)}.pill.blue{background:var(--blue-soft)}.pill.yellow{background:#fff2a9}.pill.purple{background:#e9ddff}
+.properties{border-top:1.5px dashed #0006;border-bottom:1.5px dashed #0006;padding:7px 0;margin-bottom:13px}.prop{display:grid;grid-template-columns:26px 114px minmax(0,1fr) 24px;align-items:center;gap:3px;min-height:34px;border-radius:8px;padding:3px 4px}.prop:hover{background:#00000005}.prop-icon{font-size:15px;text-align:center}.prop-label{font-size:10px;font-weight:850;color:var(--muted)}.prop-value{font-size:10.5px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.prop-edit{border:0;background:transparent;font-weight:1000;opacity:.4}.prop:hover .prop-edit{opacity:1}
+.section{margin-top:15px}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}.section-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:1000}.section-action{border:0;background:transparent;color:var(--muted);font-size:10px;font-weight:900}.editor{border:2px solid var(--ink);border-radius:12px;background:var(--paper);min-height:122px;box-shadow:2px 2px 0 var(--ink);overflow:hidden}.editor-toolbar{display:flex;gap:3px;padding:6px;border-bottom:1px solid #0003;background:var(--paper-2)}.edit-tool{border:0;background:transparent;width:26px;height:24px;border-radius:5px;font-size:10px;font-weight:1000}.edit-tool:hover{background:#0000000d}.editor-body{padding:10px 11px;min-height:90px;font-size:11px;line-height:1.55;font-weight:650;outline:none}.slash-hint{color:#999}.ref-block{display:flex;align-items:center;gap:8px;border:1.5px solid var(--ink);background:var(--blue-soft);border-radius:8px;padding:7px;margin-top:8px;font-size:10px;font-weight:850}.ref-state{margin-left:auto;font-size:8px;border:1px solid var(--ink);padding:2px 4px;border-radius:5px;background:#fff}
+.subitem{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:8px;padding:7px 8px;border:1.5px solid #0005;border-radius:9px;margin-bottom:6px;background:#fff}.subitem-icon{width:18px;height:18px;border:1.5px solid var(--ink);border-radius:5px;display:grid;place-items:center;font-size:8px}.subitem-title{font-size:10.5px;font-weight:850}.subitem-meta{font-size:8px;color:var(--muted);font-weight:800}.progressbar{height:8px;border:1.5px solid var(--ink);background:#fff;border-radius:99px;overflow:hidden}.progressbar>span{display:block;height:100%;background:var(--orange);width:50%}
+.dependency{border:2px solid #9b1b1b;background:var(--red-soft);border-radius:10px;padding:9px;display:flex;align-items:flex-start;gap:8px}.dep-icon{width:24px;height:24px;border:1.5px solid var(--ink);border-radius:7px;display:grid;place-items:center;background:#fff}.dep-main{font-size:10px;font-weight:850;line-height:1.45}.dep-main b{display:block;font-size:10.5px}.dep-link{color:#8e1111;text-decoration:underline}
+.attachment-row{display:flex;gap:7px;overflow:auto}.attachment{min-width:100px;border:1.5px solid var(--ink);border-radius:8px;background:var(--paper-2);padding:8px;font-size:9px;font-weight:850}.attachment-icon{font-size:17px;margin-bottom:4px}.attachment-size{font-size:8px;color:var(--muted);margin-top:3px}.comment{display:flex;gap:7px;margin-bottom:9px}.comment-avatar{width:25px;height:25px;border:1.5px solid var(--ink);border-radius:50%;background:var(--yellow);display:grid;place-items:center;font-size:8px;font-weight:1000;flex:0 0 auto}.comment-body{background:var(--paper-2);border:1.5px solid #0005;border-radius:9px;padding:7px 8px;flex:1}.comment-name{font-size:9px;font-weight:950}.comment-text{font-size:10px;line-height:1.45;margin-top:2px}.comment-time{font-size:8px;color:var(--muted);font-weight:700;margin-top:4px}
+.comment-input{display:flex;gap:6px}.comment-input input{width:100%;border:1.5px solid var(--ink);border-radius:8px;background:#fff;padding:7px 9px;font-size:10px;font-weight:750;outline:none}.send-mini{border:1.5px solid var(--ink);border-radius:8px;background:var(--orange);font-weight:1000;padding:0 10px}
+.detail-bottom{padding:9px 12px;border-top:var(--border);display:flex;gap:7px;background:var(--paper)}.bottom-action{flex:1;border:1.5px solid var(--ink);border-radius:9px;background:var(--paper-2);padding:8px;font-size:9.5px;font-weight:950}.bottom-action.primary{background:var(--orange)}.bottom-action.danger{background:var(--red-soft)}
+/* Event detail */
+.event-schedule{display:grid;grid-template-columns:1fr 1fr;gap:7px}.schedule-card{border:1.5px solid var(--ink);border-radius:10px;background:var(--blue-soft);padding:9px}.schedule-label{font-size:8px;text-transform:uppercase;font-weight:950;color:#456}.schedule-value{font-size:12px;font-weight:1000;margin-top:2px}.overlap-note{margin-top:8px;border:1.5px solid var(--ink);background:#fff3b6;border-radius:9px;padding:7px 9px;font-size:9px;font-weight:850}
+/* Routine detail */
+.weekstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:10px 0}.daydot{border:1.5px solid var(--ink);border-radius:9px;background:#fff;padding:6px 2px;text-align:center}.daydot .d{font-size:8px;font-weight:900;color:var(--muted)}.daydot .n{font-size:11px;font-weight:1000;margin-top:2px}.daydot.done{background:var(--green-soft)}.daydot.active{background:var(--yellow);box-shadow:2px 2px 0 var(--ink);transform:translate(-1px,-1px)}.daydot.unscheduled{opacity:.45}.routine-progress{border:2px solid var(--ink);border-radius:12px;background:#fff6c5;padding:12px;box-shadow:2px 2px 0 var(--ink)}.rp-top{display:flex;justify-content:space-between;align-items:end}.rp-value{font-size:26px;font-weight:1000}.rp-unit{font-size:10px;color:var(--muted);font-weight:900}.rp-controls{display:flex;gap:5px}.rp-controls button{border:1.5px solid var(--ink);background:#fff;border-radius:7px;width:29px;height:29px;font-weight:1000}.rp-track{height:11px;border:2px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden;margin:10px 0 6px}.rp-track span{display:block;width:62%;height:100%;background:var(--orange)}.rp-note{font-size:9px;color:var(--muted);font-weight:800}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.stat{border:1.5px solid var(--ink);border-radius:9px;background:var(--paper-2);padding:8px;text-align:center}.stat-n{font-size:16px;font-weight:1000}.stat-l{font-size:8px;text-transform:uppercase;color:var(--muted);font-weight:900;margin-top:2px}
+/* dock */
+.dock-wrap{position:fixed;z-index:60;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px}.dock{height:var(--dock-h);display:flex;align-items:center;border:2px solid var(--ink);background:rgba(255,253,247,.96);border-radius:18px;box-shadow:4px 4px 0 var(--ink);padding:6px;transition:width .34s cubic-bezier(.2,.9,.2,1),transform .2s;overflow:hidden;width:366px}.dock.normal .dock-search-form{display:none}.dock-tabs{display:flex;align-items:center;gap:4px;width:100%;transition:.25s}.dock-tab{height:42px;border:0;border-radius:12px;background:transparent;display:flex;align-items:center;justify-content:center;gap:0;padding:0 12px;min-width:46px;font-weight:950;transition:.3s cubic-bezier(.2,.9,.2,1);overflow:hidden;white-space:nowrap}.dock-tab .dock-label{max-width:0;opacity:0;transform:translateX(-6px);transition:.25s cubic-bezier(.2,.9,.2,1);font-size:11px}.dock-tab.active{background:var(--orange-soft);outline:1.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);gap:7px;padding:0 13px}.dock-tab.active .dock-label{max-width:75px;opacity:1;transform:none}.dock-tab.search{order:-1}.dock-icon{font-size:18px;line-height:1}.dock-plus{width:58px;height:58px;border:2px solid var(--ink);background:var(--orange);border-radius:18px;box-shadow:4px 4px 0 var(--ink);font-size:28px;font-weight:900;transition:.18s}.dock-plus:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}.dock-plus.open{background:var(--ink);color:#fff;transform:rotate(45deg)}
+.dock.searching{width:min(620px,calc(100vw - 112px))}.dock.searching .dock-tabs{opacity:0;transform:translateX(-18px);pointer-events:none;position:absolute}.dock-search-form{width:100%;display:flex;align-items:center;gap:8px}.dock-search-form input{border:0;outline:0;background:transparent;flex:1;font-weight:800;font-size:13px;min-width:0}.search-glyph{font-size:20px;font-weight:1000;padding-left:5px}.dock-close{border:0;background:transparent;width:34px;height:34px;border-radius:8px;font-size:20px;font-weight:1000}.search-results{position:fixed;z-index:59;bottom:86px;left:50%;transform:translateX(-50%) translateY(8px);width:min(610px,calc(100vw - 36px));background:var(--paper);border:2px solid var(--ink);border-radius:15px;box-shadow:4px 4px 0 var(--ink);padding:7px;opacity:0;pointer-events:none;transition:.2s}.search-results.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}.search-result{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:transparent;border-radius:9px;padding:9px;text-align:left;font-size:11px;font-weight:850}.search-result:hover{background:var(--orange-soft)}.search-result span:last-child{font-size:9px;color:var(--muted)}
+.quick-menu{position:fixed;z-index:70;bottom:88px;left:50%;transform:translateX(95px) translateY(12px) scale(.96);display:flex;gap:6px;background:var(--paper);border:2px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);padding:7px;opacity:0;pointer-events:none;transition:.2s}.quick-menu.show{opacity:1;pointer-events:auto;transform:translateX(95px) translateY(0) scale(1)}.quick-menu button{border:1.5px solid var(--ink);background:var(--paper-2);border-radius:9px;padding:8px 10px;font-size:10px;font-weight:950}.quick-menu button:hover{background:var(--orange-soft)}
+/* Composer */
+.overlay{position:fixed;inset:0;z-index:80;background:rgba(20,20,20,.34);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:.2s}.overlay.show{opacity:1;pointer-events:auto}.composer{position:fixed;z-index:81;left:50%;top:50%;transform:translate(-50%,-46%) scale(.98);width:min(790px,calc(100vw - 30px));max-height:min(780px,calc(100vh - 34px));background:var(--paper);border:2px solid var(--ink);border-radius:20px;box-shadow:7px 7px 0 var(--ink);opacity:0;pointer-events:none;transition:.25s cubic-bezier(.2,.9,.2,1);display:flex;flex-direction:column;overflow:hidden}.composer.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}.composer-head{padding:13px 15px;border-bottom:var(--border);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,var(--paper),var(--paper-2))}.composer-tabs{display:flex;gap:5px}.composer-type{border:1.5px solid var(--ink);border-radius:9px;background:var(--paper);padding:7px 11px;font-size:10px;font-weight:1000}.composer-type.active{background:var(--orange)}.composer-type[data-type="Event"].active{background:var(--blue)}.composer-type[data-type="Routine"].active{background:var(--yellow)}.composer-close{border:0;background:transparent;font-size:23px;font-weight:1000}.composer-body{overflow:auto;padding:16px 17px 20px}.composer-title{border:0;outline:0;background:transparent;width:100%;font-size:24px;font-weight:1000;letter-spacing:-.5px;padding:4px 2px 9px}.composer-desc{border:0;outline:0;background:transparent;width:100%;min-height:64px;resize:vertical;font-size:12px;line-height:1.5;font-weight:650;color:var(--muted)}.quick-fields{display:flex;gap:6px;flex-wrap:wrap;padding:9px 0 13px;border-bottom:1.5px dashed #0005}.qfield{border:1.5px solid var(--ink);background:var(--paper-2);border-radius:9px;padding:7px 9px;font-size:10px;font-weight:900}.qfield.selected{background:var(--orange-soft)}.composer-section{padding:13px 0 0}.composer-section-title{font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:1000;color:var(--muted);margin-bottom:8px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.field{border:1.5px solid #0005;background:#fff;border-radius:10px;padding:8px 9px}.field.full{grid-column:1/-1}.field label{display:block;font-size:8px;text-transform:uppercase;color:var(--muted);font-weight:950;margin-bottom:4px}.field input,.field select{width:100%;border:0;background:transparent;outline:0;font-size:11px;font-weight:850}.field .inline{display:flex;gap:5px;align-items:center}.field .inline input{min-width:0}.toggle{width:32px;height:18px;border:1.5px solid var(--ink);background:#ddd;border-radius:99px;padding:2px;display:flex;transition:.2s}.toggle:after{content:"";width:11px;height:11px;border:1px solid var(--ink);background:#fff;border-radius:50%;transition:.2s}.toggle.on{background:var(--orange);justify-content:flex-end}.composer-more{margin-top:12px;border:0;background:transparent;font-size:10px;font-weight:950;text-decoration:underline}.advanced{display:none}.advanced.show{display:block}.composer-foot{padding:11px 14px;border-top:var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--paper)}.foot-hint{font-size:9px;color:var(--muted);font-weight:800}.create-btn{border:2px solid var(--ink);border-radius:10px;background:var(--orange);box-shadow:2px 2px 0 var(--ink);padding:9px 16px;font-size:10px;font-weight:1000}.create-btn.event{background:var(--blue)}.create-btn.routine{background:var(--yellow)}
+.toast{position:fixed;z-index:100;top:20px;left:50%;transform:translate(-50%,-18px);background:var(--ink);color:#fff;border:2px solid var(--ink);border-radius:10px;padding:9px 14px;font-size:10px;font-weight:900;opacity:0;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
+.mobile-folder{display:none}
+.seg-btn.active{background:var(--ink);color:var(--paper)}
+
+@media(max-width:1250px){.workspace{grid-template-columns:220px minmax(430px,1fr) 390px}.prop{grid-template-columns:25px 96px minmax(0,1fr) 20px}}
+@media(max-width:1030px){.workspace{grid-template-columns:220px minmax(0,1fr)}.detail{position:fixed;z-index:75;right:10px;top:10px;bottom:88px;width:min(460px,calc(100vw - 20px));height:auto;transform:translateX(calc(100% + 24px));transition:.28s cubic-bezier(.2,.9,.2,1)}.detail.mobile-open{transform:none}.overlay.detail-overlay{z-index:74}.mobile-folder{display:inline-grid}}
+@media(max-width:740px){.app{padding:12px 10px 104px}.topbar{height:48px;margin-bottom:8px}.brand-name{font-size:17px}.crumb{display:none}.workspace{grid-template-columns:1fr}.sidebar{position:fixed;z-index:76;left:10px;top:10px;bottom:88px;width:min(290px,calc(100vw - 20px));height:auto;transform:translateX(calc(-100% - 22px));transition:.28s}.sidebar.mobile-open{transform:none}.main-list{min-height:calc(100vh - 90px)}.list-title{font-size:21px}.list-sub{display:none}.viewmeta{display:none}.quick-capture{margin:10px}.items-scroll{padding:4px 10px 18px}.board{grid-template-columns:repeat(3,260px);overflow:auto}.timeline-view{padding:10px}.timeline-shell{min-width:760px}.timeline-toolbar{align-items:flex-start;flex-direction:column}.timeline-tools{width:100%}.detail{left:6px;right:6px;top:auto;bottom:84px;width:auto;max-height:78vh;border-radius:19px 19px 14px 14px;transform:translateY(calc(100% + 100px))}.detail.mobile-open{transform:none}.detail-title-input{font-size:19px}.dock-wrap{bottom:12px}.dock{width:314px;height:54px}.dock-tab{height:39px;padding:0 9px;min-width:41px}.dock-tab.active{padding:0 10px}.dock-plus{width:54px;height:54px}.quick-menu{bottom:78px;transform:translateX(55px) translateY(12px) scale(.96);flex-direction:column}.quick-menu.show{transform:translateX(55px) translateY(0) scale(1)}.composer{top:auto;bottom:7px;transform:translate(-50%,calc(100% + 20px));width:calc(100vw - 12px);max-height:88vh;border-radius:20px 20px 13px 13px}.composer.show{transform:translate(-50%,0)}.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}.top-actions .icon-btn:not(.mobile-folder){display:none}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+.search-result.active{background:var(--orange-soft);outline:2px solid var(--ink);outline-offset:-2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark">D</div><div><div class="brand-name">Dotick</div><div class="crumb">Tasks / Product / Website launch</div></div></div>
+    <div class="top-actions">
+      <button class="icon-btn mobile-folder" id="mobileFolder" aria-label="Open folders">☰</button>
+      <button class="icon-btn" title="Sync state">↻</button>
+      <button class="icon-btn" title="Notifications">♧</button>
+      <div class="avatar">BH</div>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="pane sidebar" id="sidebar">
+      <div class="sidebar-head"><div class="sidebar-title-row"><div><div class="eyebrow">Workspace</div><div class="sidebar-title">Tasks</div></div><button class="icon-btn" style="width:31px;height:31px;box-shadow:none" title="New list">+</button></div></div>
+      <div class="sidebar-scroll">
+        <div class="nav-section">
+          <button class="nav-row"><span>▣</span><span>Inbox</span><span class="count">7</span></button>
+          <button class="nav-row"><span>◷</span><span>Today tasks</span><span class="count">5</span></button>
+          <button class="nav-row"><span>☆</span><span>Assigned to me</span><span class="count">3</span></button>
+        </div>
+        <div class="nav-section">
+          <div class="nav-label">Folders & Lists</div>
+          <div class="folder-title"><span class="folder-toggle">⌄</span><span>▰</span> Product</div>
+          <div class="folder-lists">
+            <button class="nav-row active"><span>●</span><span>Website launch</span><span class="count">9</span></button>
+            <button class="nav-row"><span>●</span><span>Dotick V1</span><span class="count">14</span></button>
+            <button class="nav-row"><span>●</span><span>Research</span><span class="count">6</span></button>
+          </div>
+          <div class="folder-title"><span class="folder-toggle">⌄</span><span>▰</span> Personal</div>
+          <div class="folder-lists">
+            <button class="nav-row"><span>●</span><span>Life admin</span><span class="count">4</span></button>
+            <button class="nav-row"><span>●</span><span>Reading</span><span class="count">11</span></button>
+          </div>
+          <div class="folder-title"><span class="folder-toggle">›</span><span>▰</span> University</div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-label">Shared</div>
+          <button class="nav-row"><span>♟</span><span>ACM Team</span><span class="count">12</span></button>
+        </div>
+      </div>
+      <div class="sidebar-foot"><div class="storage-note">Routine has its own dedicated space and is intentionally not placed inside Folder / List / Column.</div></div>
+    </aside>
+
+    <section class="pane main-list">
+      <div class="list-head">
+        <div class="list-title-row">
+          <div class="list-title-wrap"><div class="list-title"><span style="color:var(--orange)">●</span> Website launch <span style="font-size:15px">⌄</span></div><div class="list-sub">Product / Website launch · default column: Backlog</div></div>
+          <div class="list-actions">
+            <button class="icon-btn" title="Share">♧</button>
+            <div class="list-options-wrap">
+              <button class="icon-btn" id="listOptionsTrigger" title="List options" aria-label="List options">•••</button>
+              <div class="list-options-menu" id="listOptionsMenu" hidden>
+                <div class="list-options-label">View</div>
+                <div class="segmented">
+                  <button class="seg-btn active" data-view="list">List</button>
+                  <button class="seg-btn" data-view="board">Kanban</button>
+                  <button class="seg-btn" data-view="timeline">Timeline</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="viewbar">
+          <div class="quick-capture" id="quickCapture">
+            <div class="capture-line"><div class="circle-plus">+</div><input id="quickInput" class="capture-input" placeholder="Add a task…" /><button class="row-more" id="expandComposer" title="Open full add">⌗</button></div>
+            <div class="capture-tools"><button class="tiny-chip orange">◷ Today</button><button class="tiny-chip">⚑ Priority</button><button class="tiny-chip"># Tag</button><button class="tiny-chip" id="quickColumnChip">▤ Backlog</button><button class="tiny-chip">♧ Assignee</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="items-scroll" id="listView">
+        <div class="group">
+          <div class="group-head"><div class="group-name"><span>⌄</span> Backlog</div><div class="group-head-right"><div class="group-count">4 ITEMS</div><button class="column-add" data-column="Backlog" title="Add task to Backlog">+</button></div></div>
+          <article class="item-row selected" data-kind="task" data-title="Polish Tasks interaction model"><button class="check" aria-label="Complete task"></button><div><div class="item-title">Polish Tasks interaction model</div><div class="item-meta"><span class="meta">◷ Today 14:00</span><span class="meta">⚑ Important</span><span class="meta block">⛓ Blocked</span><span class="meta">♟ 2</span></div></div><div style="display:flex;align-items:center;gap:7px"><span class="priority-mark p-important"></span><button class="row-more">•••</button></div></article>
+          <article class="item-row" data-kind="task" data-title="Write empty states"><button class="check"></button><div><div class="item-title">Write empty states</div><div class="item-meta"><span class="meta danger">◷ Yesterday</span><span class="meta">↻ Weekly</span><span class="meta">🔔 2</span></div></div><div style="display:flex;align-items:center;gap:7px"><span class="priority-mark p-ui"></span><button class="row-more">•••</button></div></article>
+          <article class="item-row event" data-kind="event" data-title="Design review with team"><div class="event-icon">◷</div><div><div class="item-title">Design review with team</div><div class="item-meta"><span class="meta blue">15:30 — 16:30</span><span class="meta">⌖ Meet</span><span class="meta">♟ 4</span></div></div><div style="display:flex;align-items:center;gap:7px"><span class="priority-mark p-important"></span><button class="row-more">•••</button></div></article>
+          <article class="item-row" data-kind="task" data-title="Prepare launch checklist"><button class="check"></button><div><div class="item-title">Prepare launch checklist</div><div class="item-meta"><span class="meta">No date</span><span class="meta">▰ 3 children</span></div></div><div style="display:flex;align-items:center;gap:7px"><span class="priority-mark p-none"></span><button class="row-more">•••</button></div></article>
+        </div>
+        <div class="group">
+          <div class="group-head"><div class="group-name"><span>⌄</span> Doing</div><div class="group-head-right"><div class="group-count">3 ITEMS</div><button class="column-add" data-column="Doing" title="Add task to Doing">+</button></div></div>
+          <article class="item-row" data-kind="task" data-title="Implement floating dock"><button class="check"></button><div><div class="item-title">Implement floating dock</div><div class="item-meta"><span class="meta">◷ Today 18:00</span><span class="meta"># frontend</span><span class="meta">♟ Me</span></div></div><div style="display:flex;align-items:center;gap:7px"><span class="priority-mark p-ui"></span><button class="row-more">•••</button></div></article>
+          <article class="item-row event" data-kind="event" data-title="Usability test session"><div class="event-icon">◷</div><div><div class="item-title">Usability test session</div><div class="item-meta"><span class="meta blue">Tomorrow · All day</span><span class="meta">⌖ Lab 2</span></div></div><div style="display:flex;align-items:center;gap:7px"><span class="priority-mark p-none"></span><button class="row-more">•••</button></div></article>
+          <article class="item-row" data-kind="task" data-title="Resolve sync conflict copy"><button class="check"></button><div><div class="item-title">Resolve sync conflict copy</div><div class="item-meta"><span class="meta">◷ Sep 8</span><span class="meta">⚑ Urgent</span><span class="meta">▣ Offline-ready</span></div></div><div style="display:flex;align-items:center;gap:7px"><span class="priority-mark p-urgent"></span><button class="row-more">•••</button></div></article>
+        </div>
+        <div class="group">
+          <div class="group-head"><div class="group-name"><span>⌄</span> Done</div><div class="group-head-right"><div class="group-count">2 ITEMS</div><button class="column-add" data-column="Done" title="Add task to Done">+</button></div></div>
+          <article class="item-row" data-kind="task" data-title="Define Comic Contrast tokens"><button class="check done">✓</button><div><div class="item-title" style="text-decoration:line-through;opacity:.62">Define Comic Contrast tokens</div><div class="item-meta"><span class="meta">Done · Sep 4</span><span class="meta"># design</span></div></div><div style="display:flex;align-items:center;gap:7px"><span class="priority-mark p-none"></span><button class="row-more">•••</button></div></article>
+        </div>
+      </div>
+
+      <div class="board" id="boardView">
+        <div class="board-col" data-column="Backlog"><div class="board-col-head"><span>Backlog</span><div class="board-col-head-right"><span>4</span><button class="column-add" data-column="Backlog" title="Add task to Backlog">+</button></div></div><div class="board-card" data-kind="task"><div class="board-card-title">Polish Tasks interaction model</div><div class="board-card-meta">Today 14:00 · Important · Blocked</div></div><div class="board-card"><div class="board-card-title">Write empty states</div><div class="board-card-meta">Yesterday · 2 reminders</div></div><div class="board-card" data-kind="event"><div class="board-card-title">◷ Design review with team</div><div class="board-card-meta">15:30 — 16:30 · Meet</div></div></div>
+        <div class="board-col" data-column="Doing"><div class="board-col-head"><span>Doing</span><div class="board-col-head-right"><span>3</span><button class="column-add" data-column="Doing" title="Add task to Doing">+</button></div></div><div class="board-card"><div class="board-card-title">Implement floating dock</div><div class="board-card-meta">Today 18:00 · Me</div></div><div class="board-card" data-kind="event"><div class="board-card-title">◷ Usability test session</div><div class="board-card-meta">Tomorrow · All day</div></div></div>
+        <div class="board-col" data-column="Done"><div class="board-col-head"><span>Done</span><div class="board-col-head-right"><span>2</span><button class="column-add" data-column="Done" title="Add task to Done">+</button></div></div><div class="board-card"><div class="board-card-title">✓ Define Comic Contrast tokens</div><div class="board-card-meta">Done Sep 4</div></div></div>
+      </div>
+
+      <div class="timeline-view" id="timelineView">
+        <div class="timeline-toolbar">
+          <div class="timeline-period"><button id="timelinePrev" aria-label="Previous week">‹</button><span id="timelinePeriodLabel">Sep 6 — Sep 12</span><button id="timelineNext" aria-label="Next week">›</button><button class="timeline-chip" id="timelineToday">Today</button></div>
+          <div class="timeline-tools"><button class="timeline-chip">Group: Column</button><button class="timeline-chip">Week</button></div>
+        </div>
+
+        <div class="timeline-shell">
+          <div class="timeline-head">
+            <div class="timeline-corner">Column / Date</div>
+            <div class="timeline-day today"><span class="dow">Sun</span><span class="date">6</span></div>
+            <div class="timeline-day"><span class="dow">Mon</span><span class="date">7</span></div>
+            <div class="timeline-day"><span class="dow">Tue</span><span class="date">8</span></div>
+            <div class="timeline-day"><span class="dow">Wed</span><span class="date">9</span></div>
+            <div class="timeline-day"><span class="dow">Thu</span><span class="date">10</span></div>
+            <div class="timeline-day"><span class="dow">Fri</span><span class="date">11</span></div>
+            <div class="timeline-day"><span class="dow">Sat</span><span class="date">12</span></div>
+          </div>
+
+          <div class="timeline-lane">
+            <div class="timeline-lane-label"><span class="timeline-lane-name">Backlog</span><span class="timeline-lane-count">3 scheduled</span></div>
+            <div class="timeline-grid">
+              <div class="timeline-now"></div>
+              <div class="timeline-bar overdue" data-kind="task" style="grid-column:1 / 2;grid-row:1">Write empty states</div>
+              <div class="timeline-bar blocked" data-kind="task" style="grid-column:1 / 3;grid-row:2">Polish Tasks interaction model</div>
+              <div class="timeline-bar event" data-kind="event" style="grid-column:1 / 2;grid-row:3">◷ Design review · 15:30</div>
+            </div>
+          </div>
+
+          <div class="timeline-lane">
+            <div class="timeline-lane-label"><span class="timeline-lane-name">Doing</span><span class="timeline-lane-count">3 scheduled</span></div>
+            <div class="timeline-grid">
+              <div class="timeline-bar" data-kind="task" style="grid-column:1 / 2;grid-row:1">Implement floating dock · 18:00</div>
+              <div class="timeline-bar event" data-kind="event" style="grid-column:2 / 3;grid-row:2">◷ Usability test · All day</div>
+              <div class="timeline-bar" data-kind="task" style="grid-column:3 / 5;grid-row:3">Resolve sync conflict copy</div>
+            </div>
+          </div>
+
+          <div class="timeline-lane">
+            <div class="timeline-lane-label"><span class="timeline-lane-name">Done</span><span class="timeline-lane-count">1 completed</span></div>
+            <div class="timeline-grid">
+              <div class="timeline-bar done" data-kind="task" style="grid-column:1 / 2;grid-row:2">Define Comic Contrast tokens</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-unscheduled">
+          <div class="timeline-unscheduled-head"><span class="timeline-unscheduled-title">Unscheduled</span><span class="timeline-unscheduled-note">Drag onto the timeline to schedule</span></div>
+          <div class="timeline-unscheduled-items">
+            <button class="unscheduled-card" data-kind="task">Prepare launch checklist</button>
+            <button class="unscheduled-card" data-kind="task">Collect final analytics requirements</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="pane detail" id="detailPanel">
+      <div class="detail-head">
+        <div class="detail-topline"><div class="detail-type"><span class="type-dot" id="detailTypeDot">✓</span><span id="detailTypeLabel">Task details</span></div><div class="detail-tools"><button class="icon-btn" title="Share">♧</button><button class="icon-btn" title="More">•••</button><button class="icon-btn" id="closeDetail" title="Close" style="display:none">×</button></div></div>
+        <div class="proto-switch"><button class="active" data-preview="task">Task</button><button data-preview="event">Event</button><button data-preview="routine">Routine</button></div><div class="prototype-label">Prototype detail switcher</div>
+      </div>
+      <div class="detail-scroll" id="detailContent"></div>
+      <div class="detail-bottom" id="detailBottom"></div>
+    </aside>
+  </main>
+</div>
+
+<div class="dock-wrap">
+  <nav class="dock normal" id="dock">
+    <div class="dock-tabs" id="dockTabs">
+      <button class="dock-tab search" id="searchTab" aria-label="Search"><span class="dock-icon">⌕</span><span class="dock-label">Search</span></button>
+      <button class="dock-tab" data-page="today"><span class="dock-icon">◉</span><span class="dock-label">Today</span></button>
+      <button class="dock-tab" data-page="calendar"><span class="dock-icon">▦</span><span class="dock-label">Calendar</span></button>
+      <button class="dock-tab active" data-page="tasks"><span class="dock-icon">☷</span><span class="dock-label">Tasks</span></button>
+      <button class="dock-tab" data-page="more"><span class="dock-icon">•••</span><span class="dock-label">More</span></button>
+    </div>
+    <form class="dock-search-form" id="dockSearchForm"><span class="search-glyph">⌕</span><input id="dockSearchInput" placeholder="Search tasks, events, lists or commands…" autocomplete="off"><button class="dock-close" id="dockClose" type="button">×</button></form>
+  </nav>
+  <button class="dock-plus" id="plusBtn">+</button>
+</div>
+<div class="quick-menu" id="quickMenu"><button data-create="Task">✓ Task</button><button data-create="Event">◷ Event</button><button data-create="Routine">↻ Routine</button><button data-create="Voice">◉ Voice</button></div>
+<div class="search-results" id="searchResults"><button class="search-result" data-open="task"><span>Polish Tasks interaction model</span><span>Task · Today</span></button><button class="search-result" data-open="event"><span>Design review with team</span><span>Event · 15:30</span></button><button class="search-result" data-open="routine"><span>Read every day</span><span>Routine · 5 / 8 pages</span></button><button class="search-result" data-command="add"><span>+ Create new item</span><span>Command</span></button></div>
+
+<div class="overlay" id="overlay"></div>
+<section class="composer" id="composer" aria-label="Create item">
+  <div class="composer-head"><div class="composer-tabs"><button class="composer-type active" data-type="Task">✓ Task</button><button class="composer-type" data-type="Event">◷ Event</button><button class="composer-type" data-type="Routine">↻ Routine</button></div><button class="composer-close" id="composerClose">×</button></div>
+  <div class="composer-body">
+    <input class="composer-title" id="composerTitle" placeholder="What needs to happen?" />
+    <textarea class="composer-desc" id="composerDesc" placeholder="Add a description or note…"></textarea>
+    <div class="quick-fields" id="quickFields"></div>
+    <div id="composerSpecific"></div>
+    <button class="composer-more" id="composerMore">Show advanced fields</button>
+    <div class="advanced" id="advancedFields"></div>
+  </div>
+  <div class="composer-foot"><div class="foot-hint" id="composerHint">Manual creation · saves locally when offline</div><button class="create-btn" id="createBtn">Create task</button></div>
+</section>
+<div class="toast" id="toast">Saved</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const state={preview:'task',composerType:'Task',search:false,quick:false,view:'list'};
+const detailContent=$('#detailContent'),detailBottom=$('#detailBottom'),detailPanel=$('#detailPanel'),overlay=$('#overlay');
+
+const taskDetail=()=>`<div class="title-edit"><button class="title-check">✓</button><textarea class="detail-title-input">Polish Tasks interaction model</textarea></div>
+<div class="status-line"><span class="pill orange">TODO</span><span class="pill yellow">⚑ Important</span><span class="pill red">⛓ Blocked</span><span class="pill"># ui-ux</span></div>
+<div class="properties">
+<div class="prop"><span class="prop-icon">◷</span><span class="prop-label">Schedule</span><span class="prop-value">Today 14:00 → 16:00</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">⌛</span><span class="prop-label">Deadline</span><span class="prop-value">Sep 7 · 23:59 · grace 1 day</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">↻</span><span class="prop-label">Repeat</span><span class="prop-value">None</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">🔔</span><span class="prop-label">Reminders</span><span class="prop-value">30 min before · At deadline</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">▤</span><span class="prop-label">List / Column</span><span class="prop-value">Website launch / Backlog</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">♟</span><span class="prop-label">Assignees</span><span class="prop-value">Behrad + 1</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">▰</span><span class="prop-label">Parent</span><span class="prop-value">Launch Dotick web</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">#</span><span class="prop-label">Tags</span><span class="prop-value">ui-ux · frontend</span><button class="prop-edit">›</button></div>
+</div>
+<div class="section"><div class="section-head"><div class="section-title">Description</div><button class="section-action">Expand editor ↗</button></div><div class="editor"><div class="editor-toolbar"><button class="edit-tool"><b>B</b></button><button class="edit-tool"><i>I</i></button><button class="edit-tool">H</button><button class="edit-tool">•</button><button class="edit-tool">☑</button><button class="edit-tool">⌁</button><button class="edit-tool">▣</button></div><div class="editor-body" contenteditable="true">Make Task, Event and Routine details use one shared grammar while keeping their domain differences clear.<br><br><span class="slash-hint">Type / to insert heading, list, attachment, location or item reference…</span><div class="ref-block"><span>↗</span><span><b>Reference:</b> Event detail behavior</span><span class="ref-state">ONGOING</span></div></div></div></div>
+<div class="section"><div class="section-head"><div class="section-title">Structural children · 2 / 3 done</div><button class="section-action">+ Add child</button></div><div class="progressbar"><span style="width:66%"></span></div><div style="height:7px"></div><div class="subitem"><span class="subitem-icon">✓</span><span class="subitem-title">Define task property rows</span><span class="subitem-meta">DONE</span></div><div class="subitem"><span class="subitem-icon" style="background:var(--blue-soft)">◷</span><span class="subitem-title">Review Event detail</span><span class="subitem-meta">TODAY</span></div><div class="subitem"><span class="subitem-icon">✓</span><span class="subitem-title">Test mobile sheet</span><span class="subitem-meta">DONE</span></div></div>
+<div class="section"><div class="section-head"><div class="section-title">Dependencies</div><button class="section-action">+ Add blocker</button></div><div class="dependency"><div class="dep-icon">⛓</div><div class="dep-main"><b>Blocked by “Finalize item state contract”</b>This Task cannot become Done until the blocker is Done. <span class="dep-link">Open blocker</span></div></div></div>
+<div class="section"><div class="section-head"><div class="section-title">Attachments & references</div><button class="section-action">+ Add</button></div><div class="attachment-row"><div class="attachment"><div class="attachment-icon">▧</div>wireframe.png<div class="attachment-size">840 KB</div></div><div class="attachment"><div class="attachment-icon">PDF</div>notes.pdf<div class="attachment-size">1.2 MB</div></div><div class="attachment"><div class="attachment-icon">↗</div>Routine spec<div class="attachment-size">Live reference</div></div></div></div>
+<div class="section"><div class="section-head"><div class="section-title">Comments · 2</div><button class="section-action">Activity</button></div><div class="comment"><div class="comment-avatar">SA</div><div class="comment-body"><div class="comment-name">Sara</div><div class="comment-text">Deadline layout looks clearer now. I’d keep grace directly beside deadline.</div><div class="comment-time">18 min ago · Reply</div></div></div><div class="comment"><div class="comment-avatar" style="background:var(--blue-soft)">AR</div><div class="comment-body"><div class="comment-name">Armin</div><div class="comment-text">Mention me when the mobile detail sheet is ready.</div><div class="comment-time">6 min ago · Reply</div></div></div><div class="comment-input"><input placeholder="Comment… use @ to mention"><button class="send-mini">↑</button></div></div>`;
+
+const eventDetail=()=>`<div class="title-edit"><button class="title-check event">◷</button><textarea class="detail-title-input">Design review with team</textarea></div>
+<div class="status-line"><span class="pill blue">ONGOING</span><span class="pill yellow">⚑ Important</span><span class="pill"># design</span><span class="pill">♟ 4 collaborators</span></div>
+<div class="event-schedule"><div class="schedule-card"><div class="schedule-label">Starts</div><div class="schedule-value">Today · 15:30</div></div><div class="schedule-card"><div class="schedule-label">Ends</div><div class="schedule-value">Today · 16:30</div></div></div><div class="overlap-note">⚠ Advisory only: overlaps “Frontend sync” from 16:00–16:20. Dotick allows the Event to stay scheduled.</div>
+<div class="properties" style="margin-top:12px">
+<div class="prop"><span class="prop-icon">▤</span><span class="prop-label">All-day</span><span class="prop-value">Off</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">⌖</span><span class="prop-label">Location</span><span class="prop-value">Google Meet · meet.google…</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">↻</span><span class="prop-label">Repeat</span><span class="prop-value">Every 2 weeks · Thursday</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">🔔</span><span class="prop-label">Reminders</span><span class="prop-value">1 hour · 10 min before start</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">▤</span><span class="prop-label">List / Column</span><span class="prop-value">Website launch / Backlog</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">▰</span><span class="prop-label">Parent</span><span class="prop-value">Launch Dotick web</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">#</span><span class="prop-label">Tags</span><span class="prop-value">design · review</span><button class="prop-edit">›</button></div>
+</div>
+<div class="section"><div class="section-head"><div class="section-title">Description</div><button class="section-action">Expand editor ↗</button></div><div class="editor"><div class="editor-toolbar"><button class="edit-tool"><b>B</b></button><button class="edit-tool"><i>I</i></button><button class="edit-tool">H</button><button class="edit-tool">•</button><button class="edit-tool">⌖</button><button class="edit-tool">▣</button></div><div class="editor-body" contenteditable="true"><b>Agenda</b><br>1. Review Tasks page<br>2. Verify creation fields<br>3. Compare mobile sheet behavior<br><br><span class="slash-hint">Type / for blocks…</span></div></div></div>
+<div class="section"><div class="section-head"><div class="section-title">Sub-events / children</div><button class="section-action">+ Add child</button></div><div class="subitem"><span class="subitem-icon" style="background:var(--blue-soft)">◷</span><span class="subitem-title">Prototype walkthrough</span><span class="subitem-meta">15:30</span></div><div class="subitem"><span class="subitem-icon">✓</span><span class="subitem-title">Collect decisions</span><span class="subitem-meta">TASK</span></div></div>
+<div class="section"><div class="section-head"><div class="section-title">Attachments & references</div><button class="section-action">+ Add</button></div><div class="attachment-row"><div class="attachment"><div class="attachment-icon">▧</div>tasks-v2.png<div class="attachment-size">Preview</div></div><div class="attachment"><div class="attachment-icon">↗</div>Task prototype<div class="attachment-size">Live reference</div></div></div></div>
+<div class="section"><div class="section-head"><div class="section-title">Comments · 1</div><button class="section-action">Activity</button></div><div class="comment"><div class="comment-avatar">SA</div><div class="comment-body"><div class="comment-name">Sara</div><div class="comment-text">I’ll join 10 minutes early to check the prototype.</div><div class="comment-time">12 min ago · Reply</div></div></div><div class="comment-input"><input placeholder="Comment… use @ to mention"><button class="send-mini">↑</button></div></div>`;
+
+const routineDetail=()=>`<div class="title-edit"><button class="title-check routine">↻</button><textarea class="detail-title-input">Read every day</textarea></div>
+<div class="status-line"><span class="pill yellow">ROUTINE DEFINITION</span><span class="pill orange">TODAY · IN PROGRESS</span><span class="pill"># learning</span></div>
+<div class="weekstrip"><div class="daydot done"><div class="d">MON</div><div class="n">31</div></div><div class="daydot unscheduled"><div class="d">TUE</div><div class="n">1</div></div><div class="daydot done"><div class="d">WED</div><div class="n">2</div></div><div class="daydot unscheduled"><div class="d">THU</div><div class="n">3</div></div><div class="daydot done"><div class="d">FRI</div><div class="n">4</div></div><div class="daydot unscheduled"><div class="d">SAT</div><div class="n">5</div></div><div class="daydot active"><div class="d">SUN</div><div class="n">6</div></div></div>
+<div class="routine-progress"><div class="rp-top"><div><div class="rp-value"><span id="routineAmount">5</span> / 8</div><div class="rp-unit">pages · today</div></div><div class="rp-controls"><button id="minusRoutine">−</button><button id="plusRoutine">+</button></div></div><div class="rp-track"><span id="routineTrack"></span></div><div class="rp-note">Today’s RoutineCompletion is In_Progress. Going above 8 is allowed and automatically becomes Done.</div></div>
+<div class="stats"><div class="stat"><div class="stat-n">12</div><div class="stat-l">Current streak</div></div><div class="stat"><div class="stat-n">27</div><div class="stat-l">Best streak</div></div><div class="stat"><div class="stat-n">84</div><div class="stat-l">Done total</div></div></div>
+<div class="properties" style="margin-top:12px">
+<div class="prop"><span class="prop-icon">◎</span><span class="prop-label">Target</span><span class="prop-value">Partial · 8 pages / day</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">↗</span><span class="prop-label">Increment</span><span class="prop-value">+1 page after each Done</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">↻</span><span class="prop-label">Schedule</span><span class="prop-value">Mon · Wed · Fri · Sun</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">▥</span><span class="prop-label">Validity</span><span class="prop-value">Aug 1 → No end date</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">🔔</span><span class="prop-label">Reminders</span><span class="prop-value">07:30 · 21:00</span><button class="prop-edit">›</button></div>
+<div class="prop"><span class="prop-icon">#</span><span class="prop-label">Tags</span><span class="prop-value">learning · reading</span><button class="prop-edit">›</button></div>
+</div>
+<div class="section"><div class="section-head"><div class="section-title">Simple description</div><button class="section-action">Edit</button></div><div class="editor" style="min-height:78px"><div class="editor-body" contenteditable="true" style="min-height:76px">Read non-fiction or technical material. The Routine definition stays the same; each day records its own outcome.</div></div></div>
+<div class="section"><div class="section-head"><div class="section-title">Today’s personal note</div><button class="section-action">History</button></div><div class="editor" style="min-height:75px"><div class="editor-body" contenteditable="true" style="min-height:72px">Chapter 4 was dense. Continue from page 118 tomorrow.</div></div></div>
+<div class="section"><div class="section-head"><div class="section-title">Collaboration comments</div><button class="section-action">Activity</button></div><div class="comment"><div class="comment-avatar" style="background:var(--purple);color:white">AM</div><div class="comment-body"><div class="comment-name">Amir</div><div class="comment-text">Nice streak — send me the book title later.</div><div class="comment-time">Yesterday · Reply</div></div></div><div class="comment-input"><input placeholder="Comment on Routine…"><button class="send-mini">↑</button></div></div>`;
+
+function renderDetail(kind){
+  state.preview=kind;
+  $$('.proto-switch button').forEach(b=>b.classList.toggle('active',b.dataset.preview===kind));
+  const dot=$('#detailTypeDot'),label=$('#detailTypeLabel');
+  dot.className='type-dot'+(kind==='event'?' event':kind==='routine'?' routine':'');
+  dot.textContent=kind==='task'?'✓':kind==='event'?'◷':'↻';
+  label.textContent=kind==='task'?'Task details':kind==='event'?'Event details':'Routine details';
+  detailContent.innerHTML=kind==='task'?taskDetail():kind==='event'?eventDetail():routineDetail();
+  detailBottom.innerHTML=kind==='task'?'<button class="bottom-action primary" id="markDone">✓ Mark done</button><button class="bottom-action">Reschedule</button><button class="bottom-action">Move</button><button class="bottom-action danger">Won\'t do</button>':kind==='event'?'<button class="bottom-action primary">Edit schedule</button><button class="bottom-action">Move</button><button class="bottom-action">Duplicate</button>':'<button class="bottom-action primary" id="routineDone">✓ Done today</button><button class="bottom-action">Won\'t do</button><button class="bottom-action danger" id="routineReset">Reset today</button>';
+  bindDetailActions();
+  if(innerWidth<=1030){detailPanel.classList.add('mobile-open');overlay.classList.add('show','detail-overlay');$('#closeDetail').style.display='grid'}
+}
+function bindDetailActions(){
+  const md=$('#markDone');if(md)md.onclick=()=>toast('Blocked: “Finalize item state contract” must be Done first');
+  let amt=5;const plus=$('#plusRoutine'),minus=$('#minusRoutine'),track=$('#routineTrack'),value=$('#routineAmount');
+  const sync=()=>{if(value)value.textContent=amt;if(track)track.style.width=Math.min(100,(amt/8)*100)+'%'};
+  if(plus)plus.onclick=()=>{amt++;sync();if(amt>=8)toast('Today is now Done — amount can keep increasing')};
+  if(minus)minus.onclick=()=>{amt=Math.max(0,amt-1);sync()};
+  const rd=$('#routineDone');if(rd)rd.onclick=()=>{amt=Math.max(8,amt);sync();toast('RoutineCompletion: Done')};
+  const rr=$('#routineReset');if(rr)rr.onclick=()=>{amt=0;sync();toast('Today reset — current outcome removed, history preserved')};
+}
+
+$$('.proto-switch button').forEach(b=>b.onclick=()=>renderDetail(b.dataset.preview));
+$$('.item-row').forEach(row=>row.onclick=e=>{if(e.target.closest('.check,.row-more'))return;$$('.item-row').forEach(r=>r.classList.remove('selected'));row.classList.add('selected');renderDetail(row.dataset.kind==='event'?'event':'task')});
+$$('.check').forEach(c=>c.onclick=e=>{e.stopPropagation();if(c.closest('.item-row')?.querySelector('.meta.block')){toast('This Task is blocked and cannot become Done');return}c.classList.toggle('done');c.textContent=c.classList.contains('done')?'✓':''});
+
+
+function setTaskView(v){
+  state.view=v;
+  $$('#listOptionsMenu .seg-btn').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
+  $('#listView').classList.toggle('hidden',v!=='list');
+  $('#boardView').classList.toggle('active',v==='board');
+  $('#timelineView').classList.toggle('active',v==='timeline');
+  $('#listOptionsMenu').hidden=true;
+}
+$$('#listOptionsMenu .seg-btn').forEach(b=>b.onclick=()=>setTaskView(b.dataset.view));
+$('#listOptionsTrigger').onclick=e=>{e.stopPropagation();$('#listOptionsMenu').hidden=!$('#listOptionsMenu').hidden};
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.list-options-wrap')) $('#listOptionsMenu').hidden=true;
+});
+
+
+
+$$('.timeline-bar,.unscheduled-card').forEach(el=>el.onclick=()=>{renderDetail(el.dataset.kind==='event'?'event':'task')});
+let timelineOffset=0;
+function updateTimelinePeriod(){
+  const label=$('#timelinePeriodLabel');
+  if(!label)return;
+  if(timelineOffset===0)label.textContent='Sep 6 — Sep 12';
+  else if(timelineOffset===1)label.textContent='Sep 13 — Sep 19';
+  else if(timelineOffset===-1)label.textContent='Aug 30 — Sep 5';
+  else label.textContent=(timelineOffset>0?'Future week '+timelineOffset:'Past week '+Math.abs(timelineOffset));
+}
+$('#timelinePrev').onclick=()=>{timelineOffset--;updateTimelinePeriod();toast('Timeline moved one week back')};
+$('#timelineNext').onclick=()=>{timelineOffset++;updateTimelinePeriod();toast('Timeline moved one week forward')};
+$('#timelineToday').onclick=()=>{timelineOffset=0;updateTimelinePeriod();toast('Timeline returned to this week')};
+
+
+let searchActiveIndex=0;
+
+function getSearchResults(){
+  return $$('.search-result').filter(el=>el.offsetParent!==null);
+}
+function selectSearchResult(index=0){
+  const results=getSearchResults();
+  if(!results.length){searchActiveIndex=0;return}
+  searchActiveIndex=Math.max(0,Math.min(index,results.length-1));
+  results.forEach((el,i)=>{
+    el.classList.toggle('active',i===searchActiveIndex);
+    el.setAttribute('aria-selected',i===searchActiveIndex?'true':'false');
+  });
+  results[searchActiveIndex].scrollIntoView({block:'nearest'});
+}
+function ensureFirstSearchResult(){
+  requestAnimationFrame(()=>selectSearchResult(0));
+}
+function closeSearchFromKeyboard(){
+  if(typeof closeSearch==='function') closeSearch();
+  else{
+    state.search=false;
+    document.body.classList.remove('searching');
+  }
+}
+
+function openSearch(){state.search=true;$('#dock').classList.remove('normal');$('#dock').classList.add('searching');$('#searchResults').classList.add('show');setTimeout(()=>$('#dockSearchInput').focus(),120);ensureFirstSearchResult()}
+function closeSearch(){state.search=false;$('#dock').classList.remove('searching');$('#dock').classList.add('normal');$('#searchResults').classList.remove('show');$('#dockSearchInput').value=''}
+$('#searchTab').onclick=openSearch;$('#dockClose').onclick=closeSearch;$('#dockSearchForm').onsubmit=e=>e.preventDefault();
+$('#dockSearchInput').oninput=e=>{const q=e.target.value.toLowerCase();$$('.search-result').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q)?'flex':'none')};
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openSearch()}if(e.key==='Escape'){closeSearch();closeComposer();closeMobilePanels()}});
+$$('.search-result').forEach(r=>r.onclick=()=>{if(r.dataset.open){renderDetail(r.dataset.open);closeSearch()}else if(r.dataset.command==='add'){closeSearch();openComposer('Task')}});
+$$('.dock-tab[data-page]').forEach(b=>b.onclick=()=>{if(b.dataset.page!=='tasks'){toast(b.dataset.page[0].toUpperCase()+b.dataset.page.slice(1)+' page is outside this Tasks prototype');return}$$('.dock-tab[data-page]').forEach(x=>x.classList.remove('active'));b.classList.add('active')});
+
+$('#plusBtn').onclick=()=>{state.quick=!state.quick;$('#plusBtn').classList.toggle('open',state.quick);$('#quickMenu').classList.toggle('show',state.quick)};
+$$('#quickMenu [data-create]').forEach(b=>b.onclick=()=>{const t=b.dataset.create;if(t==='Voice'){toast('Voice opens the voice-only draft/review flow');return}openComposer(t)});
+let quickColumn='Backlog';
+
+function setQuickColumn(column){
+  quickColumn=column;
+  const chip=$('#quickColumnChip');
+  if(chip)chip.textContent='▤ '+column;
+  const input=$('#quickInput');
+  input.placeholder='Add a task to '+column+'…';
+  input.focus();
+}
+
+function bindNewTaskRow(row){
+  row.onclick=e=>{
+    if(e.target.closest('.check,.row-more'))return;
+    $$('.item-row').forEach(r=>r.classList.remove('selected'));
+    row.classList.add('selected');
+    renderDetail('task');
+  };
+  const check=row.querySelector('.check');
+  if(check)check.onclick=e=>{e.stopPropagation();check.classList.toggle('done');check.textContent=check.classList.contains('done')?'✓':''};
+}
+
+function addQuickTask(title,column){
+  const groups=$$('#listView .group');
+  const group=groups.find(g=>g.querySelector('.group-name')?.textContent.includes(column));
+  if(group){
+    const row=document.createElement('article');
+    row.className='item-row';
+    row.dataset.kind='task';
+    row.dataset.title=title;
+    row.innerHTML='<button class="check"></button><div><div class="item-title"></div><div class="item-meta"><span class="meta">No date</span><span class="meta">▤ '+column+'</span></div></div><div style="display:flex;align-items:center;gap:7px"><span class="priority-mark p-none"></span><button class="row-more">•••</button></div>';
+    row.querySelector('.item-title').textContent=title;
+    group.appendChild(row);
+    bindNewTaskRow(row);
+    const count=group.querySelector('.group-count');
+    if(count){
+      const n=parseInt(count.textContent)||0;
+      count.textContent=(n+1)+' ITEMS';
+    }
+  }
+
+  const boardCol=$$('.board-col').find(c=>c.dataset.column===column);
+  if(boardCol){
+    const card=document.createElement('div');
+    card.className='board-card';
+    card.dataset.kind='task';
+    card.innerHTML='<div class="board-card-title"></div><div class="board-card-meta">No date · '+column+'</div>';
+    card.querySelector('.board-card-title').textContent=title;
+    boardCol.appendChild(card);
+    card.onclick=()=>renderDetail('task');
+  }
+
+  toast('Task added to Website launch / '+column);
+}
+
+$('#expandComposer').onclick=()=>openComposer('Task');
+$$('.column-add').forEach(btn=>btn.onclick=e=>{e.stopPropagation();setQuickColumn(btn.dataset.column)});
+$('#quickInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target.value.trim()){
+    addQuickTask(e.target.value.trim(),quickColumn);
+    e.target.value='';
+  }
+});
+
+const composerFields={
+Task:{quick:['◷ Schedule','⚑ Priority','🔔 Reminder','# Tags','▤ List / Column','♟ Assignees'],specific:`<div class="composer-section"><div class="composer-section-title">Task schedule</div><div class="formgrid"><div class="field"><label>Due</label><input value="Today · 14:00"></div><div class="field"><label>End</label><input placeholder="Optional"></div><div class="field"><label>Deadline</label><input value="Sep 7 · 23:59"></div><div class="field"><label>Grace period</label><input value="1 day"></div></div></div>`,advanced:`<div class="composer-section"><div class="composer-section-title">Advanced task fields</div><div class="formgrid"><div class="field"><label>Repeat</label><select><option>None</option><option>Daily</option><option>Weekly</option><option>Custom / Advanced</option></select></div><div class="field"><label>Parent item</label><input placeholder="Choose Task or Event"></div><div class="field"><label>Blocked by</label><input placeholder="Choose one or more Tasks"></div><div class="field"><label>Priority</label><select><option>None</option><option>Important</option><option>Urgent</option><option>Urgent + Important</option></select></div><div class="field"><label>Reminder 1</label><input placeholder="e.g. 30 min before"></div><div class="field"><label>Reminder 2</label><input placeholder="Optional"></div><div class="field full"><label>Attachments / Item references</label><input placeholder="Add file, location block or reference"></div></div></div>`},
+Event:{quick:['◷ Start / End','▤ All-day','⌖ Location','⚑ Priority','🔔 Reminder','↻ Repeat','# Tags','▤ List / Column'],specific:`<div class="composer-section"><div class="composer-section-title">Event schedule</div><div class="formgrid"><div class="field"><label>Starts</label><input value="Today · 15:30"></div><div class="field"><label>Ends</label><input value="Today · 16:30"></div><div class="field"><label>All-day</label><div class="inline"><div class="toggle"></div><span style="font-size:10px;font-weight:850">Off</span></div></div><div class="field"><label>Location</label><input placeholder="Address, place or meeting link"></div></div></div>`,advanced:`<div class="composer-section"><div class="composer-section-title">Advanced event fields</div><div class="formgrid"><div class="field"><label>Repeat</label><select><option>None</option><option>Weekly</option><option>Monthly</option><option>Custom / Advanced</option></select></div><div class="field"><label>Priority</label><select><option>None</option><option>Important</option><option>Urgent</option><option>Urgent + Important</option></select></div><div class="field"><label>Parent item</label><input placeholder="Choose Task or Event"></div><div class="field"><label>Reminder</label><input placeholder="e.g. 10 min before start"></div><div class="field full"><label>Attachments / Item references</label><input placeholder="Add file or reference"></div></div></div>`},
+Routine:{quick:['◎ Target','↻ Schedule','🔔 Reminder','# Tags','▥ Start / End'],specific:`<div class="composer-section"><div class="composer-section-title">Routine target</div><div class="formgrid"><div class="field"><label>Target type</label><select id="targetType"><option>Partial</option><option>Achieve all</option></select></div><div class="field"><label>Amount + unit</label><div class="inline"><input value="8"><input value="pages"></div></div><div class="field"><label>Period</label><select><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Yearly</option></select></div><div class="field"><label>Schedule</label><input value="Mon, Wed, Fri, Sun"></div></div></div>`,advanced:`<div class="composer-section"><div class="composer-section-title">Advanced routine fields</div><div class="formgrid"><div class="field"><label>Start date</label><input value="Today"></div><div class="field"><label>End date</label><input placeholder="No end"></div><div class="field"><label>Incremental target</label><div class="inline"><div class="toggle on"></div><span style="font-size:10px;font-weight:850">Enabled</span></div></div><div class="field"><label>Increment after Done</label><input value="+1 page"></div><div class="field"><label>Reminder 1</label><input value="07:30"></div><div class="field"><label>Reminder 2</label><input value="21:00"></div><div class="field full"><label>Tags</label><input value="learning, reading"></div></div></div>`}
+};
+function renderComposer(type){state.composerType=type;$$('.composer-type').forEach(b=>b.classList.toggle('active',b.dataset.type===type));const cfg=composerFields[type];$('#quickFields').innerHTML=cfg.quick.map((x,i)=>`<button class="qfield ${i===0?'selected':''}">${x}</button>`).join('');$('#composerSpecific').innerHTML=cfg.specific;$('#advancedFields').innerHTML=cfg.advanced;$('#advancedFields').classList.remove('show');$('#composerMore').textContent='Show advanced fields';$('#createBtn').textContent='Create '+type.toLowerCase();$('#createBtn').className='create-btn '+(type==='Event'?'event':type==='Routine'?'routine':'');$('#composerTitle').placeholder=type==='Routine'?'Name this routine…':type==='Event'?'What is the event?':'What needs to happen?';}
+function openComposer(type){state.quick=false;$('#quickMenu').classList.remove('show');$('#plusBtn').classList.remove('open');renderComposer(type);overlay.classList.add('show');$('#composer').classList.add('show');setTimeout(()=>$('#composerTitle').focus(),180)}
+function closeComposer(){overlay.classList.remove('show');$('#composer').classList.remove('show')}
+$$('.composer-type').forEach(b=>b.onclick=()=>renderComposer(b.dataset.type));$('#composerClose').onclick=closeComposer;$('#composerMore').onclick=()=>{const a=$('#advancedFields');a.classList.toggle('show');$('#composerMore').textContent=a.classList.contains('show')?'Hide advanced fields':'Show advanced fields'};$('#createBtn').onclick=()=>{toast(state.composerType+' created');closeComposer();if(state.composerType==='Routine')renderDetail('routine');else if(state.composerType==='Event')renderDetail('event');else renderDetail('task')};
+
+overlay.onclick=()=>{closeComposer();closeMobilePanels()};
+function closeMobilePanels(){detailPanel.classList.remove('mobile-open');$('#sidebar').classList.remove('mobile-open');overlay.classList.remove('show','detail-overlay');$('#closeDetail').style.display='none'}
+$('#closeDetail').onclick=closeMobilePanels;$('#mobileFolder').onclick=()=>{$('#sidebar').classList.add('mobile-open');overlay.classList.add('show','detail-overlay')};
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),2300)}
+renderDetail('task');
+
+// Search keyboard model:
+// - Tab toggles Search open/closed.
+// - Backspace closes Search when query is already empty.
+// - First visible result is always selected after opening or query changes.
+// - Arrow keys move selection; Enter activates selected result.
+document.addEventListener('input',e=>{
+  if(e.target.matches('#searchInput,#dockSearchInput,.search-input,input[type="search"]')){
+    ensureFirstSearchResult();
+  }
+});
+
+document.addEventListener('keydown',e=>{
+  const searchOpen=!!state.search;
+  const input=document.querySelector('#searchInput,#dockSearchInput,.search-input,input[type="search"]');
+
+  if(e.key==='Tab'){
+    e.preventDefault();
+    if(searchOpen) closeSearchFromKeyboard();
+    else openSearch();
+    return;
+  }
+
+  if(!searchOpen) return;
+
+  if(e.key==='Backspace' && input && input.value.length===0){
+    e.preventDefault();
+    closeSearchFromKeyboard();
+    return;
+  }
+
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    selectSearchResult(searchActiveIndex+1);
+    return;
+  }
+  if(e.key==='ArrowUp'){
+    e.preventDefault();
+    selectSearchResult(searchActiveIndex-1);
+    return;
+  }
+  if(e.key==='Enter'){
+    const results=getSearchResults();
+    if(results[searchActiveIndex]){
+      e.preventDefault();
+      results[searchActiveIndex].click();
+    }
+  }
+});
+
+// Keep first result selected whenever Search is opened by mouse/shortcut too.
+const searchObserver=new MutationObserver(()=>{
+  if(state.search) ensureFirstSearchResult();
+});
+searchObserver.observe(document.body,{attributes:true,subtree:false});
+
+</script>
+</body>
+</html>

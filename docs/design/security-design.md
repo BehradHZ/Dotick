@@ -1,7 +1,7 @@
 # Dotick Security Baseline
 
-> **Status:** Increment 0 baseline
-> **Date:** 2026-08-17
+> **Status:** Increment 1 backend baseline
+> **Date:** 2026-09-08
 > **Review cadence:** every security-relevant Increment
 
 # 1. Scope and assets
@@ -21,14 +21,19 @@
 
 # 3. Authentication baseline
 
+I0 exception: the [developer-only foundation API](foundation-api.md) uses framework HTTP Basic authentication on loopback with explicitly provisioned test/developer accounts. Both environment and enablement guards prevent this workbench running as a product authentication surface. Credentials stay in client memory and are excluded from logs. The I1 [Authentication Design](authentication-design.md) implements the product identity backend; configured external-provider smoke remains a release gate.
+
 - custom User model با UUID پیش از اولین migration.
 - email/password، JWT، Google OAuth و Passkey در Increment 1.
 - password فقط از API hashing استاندارد Django عبور می‌کند؛ Argon2 باید hasher ترجیحی باشد و fallback سازگار فقط برای migration/verification باقی بماند.
 - plaintext password هرگز persist یا log نمی‌شود.
-- reset/recovery token کوتاه‌عمر، single-use و قابل revoke است.
-- access token کوتاه‌عمر است؛ refresh token rotation/revocation در design احراز هویت I1 نهایی می‌شود.
+- reset/recovery code ده دقیقه عمر، single-use، HMAC-digested و پس از پنج تلاش ناموفق consumed است.
+- access token پنج دقیقه و refresh token سی روز عمر دارد؛ refresh در هر استفاده rotate می‌شود و session-specific/all-session revocation در database enforce می‌شود.
 - token در URL یا log قرار نمی‌گیرد.
 - Google/Passkey identity به User داخلی link می‌شود و جای owner identity را نمی‌گیرد.
+- Google identity با provider subject پایدار resolve می‌شود؛ تطابق email به‌تنهایی هرگز account موجود را auto-link نمی‌کند.
+- Passkey challenge پنج دقیقه عمر و مصرف single-use دارد؛ enrollment و تغییر credential مستقل به session با authentication اخیر نیاز دارد.
+- contact ثانویه تا تأیید code در هیچ فهرست active برگردانده نمی‌شود؛ کد فقط به adapter مقصد داده می‌شود و digest آن persist می‌شود.
 
 # 4. Authorization baseline
 
@@ -92,7 +97,7 @@ AuditLog business در Increment 2 اضافه می‌شود و از operational 
 
 # 10. Deferred security decisions
 
-- JWT lifetime/rotation values، Google OAuth callback و Passkey ceremony details: I1 auth design.
+- Google client، WebAuthn RP/origin و email/phone delivery configuration: deployment-specific I1 release gate.
 - rate-limit thresholds: endpoint owner Increment.
 - Group authorization model: I7.
 - sync conflict trust model: I6.

@@ -1,8 +1,8 @@
 # Dotick Data Design Baseline
 
-> **Status:** Increment 0 baseline; Increment 1 physical scope defined
-> **Date:** 2026-08-17
-> **Decision source:** DR-054 / ADR-0002
+> **Status:** Increment 1 backend physical schema implemented locally
+> **Date:** 2026-09-08
+> **Decision source:** DR-052 / ADR-0002
 > **Database:** PostgreSQL
 
 # 1. Scope
@@ -22,6 +22,8 @@
 - enumهای پرتحول با check constraint/text یا lookup کنترل‌شده طراحی می‌شوند؛ انتخاب دقیق در migration مالک ثبت می‌شود.
 
 # 3. Item persistence strategy
+
+Implementation note (2026-09-08): append-only migrations now create the complete I1 backend schema below. The isolated `foundation_checkpoints` table remains disposable I0 verification data and is not an Item. Future Event/Routine/history/sync fields remain absent until their owning increments.
 
 ```text
 items
@@ -62,11 +64,48 @@ custom Django user model باید پیش از اولین migration ساخته ش
 | `id` | uuid | PK |
 | `email` | varchar | normalized, case-insensitive uniqueness strategy |
 | `password` | varchar | Django encoded hash; never plaintext |
+| `handle` | varchar | required; unique and case-insensitively unique |
+| `display_name` | varchar | required; nonunique |
+| `profile_picture_url` | varchar nullable | optional presentation reference; no public-profile surface |
+| `email_verified_at` | timestamptz nullable | null until successful verification |
 | `is_active` | boolean | not null |
 | `is_staff` | boolean | not null |
 | `date_joined` | timestamptz | not null |
 
-framework-required fields/tables در migration واقعی تکمیل می‌شوند؛ contract محصول نباید به نام داخلی آن‌ها وابسته شود.
+این fields در migrationهای `identity/0001..0007` تکمیل شده‌اند؛ contract محصول نباید به نام داخلی framework وابسته شود.
+
+### Federated identity, Passkey and contacts
+
+| Table | Key fields / invariant |
+|---|---|
+| `identity_external_identities` | one `(provider, subject)` globally and one provider identity per User; only `google` is allowed in I1 |
+| `identity_passkey_credentials` | globally unique credential ID, public key, signature counter, backup/device metadata and owned display name |
+| `identity_passkey_challenges` | random challenge, purpose, optional registering User, expiry and consumed timestamp |
+| `identity_account_contacts` | pending/verified secondary email or E.164 phone; verified values globally unique per kind |
+| `identity_contact_verification_challenges` | HMAC code digest, ten-minute expiry, single-use state and failed-attempt count |
+
+### `identity_verification_challenges`
+
+| Column | Type | Constraint / note |
+|---|---|---|
+| `id` | uuid | PK |
+| `user_id` | uuid | FK users, cascade |
+| `purpose` | varchar | email verification or password reset |
+| `code_digest` | varchar | keyed HMAC digest; never plaintext code |
+| `expires_at` / `consumed_at` | timestamptz | ten-minute and single-use lifecycle |
+| `failed_attempts` | small integer | challenge consumed after five failures |
+| `created_at` | timestamptz | issuance throttling and newest-challenge lookup |
+
+### `identity_auth_sessions`
+
+| Column | Type | Constraint / note |
+|---|---|---|
+| `id` | uuid | PK and JWT `sid` |
+| `user_id` | uuid | FK users, cascade |
+| `refresh_jti` | varchar | unique current refresh identity; replaced on rotation |
+| `user_agent` | varchar | bounded presentation hint, not trusted identity |
+| `created_at` / `last_seen_at` | timestamptz | session presentation and ordering |
+| `revoked_at` | timestamptz nullable | non-null rejects access and refresh tokens |
 
 ### `user_preferences`
 
@@ -88,6 +127,7 @@ framework-required fields/tables در migration واقعی تکمیل می‌ش�
 | `owner_user_id` | uuid | FK users, not null |
 | `title` | varchar | trimmed, non-empty |
 | `position` | integer | non-negative |
+| `is_trashed` / `trashed_at` | recoverable Folder lifecycle |
 | `created_at` / `updated_at` | timestamptz | not null |
 
 ### `lists`
@@ -95,9 +135,12 @@ framework-required fields/tables در migration واقعی تکمیل می‌ش�
 | Column | Type | Constraint / note |
 |---|---|---|
 | `id` | uuid | PK |
-| `folder_id` | uuid | FK folders, not null |
+| `owner_user_id` | uuid | direct personal owner, not null |
+| `folder_id` | uuid nullable | optional Folder; protected from blind cascade |
 | `title` | varchar | trimmed, non-empty |
 | `position` | integer | non-negative |
+| `is_inbox` | boolean | partial unique constraint gives at most one per owner; write transaction supplies exactly one |
+| `is_trashed` / `trashed_at` | recoverable List lifecycle |
 | `created_at` / `updated_at` | timestamptz | not null |
 
 ### `columns`
@@ -113,10 +156,10 @@ framework-required fields/tables در migration واقعی تکمیل می‌ش�
 
 یک partial unique constraint باید حداکثر یک default Column در هر List را تضمین کند. ساخت List و default Column در یک transaction انجام می‌شود تا قاعده‌ی «دقیقاً یک default» در write path حفظ شود.
 
-Personal V1 ownership از chain زیر derive می‌شود:
+Personal V1 ownership از chain زیر enforce می‌شود:
 
 ```text
-column -> list -> folder -> owner_user_id
+column -> list -> owner_user_id
 ```
 
 Group scope تا Increment 7 به این tableها اضافه نمی‌شود؛ migration آن Increment ownership model را بازنگری می‌کند.
@@ -134,7 +177,9 @@ Group scope تا Increment 7 به این tableها اضافه نمی‌شود؛ 
 | `column_id` | uuid | FK columns, not null; Inbox/default placement is explicit |
 | `title` | varchar | trimmed, non-empty |
 | `is_trashed` | boolean | not null, default false |
+| `trashed_at` / `trash_origin_column_id` | recovery timestamp and prior placement |
 | `version` | bigint | not null, positive, incremented on mutation |
+| `creation_operation_id` / `creation_intent_digest` | owner-scoped idempotent create identity and immutable intent digest |
 | `created_at` / `updated_at` | timestamptz | not null |
 
 در I1، List از `column_id -> list_id` قابل استخراج است و duplication آن در Item انجام نمی‌شود. انتقال Item فقط column را عوض می‌کند و service باید ownership chain مقصد را validate کند.
@@ -149,6 +194,28 @@ I1 فقط lifecycle پایه را پیاده می‌کند.
 | `status` | varchar | `todo`, `done`, `wont_do` در I1؛ stateهای زمانی در I2 |
 
 فیلدهای scheduling، priority، dependency و hierarchy در migration Increment 2 افزوده می‌شوند، نه به صورت columnهای unused در I1.
+
+## 4.4 Initial physical ERD
+
+```mermaid
+erDiagram
+    USER ||--|| USER_PREFERENCES : has
+    USER ||--o{ AUTH_SESSION : owns
+    USER ||--o{ EXTERNAL_IDENTITY : links
+    USER ||--o{ PASSKEY_CREDENTIAL : owns
+    USER ||--o{ ACCOUNT_CONTACT : owns
+    USER ||--o{ FOLDER : owns
+    USER ||--o{ LIST : owns
+    FOLDER o|--o{ LIST : groups
+    LIST ||--|{ COLUMN : contains
+    COLUMN ||--o{ ITEM : places
+    USER ||--o{ ITEM : owns
+    USER ||--o{ ITEM : creates
+    ITEM ||--|| TASK : composes
+    ITEM ||--|| ITEM_SOURCE : records
+```
+
+Exactly-one subtype/source/default-Column invariants are completed by transactional write paths plus the available database uniqueness/check constraints. Group ownership is deliberately not encoded before I7.
 
 ## 4.4 Source
 
@@ -181,7 +248,7 @@ I1 فقط lifecycle پایه را پیاده می‌کند.
 # 6. Delete and history behavior
 
 - Item user-facing با `is_trashed` soft-delete می‌شود.
-- hard delete عمومی API در Personal V1 تعریف نشده است.
+- System Definition §8.4 requires explicit Delete Permanently and a 30-day Trash retention window. Permanent removal of operational state must preserve the required history/audit evidence; exact endpoints and purge implementation belong to the owning increment.
 - حذف Folder/List/Column تا تعریف flow انتقال/حذف children نباید با cascade کور پیاده شود.
 - AuditLog در I2 اضافه می‌شود؛ تا آن زمان API منتشرشده نباید وعده‌ی undo/history بدهد.
 - auth/session cleanup و retention عملیاتی جدا از business soft-delete است.

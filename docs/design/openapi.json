@@ -1,0 +1,1127 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Dotick Increment 1 API",
+    "version": "1.0.0",
+    "description": "Executable backend contract for Increment 1 identity, account, organization and Task capabilities."
+  },
+  "servers": [{ "url": "/" }],
+  "tags": [
+    { "name": "Identity" },
+    { "name": "Account" },
+    { "name": "Organization" },
+    { "name": "Tasks" }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "registerAccount",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted whether or not the email already exists.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/auth/email/resend": {
+      "post": {
+        "operationId": "resendEmailVerification",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/EmailRequest" } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted without disclosing account existence.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/auth/email/verify": {
+      "post": {
+        "operationId": "verifyEmail",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VerificationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Email verified." },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/auth/token": {
+      "post": {
+        "operationId": "createTokenPair",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/TokenRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New revocable session and token pair.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/TokenPair" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/token/refresh": {
+      "post": {
+        "operationId": "rotateRefreshToken",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RefreshRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rotated access and refresh tokens; prior refresh token is invalid.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/RotatedTokens" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logoutCurrentSession",
+        "tags": ["Identity"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "Current session revoked." },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "operationId": "listActiveSessions",
+        "tags": ["Identity"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Active sessions for current account.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SessionList" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "delete": {
+        "operationId": "revokeAllSessions",
+        "tags": ["Identity"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "All account sessions revoked." },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auth/sessions/{session_id}": {
+      "delete": {
+        "operationId": "revokeSession",
+        "tags": ["Identity"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Selected session revoked." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/auth/password/reset/request": {
+      "post": {
+        "operationId": "requestPasswordReset",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/EmailRequest" } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted without disclosing account existence.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/auth/password/reset/confirm": {
+      "post": {
+        "operationId": "confirmPasswordReset",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PasswordResetConfirmRequest" }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Password changed and all sessions revoked." },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/auth/password": {
+      "put": {
+        "operationId": "setPassword",
+        "tags": ["Identity"],
+        "requestBody": { "$ref": "#/components/requestBodies/PasswordSet" },
+        "responses": {
+          "204": { "description": "Password fallback added or changed." },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/auth/google": {
+      "post": {
+        "operationId": "signInWithGoogle",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": { "$ref": "#/components/requestBodies/GoogleCredential" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/FederatedTokenPair" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/auth/google/link": {
+      "post": {
+        "operationId": "linkGoogleIdentity",
+        "tags": ["Identity"],
+        "requestBody": { "$ref": "#/components/requestBodies/GoogleCredential" },
+        "responses": {
+          "204": { "description": "Google identity linked." },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/auth/passkeys": {
+      "get": {
+        "operationId": "listPasskeys",
+        "tags": ["Identity"],
+        "responses": { "200": { "$ref": "#/components/responses/PasskeyList" } }
+      }
+    },
+    "/api/v1/auth/passkeys/{passkey_id}": {
+      "parameters": [{ "$ref": "#/components/parameters/PasskeyId" }],
+      "delete": {
+        "operationId": "deletePasskey",
+        "tags": ["Identity"],
+        "responses": {
+          "204": { "description": "Passkey deleted." },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/auth/passkeys/registration/options": {
+      "post": {
+        "operationId": "beginPasskeyRegistration",
+        "tags": ["Identity"],
+        "requestBody": { "$ref": "#/components/requestBodies/PasskeyName" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/PasskeyOptions" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/auth/passkeys/registration/verify": {
+      "post": {
+        "operationId": "finishPasskeyRegistration",
+        "tags": ["Identity"],
+        "requestBody": { "$ref": "#/components/requestBodies/PasskeyCeremony" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/PasskeyCreated" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/auth/passkeys/authentication/options": {
+      "post": {
+        "operationId": "beginPasskeyAuthentication",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": { "$ref": "#/components/requestBodies/EmptyObject" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/PasskeyOptions" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/auth/passkeys/authentication/verify": {
+      "post": {
+        "operationId": "finishPasskeyAuthentication",
+        "tags": ["Identity"],
+        "security": [],
+        "requestBody": { "$ref": "#/components/requestBodies/PasskeyCeremony" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/FederatedTokenPair" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/account": {
+      "get": {
+        "operationId": "getAccount",
+        "tags": ["Account"],
+        "responses": { "200": { "$ref": "#/components/responses/Account" } }
+      },
+      "patch": {
+        "operationId": "updateAccount",
+        "tags": ["Account"],
+        "requestBody": { "$ref": "#/components/requestBodies/AccountUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Account" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/account/bootstrap": {
+      "put": {
+        "operationId": "bootstrapAccount",
+        "tags": ["Account"],
+        "requestBody": { "$ref": "#/components/requestBodies/Bootstrap" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Bootstrap" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/account/contacts": {
+      "get": {
+        "operationId": "listVerifiedContacts",
+        "tags": ["Account"],
+        "responses": { "200": { "$ref": "#/components/responses/ContactList" } }
+      },
+      "post": {
+        "operationId": "requestContactVerification",
+        "tags": ["Account"],
+        "requestBody": { "$ref": "#/components/requestBodies/ContactRequest" },
+        "responses": {
+          "202": { "$ref": "#/components/responses/PendingContact" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/account/contacts/verify": {
+      "post": {
+        "operationId": "verifyAccountContact",
+        "tags": ["Account"],
+        "requestBody": { "$ref": "#/components/requestBodies/ContactVerify" },
+        "responses": {
+          "204": { "description": "Contact verified and activated." },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/account/contacts/{contact_id}": {
+      "parameters": [{ "$ref": "#/components/parameters/ContactId" }],
+      "delete": {
+        "operationId": "deleteAccountContact",
+        "tags": ["Account"],
+        "responses": {
+          "204": { "description": "Contact deleted." },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/folders": {
+      "get": {
+        "operationId": "listFolders",
+        "tags": ["Organization"],
+        "responses": { "200": { "$ref": "#/components/responses/FolderList" } }
+      },
+      "post": {
+        "operationId": "createFolder",
+        "tags": ["Organization"],
+        "requestBody": { "$ref": "#/components/requestBodies/Title" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/Folder" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/folders/{folder_id}": {
+      "parameters": [{ "$ref": "#/components/parameters/FolderId" }],
+      "get": {
+        "operationId": "getFolder",
+        "tags": ["Organization"],
+        "responses": {
+          "200": { "$ref": "#/components/responses/Folder" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "updateFolder",
+        "tags": ["Organization"],
+        "requestBody": { "$ref": "#/components/requestBodies/ContainerUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Folder" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "trashFolder",
+        "tags": ["Organization"],
+        "parameters": [{ "$ref": "#/components/parameters/FolderItemResolution" }],
+        "responses": {
+          "204": { "description": "Folder and selected descendants trashed." },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/folders/{folder_id}/restore": {
+      "parameters": [{ "$ref": "#/components/parameters/FolderId" }],
+      "post": {
+        "operationId": "restoreFolder",
+        "tags": ["Organization"],
+        "requestBody": { "$ref": "#/components/requestBodies/EmptyObject" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Folder" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/trash/folders": {
+      "get": {
+        "operationId": "listTrashedFolders",
+        "tags": ["Organization"],
+        "responses": { "200": { "$ref": "#/components/responses/FolderList" } }
+      }
+    },
+    "/api/v1/lists": {
+      "get": {
+        "operationId": "listLists",
+        "tags": ["Organization"],
+        "responses": { "200": { "$ref": "#/components/responses/ListList" } }
+      },
+      "post": {
+        "operationId": "createList",
+        "tags": ["Organization"],
+        "requestBody": { "$ref": "#/components/requestBodies/ListCreate" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/List" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/lists/{list_id}": {
+      "parameters": [{ "$ref": "#/components/parameters/ListId" }],
+      "get": {
+        "operationId": "getList",
+        "tags": ["Organization"],
+        "responses": {
+          "200": { "$ref": "#/components/responses/List" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "updateList",
+        "tags": ["Organization"],
+        "requestBody": { "$ref": "#/components/requestBodies/ListUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/List" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "delete": {
+        "operationId": "trashList",
+        "tags": ["Organization"],
+        "parameters": [{ "$ref": "#/components/parameters/ListItemResolution" }],
+        "responses": {
+          "204": { "description": "List and selected Items trashed or moved." },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/lists/{list_id}/restore": {
+      "parameters": [{ "$ref": "#/components/parameters/ListId" }],
+      "post": {
+        "operationId": "restoreList",
+        "tags": ["Organization"],
+        "requestBody": { "$ref": "#/components/requestBodies/EmptyObject" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/List" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/trash/lists": {
+      "get": {
+        "operationId": "listTrashedLists",
+        "tags": ["Organization"],
+        "responses": { "200": { "$ref": "#/components/responses/ListList" } }
+      }
+    },
+    "/api/v1/lists/{list_id}/columns": {
+      "parameters": [{ "$ref": "#/components/parameters/ListId" }],
+      "get": {
+        "operationId": "listColumns",
+        "tags": ["Organization"],
+        "responses": { "200": { "$ref": "#/components/responses/ColumnList" } }
+      },
+      "post": {
+        "operationId": "createColumn",
+        "tags": ["Organization"],
+        "requestBody": { "$ref": "#/components/requestBodies/Title" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/Column" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/columns/{column_id}": {
+      "parameters": [{ "$ref": "#/components/parameters/ColumnId" }],
+      "get": {
+        "operationId": "getColumn",
+        "tags": ["Organization"],
+        "responses": {
+          "200": { "$ref": "#/components/responses/Column" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "updateColumn",
+        "tags": ["Organization"],
+        "requestBody": { "$ref": "#/components/requestBodies/ContainerUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Column" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteColumn",
+        "tags": ["Organization"],
+        "parameters": [{ "$ref": "#/components/parameters/ColumnItemResolution" }],
+        "responses": {
+          "204": { "description": "Column deleted after explicit Item handling." },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/tasks": {
+      "get": {
+        "operationId": "listTasks",
+        "tags": ["Tasks"],
+        "parameters": [{ "$ref": "#/components/parameters/ColumnFilter" }],
+        "responses": { "200": { "$ref": "#/components/responses/TaskList" } }
+      },
+      "post": {
+        "operationId": "createTask",
+        "tags": ["Tasks"],
+        "requestBody": { "$ref": "#/components/requestBodies/TaskCreate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Task" },
+          "201": { "$ref": "#/components/responses/Task" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}": {
+      "parameters": [{ "$ref": "#/components/parameters/TaskId" }],
+      "get": {
+        "operationId": "getTask",
+        "tags": ["Tasks"],
+        "responses": {
+          "200": { "$ref": "#/components/responses/Task" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "updateTask",
+        "tags": ["Tasks"],
+        "requestBody": { "$ref": "#/components/requestBodies/TaskUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Task" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "delete": {
+        "operationId": "trashTask",
+        "tags": ["Tasks"],
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }],
+        "responses": {
+          "204": { "description": "Task moved to Trash." },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/restore": {
+      "parameters": [{ "$ref": "#/components/parameters/TaskId" }],
+      "post": {
+        "operationId": "restoreTask",
+        "tags": ["Tasks"],
+        "requestBody": { "$ref": "#/components/requestBodies/Version" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Task" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/trash/tasks": {
+      "get": {
+        "operationId": "listTrashedTasks",
+        "tags": ["Tasks"],
+        "responses": { "200": { "$ref": "#/components/responses/TaskList" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "parameters": {
+      "PasskeyId": { "name": "passkey_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "ContactId": { "name": "contact_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "FolderId": { "name": "folder_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "ListId": { "name": "list_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "ColumnId": { "name": "column_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "TaskId": { "name": "task_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "FolderItemResolution": { "name": "items", "in": "query", "schema": { "type": "string", "enum": ["move_to_inbox", "trash"] } },
+      "ListItemResolution": { "name": "items", "in": "query", "schema": { "type": "string", "enum": ["move_to_inbox", "trash"] } },
+      "ColumnItemResolution": { "name": "items", "in": "query", "schema": { "type": "string", "enum": ["move_to_default", "trash"] } },
+      "ColumnFilter": { "name": "column_id", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+      "IfMatch": { "name": "If-Match", "in": "header", "required": true, "schema": { "type": "string", "pattern": "^\\\"?[1-9][0-9]*\\\"?$" } }
+    },
+    "requestBodies": {
+      "EmptyObject": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmptyObject" } } } },
+      "PasswordSet": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PasswordSetRequest" } } } },
+      "GoogleCredential": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GoogleCredentialRequest" } } } },
+      "PasskeyName": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PasskeyNameRequest" } } } },
+      "PasskeyCeremony": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PasskeyCeremonyRequest" } } } },
+      "AccountUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountUpdateRequest" } } } },
+      "Bootstrap": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BootstrapRequest" } } } },
+      "ContactRequest": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ContactRequest" } } } },
+      "ContactVerify": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ContactVerifyRequest" } } } },
+      "Title": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TitleRequest" } } } },
+      "ContainerUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ContainerUpdateRequest" } } } },
+      "ListCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ListCreateRequest" } } } },
+      "ListUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ListUpdateRequest" } } } },
+      "TaskCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TaskCreateRequest" } } } },
+      "TaskUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TaskUpdateRequest" } } } },
+      "Version": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VersionRequest" } } } }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid input or verification code.",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "Unauthorized": {
+        "description": "Credentials, token, or session are invalid.",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "NotFound": {
+        "description": "Owned resource not found.",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "Forbidden": { "description": "Recent authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Conflict": { "description": "A domain invariant, idempotency key or version conflicts.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unavailable": { "description": "An external provider or required configuration is unavailable.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "FederatedTokenPair": { "description": "New revocable session from Google or Passkey.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FederatedTokenPair" } } } },
+      "PasskeyOptions": { "description": "WebAuthn browser options plus opaque server challenge identity.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PasskeyOptions" } } } },
+      "PasskeyCreated": { "description": "Passkey enrolled.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Passkey" } } } },
+      "PasskeyList": { "description": "Owned Passkeys.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PasskeyList" } } } },
+      "Account": { "description": "Current Account presentation.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Account" } } } },
+      "Bootstrap": { "description": "Idempotently provisioned preferences and Inbox.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bootstrap" } } } },
+      "ContactList": { "description": "Verified owned contacts only.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ContactList" } } } },
+      "PendingContact": { "description": "Pending contact verification created.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PendingContact" } } } },
+      "Folder": { "description": "Owned Folder.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Folder" } } } },
+      "FolderList": { "description": "Owned Folder collection.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FolderList" } } } },
+      "List": { "description": "Owned List.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/List" } } } },
+      "ListList": { "description": "Owned List collection.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ListList" } } } },
+      "Column": { "description": "Owned Column.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Column" } } } },
+      "ColumnList": { "description": "Owned Column collection.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ColumnList" } } } },
+      "Task": { "description": "Owned Task.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Task" } } } },
+      "TaskList": { "description": "Owned Task collection.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TaskList" } } }
+      }
+    },
+    "schemas": {
+      "Accepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status"],
+        "properties": { "status": { "const": "accepted" } }
+      },
+      "EmailRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email"],
+        "properties": { "email": { "type": "string", "format": "email", "maxLength": 254 } }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "password", "handle", "display_name"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "password": { "type": "string", "format": "password", "maxLength": 128 },
+          "handle": { "type": "string", "pattern": "^[A-Za-z0-9_]{3,30}$" },
+          "display_name": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      },
+      "VerificationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "code"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "code": { "type": "string", "pattern": "^[0-9]{6}$" }
+        }
+      },
+      "PasswordResetConfirmRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "code", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "code": { "type": "string", "pattern": "^[0-9]{6}$" },
+          "password": { "type": "string", "format": "password", "maxLength": 128 }
+        }
+      },
+      "TokenRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "password": { "type": "string", "format": "password", "maxLength": 128 }
+        }
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["refresh"],
+        "properties": { "refresh": { "type": "string", "maxLength": 4096 } }
+      },
+      "UserIdentity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "handle", "display_name"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "handle": { "type": "string" },
+          "display_name": { "type": "string" }
+        }
+      },
+      "RotatedTokens": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["access", "refresh"],
+        "properties": {
+          "access": { "type": "string" },
+          "refresh": { "type": "string" }
+        }
+      },
+      "TokenPair": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["access", "refresh", "user"],
+        "properties": {
+          "access": { "type": "string" },
+          "refresh": { "type": "string" },
+          "user": { "$ref": "#/components/schemas/UserIdentity" }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "user_agent", "created_at", "last_seen_at", "current"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "user_agent": { "type": "string", "maxLength": 200 },
+          "created_at": { "type": "string", "format": "date-time" },
+          "last_seen_at": { "type": "string", "format": "date-time" },
+          "current": { "type": "boolean" }
+        }
+      },
+      "SessionList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["results"],
+        "properties": {
+          "results": { "type": "array", "items": { "$ref": "#/components/schemas/Session" } }
+        }
+      },
+      "EmptyObject": { "type": "object", "additionalProperties": false, "maxProperties": 0 },
+      "PasswordSetRequest": {
+        "type": "object", "additionalProperties": false, "required": ["password"],
+        "properties": {
+          "password": { "type": "string", "format": "password", "maxLength": 128 },
+          "current_password": { "type": "string", "format": "password", "maxLength": 128 }
+        }
+      },
+      "GoogleCredentialRequest": {
+        "type": "object", "additionalProperties": false, "required": ["credential"],
+        "properties": { "credential": { "type": "string", "maxLength": 8192 } }
+      },
+      "FederatedTokenPair": {
+        "type": "object", "additionalProperties": false,
+        "required": ["access", "refresh", "user", "fallback_recommended"],
+        "properties": {
+          "access": { "type": "string" },
+          "refresh": { "type": "string" },
+          "user": { "$ref": "#/components/schemas/UserIdentity" },
+          "fallback_recommended": { "type": "boolean" }
+        }
+      },
+      "PasskeyNameRequest": {
+        "type": "object", "additionalProperties": false, "required": ["name"],
+        "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 120 } }
+      },
+      "PasskeyCeremonyRequest": {
+        "type": "object", "additionalProperties": false,
+        "required": ["challenge_id", "credential"],
+        "properties": {
+          "challenge_id": { "type": "string", "format": "uuid" },
+          "credential": { "type": "object", "required": ["id", "response"], "additionalProperties": true }
+        }
+      },
+      "PasskeyOptions": {
+        "type": "object", "additionalProperties": false,
+        "required": ["challenge_id", "public_key"],
+        "properties": {
+          "challenge_id": { "type": "string", "format": "uuid" },
+          "public_key": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "Passkey": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "name", "device_type", "backed_up", "created_at", "last_used_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "device_type": { "type": "string" },
+          "backed_up": { "type": "boolean" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "last_used_at": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "PasskeyList": {
+        "type": "object", "additionalProperties": false, "required": ["results"],
+        "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/Passkey" } } }
+      },
+      "AuthenticationMethods": {
+        "type": "object", "additionalProperties": false,
+        "required": ["password", "google", "passkey"],
+        "properties": {
+          "password": { "type": "boolean" },
+          "google": { "type": "boolean" },
+          "passkey": { "type": "boolean" }
+        }
+      },
+      "Account": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "email", "handle", "display_name", "profile_picture_url", "timezone", "authentication_methods"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "email": { "type": "string", "format": "email" },
+          "handle": { "type": "string" },
+          "display_name": { "type": "string" },
+          "profile_picture_url": { "type": ["string", "null"], "format": "uri" },
+          "timezone": { "type": ["string", "null"] },
+          "authentication_methods": { "$ref": "#/components/schemas/AuthenticationMethods" }
+        }
+      },
+      "AccountUpdateRequest": {
+        "type": "object", "additionalProperties": false, "minProperties": 1,
+        "properties": {
+          "handle": { "type": "string", "pattern": "^[A-Za-z0-9_]{3,30}$" },
+          "display_name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "profile_picture_url": { "type": ["string", "null"], "format": "uri", "maxLength": 2048 },
+          "timezone": { "type": "string", "maxLength": 64 }
+        }
+      },
+      "BootstrapRequest": {
+        "type": "object", "additionalProperties": false, "required": ["timezone"],
+        "properties": { "timezone": { "type": "string", "maxLength": 64 } }
+      },
+      "Bootstrap": {
+        "type": "object", "additionalProperties": false, "required": ["preferences", "inbox"],
+        "properties": {
+          "preferences": { "type": "object", "required": ["timezone"], "properties": { "timezone": { "type": "string" } } },
+          "inbox": { "type": "object", "required": ["id", "title", "is_inbox", "default_column"], "properties": {
+            "id": { "type": "string", "format": "uuid" }, "title": { "const": "Inbox" }, "is_inbox": { "const": true },
+            "default_column": { "type": "object", "required": ["id", "is_default"], "properties": { "id": { "type": "string", "format": "uuid" }, "is_default": { "const": true } } }
+          } }
+        }
+      },
+      "ContactRequest": {
+        "type": "object", "additionalProperties": false, "required": ["kind", "value"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["email", "phone"] },
+          "value": { "type": "string", "maxLength": 254 }
+        }
+      },
+      "ContactVerifyRequest": {
+        "type": "object", "additionalProperties": false, "required": ["contact_id", "code"],
+        "properties": {
+          "contact_id": { "type": "string", "format": "uuid" },
+          "code": { "type": "string", "pattern": "^[0-9]{6}$" }
+        }
+      },
+      "Contact": {
+        "type": "object", "additionalProperties": false, "required": ["id", "kind", "value", "verified_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "kind": { "type": "string", "enum": ["email", "phone"] },
+          "value": { "type": "string" },
+          "verified_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ContactList": {
+        "type": "object", "additionalProperties": false, "required": ["results"],
+        "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/Contact" } } }
+      },
+      "PendingContact": {
+        "type": "object", "additionalProperties": false, "required": ["id", "status"],
+        "properties": { "id": { "type": "string", "format": "uuid" }, "status": { "const": "pending" } }
+      },
+      "TitleRequest": {
+        "type": "object", "additionalProperties": false, "required": ["title"],
+        "properties": { "title": { "type": "string", "minLength": 1, "maxLength": 240 } }
+      },
+      "ContainerUpdateRequest": {
+        "type": "object", "additionalProperties": false, "minProperties": 1,
+        "properties": {
+          "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "position": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "Folder": {
+        "type": "object", "additionalProperties": false, "required": ["id", "title", "position", "is_trashed", "trashed_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "position": { "type": "integer", "minimum": 0 },
+          "is_trashed": { "type": "boolean" },
+          "trashed_at": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "FolderList": {
+        "type": "object", "additionalProperties": false, "required": ["results"],
+        "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/Folder" } } }
+      },
+      "ListCreateRequest": {
+        "type": "object", "additionalProperties": false, "required": ["title"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "folder_id": { "type": ["string", "null"], "format": "uuid" }
+        }
+      },
+      "ListUpdateRequest": {
+        "type": "object", "additionalProperties": false, "minProperties": 1,
+        "properties": {
+          "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "folder_id": { "type": ["string", "null"], "format": "uuid" },
+          "position": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "DefaultColumn": {
+        "type": "object", "additionalProperties": false, "required": ["id", "is_default"],
+        "properties": { "id": { "type": "string", "format": "uuid" }, "is_default": { "const": true } }
+      },
+      "List": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "title", "folder_id", "is_inbox", "position", "is_trashed", "trashed_at", "default_column"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "folder_id": { "type": ["string", "null"], "format": "uuid" },
+          "is_inbox": { "type": "boolean" },
+          "position": { "type": "integer", "minimum": 0 },
+          "is_trashed": { "type": "boolean" },
+          "trashed_at": { "type": ["string", "null"], "format": "date-time" },
+          "default_column": { "$ref": "#/components/schemas/DefaultColumn" }
+        }
+      },
+      "ListList": {
+        "type": "object", "additionalProperties": false, "required": ["results"],
+        "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/List" } } }
+      },
+      "Column": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "list_id", "title", "position", "is_default"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "list_id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "position": { "type": "integer", "minimum": 0 },
+          "is_default": { "type": "boolean" }
+        }
+      },
+      "ColumnList": {
+        "type": "object", "additionalProperties": false, "required": ["results"],
+        "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/Column" } } }
+      },
+      "TaskCreateRequest": {
+        "type": "object", "additionalProperties": false, "required": ["title", "operation_id"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "operation_id": { "type": "string", "format": "uuid" },
+          "column_id": { "type": ["string", "null"], "format": "uuid" }
+        }
+      },
+      "TaskUpdateRequest": {
+        "type": "object", "additionalProperties": false, "required": ["version"], "minProperties": 2,
+        "properties": {
+          "version": { "type": "integer", "minimum": 1 },
+          "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "status": { "type": "string", "enum": ["todo", "done", "wont_do"] },
+          "column_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "VersionRequest": {
+        "type": "object", "additionalProperties": false, "required": ["version"],
+        "properties": { "version": { "type": "integer", "minimum": 1 } }
+      },
+      "ItemSource": {
+        "type": "object", "additionalProperties": false,
+        "required": ["platform", "external_account_id", "external_id"],
+        "properties": {
+          "platform": { "const": "manual" },
+          "external_account_id": { "type": ["string", "null"] },
+          "external_id": { "type": ["string", "null"] }
+        }
+      },
+      "Task": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "title", "status", "version", "column_id", "owner_user_id", "created_by_user_id", "source", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "status": { "type": "string", "enum": ["todo", "done", "wont_do"] },
+          "version": { "type": "integer", "minimum": 1 },
+          "column_id": { "type": "string", "format": "uuid" },
+          "owner_user_id": { "type": "string", "format": "uuid" },
+          "created_by_user_id": { "type": "string", "format": "uuid" },
+          "source": { "$ref": "#/components/schemas/ItemSource" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" },
+          "is_trashed": { "type": "boolean" },
+          "trashed_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TaskList": {
+        "type": "object", "additionalProperties": false, "required": ["results"],
+        "properties": { "results": { "type": "array", "items": { "$ref": "#/components/schemas/Task" } } }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "examples": [
+                  "validation_error",
+                  "invalid_verification_code",
+                  "authentication_failed",
+                  "token_not_valid",
+                  "account_link_required",
+                  "recent_authentication_required",
+                  "invalid_passkey_challenge",
+                  "contact_unavailable",
+                  "immutable_inbox",
+                  "immutable_default_column",
+                  "child_resolution_required",
+                  "idempotency_conflict",
+                  "version_conflict",
+                  "not_authenticated",
+                  "not_found"
+                ]
+              },
+              "details": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}

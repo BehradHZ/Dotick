@@ -1,0 +1,20 @@
+{
+  "name": "@dotick/client",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start --web --localhost",
+    "build": "expo export --platform web",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "57.0.15",
+    "expo": "57.0.20",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-web": "0.21.2"
+  }
+}

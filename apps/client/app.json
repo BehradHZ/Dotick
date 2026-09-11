@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "Dotick",
+    "slug": "dotick",
+    "version": "0.1.0",
+    "platforms": ["web"],
+    "web": { "bundler": "metro", "output": "single", "name": "Dotick" }
+  }
+}

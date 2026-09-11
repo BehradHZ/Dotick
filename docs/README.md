@@ -4,25 +4,27 @@
 
 ## مسیر پیشنهادی مطالعه
 
-1. [`01-planning/vision-and-charter.md`](01-planning/vision-and-charter.md)
-2. [`01-planning/scope-statement.md`](01-planning/scope-statement.md)
-3. [`02-requirements/system-definition.md`](02-requirements/system-definition.md)
+1. [`planning/vision-and-charter.md`](planning/vision-and-charter.md)
+2. [`planning/scope-statement.md`](planning/scope-statement.md)
+3. [`requirements/system-definition.md`](requirements/system-definition.md)
 4. [`decision-register.md`](decision-register.md)
-5. [`02-requirements/srs.md`](02-requirements/srs.md)
-6. [`03-design/domain-model.md`](03-design/domain-model.md)
-7. [`01-planning/increment-roadmap.md`](01-planning/increment-roadmap.md)
+5. [`requirements/srs.md`](requirements/srs.md)
+6. [`design/domain-model.md`](design/domain-model.md)
+7. [`planning/increment-roadmap.md`](planning/increment-roadmap.md)
 
 ## ساختار مستندات
 
-- [`01-planning/`](01-planning/) — چشم‌انداز، محدوده، نقشهٔ راه و ریسک‌ها
-- [`02-requirements/`](02-requirements/) — تعریف سیستم، نیازمندی‌ها و ردیابی آن‌ها
-- [`03-design/`](03-design/) — طراحی دامنه، معماری، داده، API، امنیت و تجربهٔ کاربری
-- [`04-development/`](04-development/) — راه‌اندازی و رویه‌های محیط توسعه
-- [`05-quality/`](05-quality/) — راهبرد و شواهد کیفیت و آزمون
-- [`06-operations/`](06-operations/) — استقرار، مشاهده‌پذیری، بازیابی و عملیات امنیت
-- [`08-tracking/`](08-tracking/) — تاریخچهٔ تغییرات و مرور Incrementها
+- [`planning/`](planning/) — چشم‌انداز، محدوده، نقشهٔ راه و ریسک‌ها
+- [`requirements/`](requirements/) — تعریف سیستم، نیازمندی‌ها و ردیابی آن‌ها
+- [`design/`](design/) — طراحی دامنه، معماری، داده، API، امنیت و تجربهٔ کاربری
+- [`development/`](development/) — راه‌اندازی و رویه‌های محیط توسعه
+- [`quality/`](quality/) — راهبرد و شواهد کیفیت و آزمون
+- [`operations/`](operations/) — استقرار، مشاهده‌پذیری، بازیابی و عملیات امنیت
+- [`tracking/`](tracking/) — تاریخچهٔ تغییرات و مرور Incrementها
 - [`reference/`](reference/) — اسناد مرجع مشتق‌شده یا قدیمی که منبع نهایی تصمیم نیستند
 
-تصمیم‌های تثبیت‌شده و باز در [`decision-register.md`](decision-register.md) ثبت می‌شوند و تصمیم‌های معماری تفصیلی در [`03-design/adr/`](03-design/adr/) قرار می‌گیرند.
+تصمیم‌های تثبیت‌شده و باز در [`decision-register.md`](decision-register.md) ثبت می‌شوند و تصمیم‌های معماری تفصیلی در [`design/adr/`](design/adr/) قرار می‌گیرند.
 
 نام فایل‌ها و پوشه‌ها از قرارداد `lowercase-kebab-case` پیروی می‌کند؛ نام‌های قراردادی مانند `README.md` و `CHANGELOG.md` استثنا هستند.
+
+Current implementation: [I0 verification](tracking/increment-0-foundation-review.md), [I1 backend review](tracking/increment-1-backend-review.md), [I1 client review](tracking/increment-1-client-review.md), [Authentication Design](design/authentication-design.md) and the full backend [OpenAPI contract](design/openapi.json). Remaining provider/release scope stays in the [I1 readiness and acceptance plan](tracking/increment-1-readiness.md).

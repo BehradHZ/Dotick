@@ -1,0 +1,38 @@
+{
+  "name": "dotick",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/client"
+  ],
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
+  "scripts": {
+    "dev": "npm run start --workspace @dotick/client",
+    "build": "npm run build --workspace @dotick/client",
+    "typecheck": "npm run typecheck --workspace @dotick/client",
+    "lint": "eslint apps/client e2e scripts/*.mjs playwright.config.ts",
+    "format:check": "prettier --check apps/client e2e scripts/*.mjs *.json *.ts *.mjs .github/workflows/*.yml compose.yaml",
+    "test": "npm run test --workspace @dotick/client",
+    "test:e2e": "playwright test",
+    "check:docs": "python scripts/check_traceability.py"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "26.4.1",
+    "@types/react": "19.2.18",
+    "eslint": "10.10.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.12.0",
+    "jsdom": "30.0.1",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0",
+    "vitest": "5.0.0"
+  }
+}

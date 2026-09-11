@@ -3,13 +3,13 @@
 > **Status:** Updated Roadmap based on the canonical project documents  
 > **Process:** Incremental + Iterative + Test-Driven Development (TDD)  
 > **Canonical sources used by this roadmap:**  
-> `project-docs/02-requirements/system-definition.md` — current system behavior, scope and product rules
+> `docs/requirements/system-definition.md` — current system behavior, scope and product rules
 >
-> `project-docs/03-design/domain-model.md` — current conceptual domain model
+> `docs/design/domain-model.md` — current conceptual domain model
 >
-> `project-docs/decision-register.md` — consolidated decision rationale, constraints and design handoffs aligned to System Definition
+> `docs/decision-register.md` — consolidated decision rationale, constraints and design handoffs aligned to System Definition
 >
-> `project-docs/02-requirements/srs.md` اکنون **Formal SRS Baseline v2.8** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `project-docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
+> `docs/requirements/srs.md` اکنون **Formal SRS Baseline v2.8** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
 
 ---
 
@@ -59,9 +59,9 @@ Roadmap مالک **ترتیب اجرا** است، نه behavior. هیچ Incremen
 
 نکته:
 
-- `project-docs/decision-register.md` rationale و مرزهای تصمیم را نگه می‌دارد؛ وقتی یک مفهوم در ادامه کامل می‌شود، متن current Register در یک DR canonical ادغام می‌شود و wordingهای قبلی در repository revision history باقی می‌مانند.
-- `project-docs/02-requirements/system-definition.md` رفتار و Scope محصول را نگه می‌دارد.
-- `project-docs/03-design/domain-model.md` مدل مفهومی است و نباید با PostgreSQL schema یکی فرض شود.
+- `docs/decision-register.md` rationale و مرزهای تصمیم را نگه می‌دارد؛ وقتی یک مفهوم در ادامه کامل می‌شود، متن current Register در یک DR canonical ادغام می‌شود و wordingهای قبلی در repository revision history باقی می‌مانند.
+- `docs/requirements/system-definition.md` رفتار و Scope محصول را نگه می‌دارد.
+- `docs/design/domain-model.md` مدل مفهومی است و نباید با PostgreSQL schema یکی فرض شود.
 - Database inheritance/storage strategy هنوز یک Design Decision است.
 
 ---
@@ -116,10 +116,10 @@ Architecture، Data Design، API، UI، Security و Test Design در ابتدا�
 
 | Document | Role | Rule |
 |---|---|---|
-| `project-docs/02-requirements/system-definition.md` | Product/system behavior and scope | **Update only when behavior/scope changes** |
-| `project-docs/03-design/domain-model.md` | Conceptual entities, relations, constraints | **Update when domain understanding changes** |
-| `project-docs/decision-register.md` | Decision rationale/constraints aligned to System Definition | **Consolidate evolved same-concept decisions; repository revision history preserves prior wording** |
-| `project-docs/01-planning/increment-roadmap.md` | Increment plan | **Update after scope/order/decision changes** |
+| `docs/requirements/system-definition.md` | Product/system behavior and scope | **Update only when behavior/scope changes** |
+| `docs/design/domain-model.md` | Conceptual entities, relations, constraints | **Update when domain understanding changes** |
+| `docs/decision-register.md` | Decision rationale/constraints aligned to System Definition | **Consolidate evolved same-concept decisions; repository revision history preserves prior wording** |
+| `docs/planning/increment-roadmap.md` | Increment plan | **Update after scope/order/decision changes** |
 
 ---
 
@@ -129,24 +129,24 @@ Architecture، Data Design، API، UI، Security و Test Design در ابتدا�
 
 | Document | First Creation | Afterwards |
 |---|---|---|
-| `project-docs/02-requirements/srs.md` | Increment 0 formalization | **Replace/rewrite the reconciled derived reference into Formal SRS, then Update** |
-| `project-docs/02-requirements/traceability-matrix.md` | Increment 0 | **Update every Increment** |
-| `project-docs/01-planning/risk-log.md` | Increment 0 | **Update every Increment** |
-| `project-docs/03-design/architecture.md` | Increment 0 | **Update when architecture evolves** |
-| `project-docs/03-design/data-model.md` | Increment 0/1 | **Update** |
+| `docs/requirements/srs.md` | Increment 0 formalization | **Replace/rewrite the reconciled derived reference into Formal SRS, then Update** |
+| `docs/requirements/traceability-matrix.md` | Increment 0 | **Update every Increment** |
+| `docs/planning/risk-log.md` | Increment 0 | **Update every Increment** |
+| `docs/design/architecture.md` | Increment 0 | **Update when architecture evolves** |
+| `docs/design/data-model.md` | Increment 0/1 | **Update** |
 | `ERD.md` / ERD source | Increment 1 | **Update** |
-| `project-docs/03-design/api-contracts.md` / `openapi.yaml` | Increment 1 | **Update Increment-by-Increment** |
-| `project-docs/03-design/ui-ux/` | Increment 1 | **Update** |
-| `project-docs/03-design/security-design.md` | Increment 0/1 | **Update every security-relevant Increment** |
-| `project-docs/05-quality/test-strategy.md` | Increment 0 | **Update only when strategy changes** |
-| `TIME_SEMANTICS_SPEC.md` | Increment 0 baseline | **Refine in Increments 2/4/10 as time behavior expands** |
+| `docs/design/api-contracts.md` / `openapi.yaml` | Increment 1 | **Update Increment-by-Increment** |
+| `docs/design/ui-ux/` | Increment 1 | **Update** |
+| `docs/design/security-design.md` | Increment 0/1 | **Update every security-relevant Increment** |
+| `docs/quality/test-strategy.md` | Increment 0 | **Update only when strategy changes** |
+| `docs/design/time-semantics-spec.md` | Increment 0 baseline | **Refine in Increments 2/4/10 as time behavior expands** |
 | `RECURRENCE_SPEC.md` | Increment 4 | **New, then Update** |
 | `SYNC_AUDIT_SPEC.md` | Increment 6 | **New, then Update** |
 | `AUTHORIZATION_MODEL.md` | Increment 7 | **New, then Update** |
 | `AI_ITEM_CREATION_SPEC.md` | Increment 8 | **New, then Update** |
 | `AI_GOAL_SPEC.md` | Increment 9 | **New, then Update** |
 | `GAMIFICATION_SCORING_SPEC.md` | Increment 10 | **New, then Update** |
-| `project-docs/06-operations/release-deployment.md` | Increment 0 | **Update** |
+| `docs/operations/release-deployment.md` | Increment 0 | **Update** |
 | `BUSINESS.md` | Parallel Business Track | **Update** |
 
 ---
@@ -182,12 +182,12 @@ Architecture، Data Design، API، UI، Security و Test Design در ابتدا�
 
 ```text
 DB schema changed
-    → project-docs/03-design/data-model.md update
+    → docs/design/data-model.md update
     → ERD update
     → new migration
 
 Architectural decision made
-    → project-docs/03-design/architecture.md may update
+    → docs/design/architecture.md may update
     → new ADR
 
 Requirement behavior changed
@@ -254,9 +254,9 @@ Feature فقط وقتی Done است که:
 
 ### Documents
 
-- `project-docs/01-planning/increment-roadmap.md` → **Update if scope/order changes**
-- `project-docs/01-planning/risk-log.md` → **Update**
-- `project-docs/02-requirements/traceability-matrix.md` → **Update**
+- `docs/planning/increment-roadmap.md` → **Update if scope/order changes**
+- `docs/planning/risk-log.md` → **Update**
+- `docs/requirements/traceability-matrix.md` → **Update**
 
 ### Output
 
@@ -279,13 +279,13 @@ Feature فقط وقتی Done است که:
 
 اگر clarification فقط Formalization است:
 
-- `project-docs/02-requirements/srs.md` → **Update**
+- `docs/requirements/srs.md` → **Update**
 
 اگر رفتار محصول واقعاً تغییر کرد:
 
-- `project-docs/decision-register.md` → **New/updated decision entry**
-- `project-docs/02-requirements/system-definition.md` → **Update**
-- `project-docs/02-requirements/srs.md` → **Update**
+- `docs/decision-register.md` → **New/updated decision entry**
+- `docs/requirements/system-definition.md` → **Update**
+- `docs/requirements/srs.md` → **Update**
 
 ### Output
 
@@ -308,9 +308,9 @@ Refined testable requirements
 
 ### Documents
 
-- `project-docs/reference/analysis/...` → **New or Update**
-- `project-docs/03-design/domain-model.md` → **Update only if domain understanding changes**
-- `project-docs/02-requirements/traceability-matrix.md` → **Update**
+- `docs/reference/analysis/...` → **New or Update**
+- `docs/design/domain-model.md` → **Update only if domain understanding changes**
+- `docs/requirements/traceability-matrix.md` → **Update**
 
 ### Output
 
@@ -334,12 +334,12 @@ Analysis sufficient for Design
 
 ### Documents
 
-- `project-docs/03-design/architecture.md` → **Update if needed**
-- `project-docs/03-design/data-model.md` → **Update**
+- `docs/design/architecture.md` → **Update if needed**
+- `docs/design/data-model.md` → **Update**
 - ERD → **Update**
 - API/OpenAPI → **Update**
-- `project-docs/03-design/ui-ux/` → **Update**
-- `project-docs/03-design/security-design.md` → **Update**
+- `docs/design/ui-ux/` → **Update**
+- `docs/design/security-design.md` → **Update**
 - relevant specialized spec → **New/Update**
 - ADR → **New for significant decision**
 
@@ -367,9 +367,9 @@ Acceptance Criteria باید قبل از کامل شدن Implementation قابل
 
 ### Documents
 
-- `project-docs/05-quality/test-strategy.md` → **usually unchanged**
+- `docs/quality/test-strategy.md` → **usually unchanged**
 - test code/cases → **New/Update**
-- `project-docs/02-requirements/traceability-matrix.md` → **Update**
+- `docs/requirements/traceability-matrix.md` → **Update**
 
 ---
 
@@ -447,6 +447,10 @@ Review:
 
 # 7. Increment 0 — Formal Specification + Engineering Baseline
 
+> **Implementation checkpoint — 2026-09-06:** scaffold, developer-only client/API/PostgreSQL walking skeleton, time baseline, and verification tooling now exist. See [the foundation review](../tracking/increment-0-foundation-review.md) for evidence and outstanding release gates.
+>
+> **Increment 1 local implementation checkpoint — 2026-09-08:** identity, account, organization and basic Task APIs are implemented, with a minimal Expo client for sign-in, Inbox/Lists, Task create/edit/move/status and Trash/restore. Component tests, web/Android bundles and desktop/mobile client-to-PostgreSQL E2E are green locally. Configured external delivery/provider smoke, hosted CI and release publication remain open; therefore the whole Increment is not closed. See [I1 readiness](../tracking/increment-1-readiness.md) and [client review](../tracking/increment-1-client-review.md).
+
 ## Goal
 
 تبدیل سه سند canonical فعلی به baseline مهندسی قابل اجرا، بدون Big Design Up Front.
@@ -457,7 +461,7 @@ Review:
 
 ### Formalize / Replace Derived Reference — Completed
 
-`project-docs/02-requirements/srs.md`
+`docs/requirements/srs.md`
 
 نسخه‌ی reconciled قبلی در Formal SRS Baseline v2.8 بازنویسی شده و فقط requirementهای قابل بیان/تست را normative می‌کند.
 
@@ -470,7 +474,7 @@ Review:
 
 ### Created
 
-`project-docs/02-requirements/traceability-matrix.md`
+`docs/requirements/traceability-matrix.md`
 
 Baseline trace:
 
@@ -501,18 +505,18 @@ Technical baselines retained:
 
 ### New
 
-- `project-docs/03-design/architecture.md`
+- `docs/design/architecture.md`
 - first ADRs
-- `project-docs/06-operations/release-deployment.md`
-- `project-docs/03-design/security-design.md`
-- `project-docs/05-quality/test-strategy.md`
-- `project-docs/01-planning/risk-log.md`
+- `docs/operations/release-deployment.md`
+- `docs/design/security-design.md`
+- `docs/quality/test-strategy.md`
+- `docs/planning/risk-log.md`
 
 ---
 
 ## 7.3 Data Design Baseline
 
-`project-docs/03-design/domain-model.md` is conceptual and must not be copied mechanically into database tables.
+`docs/design/domain-model.md` is conceptual and must not be copied mechanically into database tables.
 
 ### Confirmed persistence baseline
 
@@ -520,7 +524,7 @@ Personal V1 uses explicit composition rather than ORM/class inheritance for Item
 
 ### Created in Increment 0 baseline
 
-- `project-docs/03-design/data-model.md`
+- `docs/design/data-model.md`
 
 Physical ERD can start minimal and evolve.
 
@@ -528,7 +532,7 @@ Physical ERD can start minimal and evolve.
 
 ## 7.3.1 Time Semantics Baseline
 
-Create `TIME_SEMANTICS_SPEC.md` before time-bearing domain choices are locked. Increment 0 baseline must define the shared vocabulary/invariants for:
+Create `docs/design/time-semantics-spec.md` before time-bearing domain choices are locked. Increment 0 baseline must define the shared vocabulary/invariants for:
 
 - real/canonical instant;
 - Calendar Day;
@@ -625,7 +629,7 @@ Before locking foundational design in Increments 1–5, teams must review the In
 - branching History/Audit compatibility;
 - server-authorization/revocation behavior for later reconciliation.
 
-Likewise, time-bearing entities must follow the `TIME_SEMANTICS_SPEC.md` baseline from the start even though recurrence and advanced time behavior are completed later. Implementation can be deferred; foundational incompatibility cannot.
+Likewise, time-bearing entities must follow the `docs/design/time-semantics-spec.md` baseline from the start even though recurrence and advanced time behavior are completed later. Implementation can be deferred; foundational incompatibility cannot.
 
 ---
 
@@ -766,18 +770,18 @@ Endpoints are designed here, not globally in advance.
 
 ### New
 
-- `project-docs/03-design/api-contracts.md` or `openapi.yaml`
+- `docs/design/api-contracts.md` or `openapi.yaml`
 - initial physical ERD
 
 ### Update
 
-- `project-docs/02-requirements/srs.md`
-- `project-docs/03-design/data-model.md`
-- `project-docs/03-design/architecture.md`
-- `project-docs/03-design/ui-ux/`
-- `project-docs/03-design/security-design.md`
-- `project-docs/02-requirements/traceability-matrix.md`
-- `project-docs/01-planning/risk-log.md`
+- `docs/requirements/srs.md`
+- `docs/design/data-model.md`
+- `docs/design/architecture.md`
+- `docs/design/ui-ux/`
+- `docs/design/security-design.md`
+- `docs/requirements/traceability-matrix.md`
+- `docs/planning/risk-log.md`
 
 ### Canonical Documents
 
@@ -1038,10 +1042,10 @@ No RichDescription parse for List tree.
 
 ### Update
 
-- `project-docs/02-requirements/srs.md`
-- `project-docs/03-design/domain-model.md` **only if resolved design changes conceptual model**
-- `project-docs/decision-register.md` only if a genuinely new Product/Domain question is discovered or canonical rationale must be reconciled
-- `project-docs/03-design/data-model.md`
+- `docs/requirements/srs.md`
+- `docs/design/domain-model.md` **only if resolved design changes conceptual model**
+- `docs/decision-register.md` only if a genuinely new Product/Domain question is discovered or canonical rationale must be reconciled
+- `docs/design/data-model.md`
 - ERD
 - API
 - UI/UX
@@ -1232,8 +1236,8 @@ Implementation may use composition/embedded/shared table according to Data Desig
 
 ### Update
 
-- `project-docs/02-requirements/srs.md`
-- `project-docs/03-design/data-model.md`
+- `docs/requirements/srs.md`
+- `docs/design/data-model.md`
 - ERD
 - API
 - UI/UX
@@ -1366,7 +1370,7 @@ Persistent/alarm-like intent is represented in domain/API now. Current PWA deliv
 
 # 11.6 Time and Calendar Semantics
 
-Must analyze in `TIME_SEMANTICS_SPEC.md` and design/test comprehensively:
+Must analyze in `docs/design/time-semantics-spec.md` and design/test comprehensively:
 
 - distinction between real instant, Calendar Day, Dotick Day, `RoutineCompletion.occurrence_date` and credited/effective date
 - UTC/canonical instant for shared schedulable items
@@ -1508,7 +1512,7 @@ Technical API error is translated into understandable UI message.
 
 ### Update
 
-- `project-docs/03-design/ui-ux/`
+- `docs/design/ui-ux/`
 - API for query/filter/sort needs
 - Data Design for user view preference if persisted
 - Security for rich content rendering
@@ -1574,7 +1578,7 @@ Must finalize engineering representation for the already-confirmed sync semantic
 - recurrence edit conflict
 - tag relation conflict
 
-Decision goes to `project-docs/decision-register.md`.
+Decision goes to `docs/decision-register.md`.
 
 ---
 
@@ -2582,7 +2586,7 @@ Verify:
 - sync conflict tests
 - historical edit correctness, including immutable finalized statistical windows
 - branching History ↔ Audit ↔ Sync consistency
-- comprehensive `TIME_SEMANTICS_SPEC.md` golden vectors across timezone/DST/Jalali/Gregorian/Dotick-Day boundaries
+- comprehensive `docs/design/time-semantics-spec.md` golden vectors across timezone/DST/Jalali/Gregorian/Dotick-Day boundaries
 - Routine Reset + AuditLog correctness
 - day finalization idempotency
 - AI service outage fallback
@@ -3237,7 +3241,7 @@ release
 ```text
 /
 ├── README.md
-├── project-docs/
+├── docs/
 │   ├── 00-README.md
 │   ├── decision-register.md
 │   ├── 01-planning/
@@ -3320,7 +3324,7 @@ Native Mobile / OS-specific Capabilities
 
 This revision intentionally changes earlier planning assumptions:
 
-1. `project-docs/02-requirements/system-definition.md`, `project-docs/03-design/domain-model.md`, `project-docs/decision-register.md` are now canonical.
+1. `docs/requirements/system-definition.md`, `docs/design/domain-model.md`, `docs/decision-register.md` are now canonical.
 2. Formal SRS requirement layer is below System Definition/Decision Register; non-canonical reference files remain derived and must be reconciled when stale.
 3. Increment 0 no longer contains obsolete contradiction-reconciliation work.
 4. Current role model is System-defined Roles; Custom Roles move to Enterprise.

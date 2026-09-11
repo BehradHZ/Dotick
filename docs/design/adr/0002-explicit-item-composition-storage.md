@@ -2,7 +2,7 @@
 
 > **Status:** Accepted
 > **Date:** 2026-08-17
-> **Decision:** DR-054
+> **Decision:** DR-052
 
 # Context
 

@@ -1,8 +1,8 @@
 # Dotick Architecture Baseline
 
-> **Status:** Increment 0 baseline
+> **Status:** Increment 1 backend implemented locally; client/release integration pending
 > **Date:** 2026-08-17
-> **Decision sources:** DR-053, DR-054
+> **Decision sources:** DR-051, DR-052; client scope DR-066
 > **Scope:** Personal V1 and the Increment 0 Walking Skeleton
 
 # 1. Purpose
@@ -16,7 +16,7 @@
 - PostgreSQL به‌عنوان persistence اصلی.
 - mobile-first و web-capable با مسیر قابل حفظ برای Android/iOS.
 - ownership isolation از اولین query.
-- قابلیت اجرای local-hosted.
+- developer-local execution؛ بدون supported end-user self-hosting commitment.
 - جداسازی core task management از AI و integrationهای خارجی.
 - تکامل مرحله‌ای بدون طراحی فیزیکی همه‌ی Incrementها در ابتدا.
 
@@ -26,7 +26,7 @@
 User
   |
   v
-Expo / React Native / Web client
+Expo / React Native for Web PWA client
   |
   | HTTPS + JSON REST
   v
@@ -71,6 +71,7 @@ Infrastructure (Django ORM, PostgreSQL, external adapters)
 | Backend language | Python 3.14 | runtime پشتیبانی‌شده در Django/DRF و موجود در محیط فعلی |
 | Backend framework | Django 5.2 LTS | auth، ORM، migration و operational guardrail یکپارچه |
 | REST API | Django REST Framework | validation، serialization، authentication/permission hooks و contract testing |
+| JWT | Simple JWT 5.5.1 / PyJWT 2.13.0 | signed token validation behind database-backed revocable session state |
 | Runtime model | ASGI | مسیر استاندارد برای HTTP و WebSocket آینده |
 | Frontend | TypeScript + Expo SDK 57 + React Native + React Native for Web | client مستقل و mobile-first با reuse میان web/native |
 | Database | PostgreSQL | الزام SRS و integrity/query capability |
@@ -88,16 +89,16 @@ apps/
   client/              Expo universal client
 packages/
   api-contract/        generated/client-facing contract artifacts when introduced
-project-docs/
-  01-planning/
-  02-requirements/
-  03-design/
+docs/
+  planning/
+  requirements/
+  design/
     adr/
     ui-ux/
-  04-development/
-  05-quality/
-  06-operations/
-  08-tracking/
+  development/
+  quality/
+  operations/
+  tracking/
   reference/
 ```
 
@@ -118,6 +119,8 @@ apps/api/dotick/
 
 # 7. Increment 0 Walking Skeleton
 
+Implemented at `apps/api` and `apps/client`; the disposable checkpoint contract is in [foundation-api.md](foundation-api.md). This is a developer-only web workbench. I1 owns product identity; I5/I6 own the full PWA UI/offline behavior. No native client is released in I0. Actual dependency versions are recorded in the root lockfiles. The runtime tree uses `docs/` and its current unnumbered folders.
+
 Walking Skeleton باید یک resource persisted واقعی داشته باشد و این مسیر را اثبات کند:
 
 ```text
@@ -135,7 +138,7 @@ resource باید خنثی و قابل حذف باشد، یا اولین thin sl
 # 8. API boundaries
 
 - endpointها در Increment مالک و در OpenAPI تعریف می‌شوند؛ global endpoint inventory از قبل ساخته نمی‌شود.
-- JSON field naming و error envelope در اولین contract Increment 1 ثابت می‌شوند.
+- JSON field naming و stable error envelope در contract کامل backend Increment 1 تثبیت شده‌اند.
 - validation syntactic در serializer/interface و validation business در domain/application انجام می‌شود.
 - API نباید Django model shape را به‌طور خودکار contract عمومی کند.
 - authorization باید پیش از fetch/serialization داده‌ی خصوصی اعمال شود.
@@ -144,7 +147,7 @@ resource باید خنثی و قابل حذف باشد، یا اولین thin sl
 # 9. Data and transaction boundaries
 
 - PostgreSQL تنها system of record server-side است.
-- storage strategy مطابق DR-054 explicit composition است.
+- storage strategy مطابق DR-052 explicit composition است.
 - هر use case تغییردهنده یک transaction boundary روشن دارد.
 - constraintهای قابل بیان در database فقط در application code رها نمی‌شوند.
 - migration append-only است؛ migration اعمال‌شده rewrite نمی‌شود.
@@ -154,8 +157,9 @@ resource باید خنثی و قابل حذف باشد، یا اولین thin sl
 # 10. Authentication and authorization
 
 - custom User model با UUID باید قبل از اولین migration تثبیت شود.
-- password handling به API استاندارد Django واگذار می‌شود و algorithm policy در `project-docs/03-design/security-design.md` است.
-- JWT، Google OAuth و Passkey در Increment 1 پشت adapter/use-caseهای مستقل قرار می‌گیرند.
+- password handling به API استاندارد Django واگذار می‌شود و algorithm policy در `docs/design/security-design.md` است.
+- verified email/password/contact، Google assertion، Passkey و revocable JWT session در [Authentication Design](authentication-design.md) پشت adapter/use-caseهای مستقل پیاده شده‌اند؛ credentialهای deployment-specific هنوز release smoke می‌خواهند.
+- `identity` Account/credential/session boundary را مالک است؛ `organization` Inbox/Folder/List/Column/preferences، `items` identity/ownership/version/source و `tasks` status/use case پایه را با composition صریح جدا نگه می‌دارند.
 - authentication method نباید ownership model را تغییر دهد.
 - queryهای private با owner scope آغاز می‌شوند؛ object lookup بدون scope مجاز نیست.
 - Group authorization تا Increment 7 وارد schema یا abstraction عمومی premature نمی‌شود.
@@ -194,7 +198,7 @@ resource باید خنثی و قابل حذف باشد، یا اولین thin sl
 
 موارد زیر عمداً در این baseline بسته نشده‌اند:
 
-- endpointهای دقیق و error envelope تا Increment 1 API design.
+- endpointهای Increment 2+ تا Increment مالک؛ endpointها و error envelope مربوط به I1 در `openapi.json` تثبیت شده‌اند.
 - WebSocket channel topology تا Increment 7.
 - background queue/Redis تا اولین use case نیازمند آن.
 - offline sync metadata تا Increment 6.

@@ -2,11 +2,11 @@
 
 > **Status:** Accepted
 > **Date:** 2026-08-17
-> **Decision:** DR-053
+> **Decision:** DR-051
 
 # Context
 
-Dotick به frontend/backend جدا، PostgreSQL، REST/JSON، مسیر mobile-first و local-hosted deployment نیاز دارد. پروژه در حال بازسازی document-first است و یک تیم کوچک باید بتواند بدون هزینه‌ی عملیاتی microserviceها Incrementهای متعدد domain را تحویل دهد.
+Dotick به frontend/backend جدا، PostgreSQL، REST/JSON، مسیر mobile-first و developer-local execution نیاز دارد. پروژه در حال بازسازی document-first است و یک تیم کوچک باید بتواند بدون هزینه‌ی عملیاتی microserviceها Incrementهای متعدد domain را تحویل دهد.
 
 # Decision
 

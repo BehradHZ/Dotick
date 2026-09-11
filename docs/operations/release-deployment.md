@@ -2,9 +2,11 @@
 
 > **Status:** Increment 0 baseline
 > **Date:** 2026-08-17
-> **Primary target:** reproducible local development and local-hosted Personal V1
+> **Primary target:** reproducible developer-local and CI execution; no supported end-user self-hosting product
 
 # 1. Deployment units
+
+I0 implemented topology: `compose.yaml` runs PostgreSQL, an unprivileged ASGI API, and an unprivileged server for the Expo web export. Published ports bind only to `127.0.0.1`. See [environment setup](../development/environment-setup.md). TLS/reverse-proxy and production recovery remain later deployment gates; the topology below is prospective, not a claim of a shipped production runtime.
 
 Baseline Compose topology:
 
@@ -24,7 +26,7 @@ Development می‌تواند client dev server و Django dev server را جدا
 |---|---|---|
 | local-dev | fast edit/test | disposable developer data |
 | test/CI | deterministic verification | ephemeral database |
-| local-hosted | Personal V1 runtime | persistent volume + backup |
+| developer-local | private engineering runtime | disposable/persistent development volume |
 | production-like | TLS/config/migration rehearsal | non-production data |
 
 # 3. Configuration
