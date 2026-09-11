@@ -197,7 +197,12 @@ def test_organization_resources_are_versioned_and_idempotent_before_implementati
     list_update = schemas["ListUpdateRequest"]
     assert "version" in list_update["required"]
 
-    for path in ("/api/v1/folders/{folder_id}", "/api/v1/lists/{list_id}", "/api/v1/columns/{column_id}"):
+    organization_paths = (
+        "/api/v1/folders/{folder_id}",
+        "/api/v1/lists/{list_id}",
+        "/api/v1/columns/{column_id}",
+    )
+    for path in organization_paths:
         assert "IfMatch" in _parameter_refs(paths[path]["delete"])
         assert "409" in paths[path]["delete"]["responses"]
 
