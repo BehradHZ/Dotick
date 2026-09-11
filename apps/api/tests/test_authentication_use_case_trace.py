@@ -49,7 +49,7 @@ def test_cross_method_identity_and_revocation_invariants_are_formalized():
         "stable internal User identity",
         "none replaces it",
         "server-revocable",
-        "do not silently merge/link",
+        "do **not** silently merge/link",
         "same internal User/session boundary",
     )
     for phrase in required_phrases:
