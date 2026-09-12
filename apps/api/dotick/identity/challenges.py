@@ -69,48 +69,56 @@ def issue_challenge(*, user, purpose):
     return code
 
 
-def consume_challenge(*, user, purpose, code):
+@transaction.atomic
+def try_consume_challenge(*, user, purpose, code):
     _validate_purpose(purpose)
     now = timezone.now()
     consumed_challenge = None
-    invalid = False
 
-    with transaction.atomic():
-        locked_user = get_user_model().objects.select_for_update().get(pk=user.pk)
+    locked_user = get_user_model().objects.select_for_update().get(pk=user.pk)
 
-        try:
-            challenge = (
-                VerificationChallenge.objects.select_for_update()
-                .filter(
-                    user=locked_user,
-                    purpose=purpose,
-                    consumed_at__isnull=True,
-                )
-                .latest("created_at")
-            )
-        except VerificationChallenge.DoesNotExist:
-            invalid = True
-        else:
-            expected_digest = _code_digest(
-                user_id=locked_user.id,
+    try:
+        challenge = (
+            VerificationChallenge.objects.select_for_update()
+            .filter(
+                user=locked_user,
                 purpose=purpose,
-                code=code,
+                consumed_at__isnull=True,
             )
+            .latest("created_at")
+        )
+    except VerificationChallenge.DoesNotExist:
+        pass
+    else:
+        expected_digest = _code_digest(
+            user_id=locked_user.id,
+            purpose=purpose,
+            code=code,
+        )
 
-            if challenge.expires_at <= now:
-                invalid = True
-            elif not compare_digest(challenge.code_digest, expected_digest):
-                challenge.failed_attempts += 1
-                if challenge.failed_attempts >= MAX_FAILED_ATTEMPTS:
-                    challenge.consumed_at = now
-                challenge.save(update_fields=["failed_attempts", "consumed_at"])
-                invalid = True
-            else:
+        if challenge.expires_at <= now:
+            pass
+        elif not compare_digest(challenge.code_digest, expected_digest):
+            challenge.failed_attempts += 1
+            if challenge.failed_attempts >= MAX_FAILED_ATTEMPTS:
                 challenge.consumed_at = now
-                challenge.save(update_fields=["consumed_at"])
-                consumed_challenge = challenge
+            challenge.save(update_fields=["failed_attempts", "consumed_at"])
+        else:
+            challenge.consumed_at = now
+            challenge.save(update_fields=["consumed_at"])
+            consumed_challenge = challenge
 
-    if invalid:
+    return consumed_challenge
+
+
+def consume_challenge(*, user, purpose, code):
+    consumed_challenge = try_consume_challenge(
+        user=user,
+        purpose=purpose,
+        code=code,
+    )
+
+    if consumed_challenge is None:
         raise InvalidChallenge
 
     return consumed_challenge

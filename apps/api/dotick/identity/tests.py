@@ -73,6 +73,17 @@ class CustomUserTests(TestCase):
                     display_name="Second Case User",
                 )
 
+    def test_database_rejects_email_that_bypasses_normalization(self):
+        user = get_user_model().objects.create_user(
+            email="normalized@example.test",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                get_user_model().objects.filter(pk=user.pk).update(
+                    email=" Not-Normalized@Example.TEST "
+                )
+
     def test_account_fields_preserve_uuid_identity_and_lifecycle(self):
         user = get_user_model().objects.create_user(
             email="account@example.test",
@@ -130,6 +141,24 @@ class CustomUserTests(TestCase):
 
         self.assertRegex(user.handle, r"^[A-Za-z0-9_]{3,30}$")
         self.assertEqual(user.display_name, "generated.identity")
+        self.assertIsNone(user.profile_picture_url)
+
+    def test_display_name_is_not_unique(self):
+        get_user_model().objects.create_user(
+            email="first-name@example.test",
+            handle="first_name_user",
+            display_name="Shared Name",
+        )
+        get_user_model().objects.create_user(
+            email="second-name@example.test",
+            handle="second_name_user",
+            display_name="Shared Name",
+        )
+
+        self.assertEqual(
+            get_user_model().objects.filter(display_name="Shared Name").count(),
+            2,
+        )
 
     def test_password_is_hashed_with_argon2(self):
         password = "Strong-Test-Password-123!"
@@ -200,8 +229,14 @@ class VerificationChallengeTests(TestCase):
         issued_at = timezone.now()
 
         with (
-            patch("dotick.identity.challenges.timezone.now", return_value=issued_at),
-            patch("dotick.identity.challenges.secrets.randbelow", return_value=42),
+            patch(
+                "dotick.identity.challenges.timezone.now",
+                return_value=issued_at,
+            ),
+            patch(
+                "dotick.identity.challenges.secrets.randbelow",
+                return_value=42,
+            ) as secure_random,
         ):
             code = issue_challenge(
                 user=self.user,
@@ -209,6 +244,7 @@ class VerificationChallengeTests(TestCase):
             )
 
         challenge = VerificationChallenge.objects.get()
+        secure_random.assert_called_once_with(1_000_000)
         self.assertEqual(code, "000042")
         self.assertNotEqual(challenge.code_digest, code)
         self.assertEqual(len(challenge.code_digest), 64)

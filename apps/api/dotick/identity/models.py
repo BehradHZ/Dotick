@@ -5,7 +5,7 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models.functions import Lower
+from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
 from dotick.identity.validators import validate_iana_timezone
@@ -95,6 +95,10 @@ class User(AbstractUser):
             models.UniqueConstraint(
                 Lower("email"),
                 name="identity_user_email_ci_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(email=Trim(Lower("email"))),
+                name="identity_user_email_normalized",
             ),
             models.UniqueConstraint(
                 Lower("handle"),
