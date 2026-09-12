@@ -2,9 +2,10 @@ import uuid
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import identify_hasher
-from django.core.exceptions import FieldDoesNotExist
+from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.utils import timezone
 
 
 class CustomUserTests(TestCase):
@@ -25,6 +26,17 @@ class CustomUserTests(TestCase):
 
         self.assertEqual(user.email, "developer@example.test")
 
+    def test_direct_save_normalizes_email_to_lowercase(self):
+        user = get_user_model()(
+            email="  Direct@Example.TEST  ",
+            handle="direct_user",
+            display_name="Direct User",
+        )
+
+        user.save()
+
+        self.assertEqual(user.email, "direct@example.test")
+
     def test_user_primary_key_is_uuid(self):
         user = get_user_model().objects.create_user(
             email="uuid@example.test",
@@ -38,13 +50,75 @@ class CustomUserTests(TestCase):
 
         user_model.objects.create(
             email="CaseSensitive@Example.TEST",
+            handle="first_case_user",
+            display_name="First Case User",
         )
 
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 user_model.objects.create(
                     email="casesensitive@example.test",
+                    handle="second_case_user",
+                    display_name="Second Case User",
                 )
+
+    def test_account_fields_preserve_uuid_identity_and_lifecycle(self):
+        user = get_user_model().objects.create_user(
+            email="account@example.test",
+            password="Strong-Test-Password-123!",
+            handle="Account_User",
+            display_name="Account User",
+            profile_picture_url="https://example.test/profile.png",
+            is_active=False,
+        )
+
+        account_id = user.id
+        verified_at = timezone.now()
+        user.email_verified_at = verified_at
+        user.is_active = True
+        user.save(update_fields=["email_verified_at", "is_active"])
+        user.refresh_from_db()
+
+        self.assertEqual(user.id, account_id)
+        self.assertEqual(user.handle, "Account_User")
+        self.assertEqual(user.display_name, "Account User")
+        self.assertEqual(user.profile_picture_url, "https://example.test/profile.png")
+        self.assertEqual(user.email_verified_at, verified_at)
+        self.assertTrue(user.is_active)
+
+    def test_handle_is_case_insensitively_unique(self):
+        user_model = get_user_model()
+        user_model.objects.create_user(
+            email="first-handle@example.test",
+            handle="Shared_Handle",
+            display_name="First User",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                user_model.objects.create_user(
+                    email="second-handle@example.test",
+                    handle="shared_handle",
+                    display_name="Second User",
+                )
+
+    def test_handle_validator_enforces_public_format(self):
+        user = get_user_model()(
+            email="invalid-handle@example.test",
+            handle="no-hyphens",
+            display_name="Invalid Handle",
+        )
+
+        with self.assertRaises(ValidationError):
+            user.full_clean()
+
+    def test_framework_created_user_gets_required_identity_fields(self):
+        user = get_user_model().objects.create_user(
+            email="generated.identity@example.test",
+        )
+
+        self.assertRegex(user.handle, r"^[A-Za-z0-9_]{3,30}$")
+        self.assertEqual(user.display_name, "generated.identity")
 
     def test_password_is_hashed_with_argon2(self):
         password = "Strong-Test-Password-123!"
