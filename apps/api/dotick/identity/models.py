@@ -7,6 +7,8 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
 
+from dotick.identity.validators import validate_iana_timezone
+
 HANDLE_PATTERN = r"^[A-Za-z0-9_]{3,30}$"
 handle_validator = RegexValidator(
     regex=HANDLE_PATTERN,
@@ -106,3 +108,25 @@ class User(AbstractUser):
                 name="identity_user_display_name_nonempty",
             ),
         ]
+
+
+class UserPreferences(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="preferences",
+    )
+    timezone = models.CharField(
+        max_length=64,
+        validators=[validate_iana_timezone],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = "user_preferences"

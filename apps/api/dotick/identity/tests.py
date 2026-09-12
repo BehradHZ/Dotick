@@ -7,6 +7,8 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.utils import timezone
 
+from dotick.identity.models import UserPreferences
+
 
 class CustomUserTests(TestCase):
     def test_identity_user_is_the_configured_custom_user(self):
@@ -140,3 +142,38 @@ class CustomUserTests(TestCase):
         found = get_user_model().objects.get_by_natural_key("LOOKUP@EXAMPLE.TEST")
 
         self.assertEqual(found, user)
+
+
+class UserPreferencesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = get_user_model().objects.create_user(
+            email="preferences@example.test",
+            password="Strong-Test-Password-123!",
+        )
+
+    def test_preferences_use_account_uuid_and_store_iana_timezone(self):
+        preferences = UserPreferences.objects.create(
+            user=self.user,
+            timezone="Europe/Berlin",
+        )
+
+        self.assertEqual(preferences.pk, self.user.id)
+        self.assertEqual(preferences.timezone, "Europe/Berlin")
+
+    def test_preferences_reject_unknown_timezone(self):
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Enter a valid IANA timezone identifier.",
+        ):
+            UserPreferences.objects.create(
+                user=self.user,
+                timezone="Mars/Olympus_Mons",
+            )
+
+        self.assertFalse(UserPreferences.objects.filter(user=self.user).exists())
+
+    def test_preferences_do_not_include_day_boundary_behavior(self):
+        field_names = {field.name for field in UserPreferences._meta.get_fields()}
+
+        self.assertNotIn("day_boundary_offset_minutes", field_names)
