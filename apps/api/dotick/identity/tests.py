@@ -1,4 +1,6 @@
 import uuid
+from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import identify_hasher
@@ -7,7 +9,14 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.utils import timezone
 
-from dotick.identity.models import UserPreferences
+from dotick.identity.challenges import (
+    CHALLENGE_TTL,
+    ChallengeIssuanceBlocked,
+    InvalidChallenge,
+    consume_challenge,
+    issue_challenge,
+)
+from dotick.identity.models import UserPreferences, VerificationChallenge
 
 
 class CustomUserTests(TestCase):
@@ -177,3 +186,181 @@ class UserPreferencesTests(TestCase):
         field_names = {field.name for field in UserPreferences._meta.get_fields()}
 
         self.assertNotIn("day_boundary_offset_minutes", field_names)
+
+
+class VerificationChallengeTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = get_user_model().objects.create_user(
+            email="challenge@example.test",
+            password="Strong-Test-Password-123!",
+        )
+
+    def test_code_is_six_digits_and_only_hmac_digest_is_persisted(self):
+        issued_at = timezone.now()
+
+        with (
+            patch("dotick.identity.challenges.timezone.now", return_value=issued_at),
+            patch("dotick.identity.challenges.secrets.randbelow", return_value=42),
+        ):
+            code = issue_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            )
+
+        challenge = VerificationChallenge.objects.get()
+        self.assertEqual(code, "000042")
+        self.assertNotEqual(challenge.code_digest, code)
+        self.assertEqual(len(challenge.code_digest), 64)
+        self.assertNotIn(code, str(challenge.__dict__))
+        self.assertEqual(challenge.expires_at, issued_at + CHALLENGE_TTL)
+
+    def test_challenge_is_single_use(self):
+        code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+
+        consume_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            code=code,
+        )
+
+        with self.assertRaises(InvalidChallenge):
+            consume_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+                code=code,
+            )
+
+    def test_expired_challenge_is_rejected(self):
+        issued_at = timezone.now()
+
+        with patch("dotick.identity.challenges.timezone.now", return_value=issued_at):
+            code = issue_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            )
+
+        with (
+            patch(
+                "dotick.identity.challenges.timezone.now",
+                return_value=issued_at + CHALLENGE_TTL,
+            ),
+            self.assertRaises(InvalidChallenge),
+        ):
+            consume_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+                code=code,
+            )
+
+    def test_new_challenge_consumes_previous_challenge_for_same_purpose(self):
+        first_code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+        first = VerificationChallenge.objects.get()
+        VerificationChallenge.objects.filter(pk=first.pk).update(
+            created_at=timezone.now() - timedelta(minutes=2)
+        )
+
+        second_code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+        first.refresh_from_db()
+
+        self.assertIsNotNone(first.consumed_at)
+        with self.assertRaises(InvalidChallenge):
+            consume_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+                code=first_code,
+            )
+        consume_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            code=second_code,
+        )
+
+    def test_fifth_failed_attempt_consumes_challenge(self):
+        code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+        )
+        wrong_code = "000000" if code != "000000" else "111111"
+
+        for _ in range(5):
+            with self.assertRaises(InvalidChallenge):
+                consume_challenge(
+                    user=self.user,
+                    purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+                    code=wrong_code,
+                )
+
+        challenge = VerificationChallenge.objects.get()
+        self.assertEqual(challenge.failed_attempts, 5)
+        self.assertIsNotNone(challenge.consumed_at)
+        with self.assertRaises(InvalidChallenge):
+            consume_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+                code=code,
+            )
+
+    def test_issuance_has_sixty_second_cooldown(self):
+        issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+
+        with self.assertRaises(ChallengeIssuanceBlocked):
+            issue_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            )
+
+        self.assertEqual(VerificationChallenge.objects.count(), 1)
+
+    def test_issuance_is_limited_to_five_per_hour(self):
+        now = timezone.now()
+        for minutes_ago in (2, 4, 6, 8, 10):
+            VerificationChallenge.objects.create(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+                code_digest="a" * 64,
+                expires_at=now + timedelta(minutes=10),
+                consumed_at=now,
+                created_at=now - timedelta(minutes=minutes_ago),
+            )
+
+        with self.assertRaises(ChallengeIssuanceBlocked):
+            issue_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            )
+
+        self.assertEqual(VerificationChallenge.objects.count(), 5)
+
+    def test_limits_and_invalidation_are_scoped_by_purpose(self):
+        email_code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+        reset_code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+        )
+
+        consume_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            code=email_code,
+        )
+        consume_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+            code=reset_code,
+        )

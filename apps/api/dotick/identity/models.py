@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 from dotick.identity.validators import validate_iana_timezone
 
@@ -130,3 +131,41 @@ class UserPreferences(models.Model):
 
     class Meta:
         db_table = "user_preferences"
+
+
+class VerificationChallenge(models.Model):
+    class Purpose(models.TextChoices):
+        EMAIL_VERIFICATION = "email_verification", "Email verification"
+        PASSWORD_RESET = "password_reset", "Password reset"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="verification_challenges",
+    )
+    purpose = models.CharField(max_length=32, choices=Purpose.choices)
+    code_digest = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = "identity_verification_challenges"
+        indexes = [
+            models.Index(
+                fields=["user", "purpose", "-created_at"],
+                name="identity_challenge_lookup",
+            )
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(failed_attempts__lte=5),
+                name="identity_challenge_attempts_lte_5",
+            )
+        ]
