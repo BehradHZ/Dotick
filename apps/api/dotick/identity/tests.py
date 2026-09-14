@@ -272,6 +272,29 @@ class ExternalIdentityTests(TestCase):
                     subject="unsupported-subject",
                 )
 
+    def test_provider_subject_is_globally_unique(self):
+        first_user = get_user_model().objects.create_user(
+            email="first-google-subject@example.test",
+            password=None,
+        )
+        second_user = get_user_model().objects.create_user(
+            email="second-google-subject@example.test",
+            password=None,
+        )
+        ExternalIdentity.objects.create(
+            user=first_user,
+            provider=ExternalIdentity.Provider.GOOGLE,
+            subject="global-google-subject",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ExternalIdentity.objects.create(
+                    user=second_user,
+                    provider=ExternalIdentity.Provider.GOOGLE,
+                    subject="global-google-subject",
+                )
+
 
 class VerificationChallengeTests(TestCase):
     @classmethod
