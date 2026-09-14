@@ -19,6 +19,7 @@ from dotick.identity.challenges import (
 from dotick.identity.models import (
     AuthSession,
     ExternalIdentity,
+    PasskeyChallenge,
     PasskeyCredential,
     UserPreferences,
     VerificationChallenge,
@@ -350,6 +351,33 @@ class PasskeyCredentialTests(TestCase):
                     public_key=b"second-public-key",
                     name="Second passkey",
                 )
+
+
+class PasskeyChallengeTests(TestCase):
+    def test_challenge_supports_registration_and_discoverable_authentication(self):
+        user = get_user_model().objects.create_user(
+            email="passkey-challenge@example.test",
+            password=None,
+        )
+        now = timezone.now()
+        registration = PasskeyChallenge.objects.create(
+            user=user,
+            purpose=PasskeyChallenge.Purpose.REGISTRATION,
+            challenge=b"registration-challenge",
+            name="Laptop passkey",
+            expires_at=now + timedelta(minutes=5),
+        )
+        authentication = PasskeyChallenge.objects.create(
+            user=None,
+            purpose=PasskeyChallenge.Purpose.AUTHENTICATION,
+            challenge=b"authentication-challenge",
+            expires_at=now + timedelta(minutes=5),
+        )
+
+        self.assertEqual(registration.user, user)
+        self.assertIsNone(authentication.user)
+        self.assertIsNone(registration.consumed_at)
+        self.assertIsNone(authentication.consumed_at)
 
 
 class VerificationChallengeTests(TestCase):

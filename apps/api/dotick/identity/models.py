@@ -267,3 +267,37 @@ class PasskeyCredential(models.Model):
                 name="identity_passkey_user",
             )
         ]
+
+
+class PasskeyChallenge(models.Model):
+    class Purpose(models.TextChoices):
+        REGISTRATION = "registration", "Registration"
+        AUTHENTICATION = "authentication", "Authentication"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="passkey_challenges",
+        null=True,
+        blank=True,
+    )
+    purpose = models.CharField(max_length=32, choices=Purpose.choices)
+    challenge = models.BinaryField(unique=True)
+    name = models.CharField(max_length=120, blank=True)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = "identity_passkey_challenges"
+        indexes = [
+            models.Index(
+                fields=["purpose", "expires_at"],
+                name="identity_passkey_challenge",
+            )
+        ]
