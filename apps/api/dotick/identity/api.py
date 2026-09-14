@@ -407,6 +407,12 @@ class FinishPasskeyAuthentication(PublicIdentityView):
         )
 
 
+class Passkeys(AuthenticatedIdentityView):
+    def get(self, request):
+        passkeys = PasskeyCredential.objects.filter(user=request.user).order_by("-created_at")
+        return Response({"results": PasskeyOutput(passkeys, many=True).data})
+
+
 class RevokeOwnedSession(AuthenticatedIdentityView):
     def delete(self, request, session_id):
         session = get_object_or_404(

@@ -26,6 +26,7 @@ PASSKEY_REGISTRATION_OPTIONS_URL = "/api/v1/auth/passkeys/registration/options"
 PASSKEY_REGISTRATION_VERIFY_URL = "/api/v1/auth/passkeys/registration/verify"
 PASSKEY_AUTHENTICATION_OPTIONS_URL = "/api/v1/auth/passkeys/authentication/options"
 PASSKEY_AUTHENTICATION_VERIFY_URL = "/api/v1/auth/passkeys/authentication/verify"
+PASSKEYS_URL = "/api/v1/auth/passkeys"
 
 
 def _authenticated_client(user, *, session_age=timedelta(0)):
@@ -595,3 +596,45 @@ def test_passkey_authentication_verification_updates_counter_and_creates_session
         format="json",
     )
     assert replay.status_code == 400
+
+
+def test_passkey_listing_contains_only_owned_credentials():
+    user = get_user_model().objects.create_user(
+        email="passkey-list@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    other_user = get_user_model().objects.create_user(
+        email="other-passkey-list@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    owned = PasskeyCredential.objects.create(
+        user=user,
+        credential_id=b"owned-list-credential",
+        public_key=b"owned-list-public-key",
+        device_type="multi_device",
+        backed_up=True,
+        name="Owned passkey",
+    )
+    PasskeyCredential.objects.create(
+        user=other_user,
+        credential_id=b"foreign-list-credential",
+        public_key=b"foreign-list-public-key",
+        name="Foreign passkey",
+    )
+    client, _ = _authenticated_client(user)
+
+    response = client.get(PASSKEYS_URL)
+
+    assert response.status_code == 200
+    assert response.json()["results"] == [
+        {
+            "id": str(owned.id),
+            "name": "Owned passkey",
+            "device_type": "multi_device",
+            "backed_up": True,
+            "created_at": owned.created_at.isoformat().replace("+00:00", "Z"),
+            "last_used_at": None,
+        }
+    ]
