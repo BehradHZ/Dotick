@@ -15,6 +15,7 @@ pytestmark = pytest.mark.django_db
 
 TOKEN_URL = "/api/v1/auth/token"
 REFRESH_URL = "/api/v1/auth/token/refresh"
+LOGOUT_URL = "/api/v1/auth/logout"
 
 
 def test_jwt_access_and_refresh_lifetimes():
@@ -222,3 +223,23 @@ def test_access_authentication_rejects_missing_session_claim():
         SessionJWTAuthentication().authenticate(request)
 
     assert rejected.value.get_codes() == "token_not_valid"
+
+
+def test_logout_revokes_current_session_and_access_token():
+    user = get_user_model().objects.create_user(
+        email="logout@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    session, pair = create_auth_session(user=user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair.access}")
+
+    response = client.post(LOGOUT_URL, format="json")
+
+    assert response.status_code == 204
+    session.refresh_from_db()
+    assert session.revoked_at is not None
+    rejected = client.post(LOGOUT_URL, format="json")
+    assert rejected.status_code == 401
+    assert rejected.json()["error"]["code"] == "token_not_valid"

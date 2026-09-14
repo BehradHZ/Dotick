@@ -59,3 +59,9 @@ def rotate_refresh_token(*, encoded_refresh):
     session.last_seen_at = timezone.now()
     session.save(update_fields=["refresh_jti", "last_seen_at"])
     return token_pair
+
+
+def revoke_current_session(*, session):
+    if session.revoked_at is None:
+        session.revoked_at = timezone.now()
+        session.save(update_fields=["revoked_at"])
