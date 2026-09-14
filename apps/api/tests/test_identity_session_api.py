@@ -1,7 +1,10 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import close_old_connections
 from django.utils import timezone
 from dotick.identity.authentication import SessionJWTAuthentication
 from dotick.identity.models import AuthSession
@@ -178,6 +181,34 @@ def test_refresh_rejects_reuse_without_invalidating_current_token():
     assert replayed.status_code == 401
     assert replayed.json()["error"]["code"] == "token_not_valid"
     assert current.status_code == 200
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_refresh_rotation_accepts_token_once():
+    user = get_user_model().objects.create_user(
+        email="concurrent-refresh@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    _, pair = create_auth_session(user=user)
+    barrier = Barrier(2)
+
+    def refresh_once():
+        close_old_connections()
+        try:
+            barrier.wait()
+            return APIClient().post(
+                REFRESH_URL,
+                {"refresh": pair.refresh},
+                format="json",
+            ).status_code
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        statuses = list(executor.map(lambda _: refresh_once(), range(2)))
+
+    assert sorted(statuses) == [200, 401]
 
 
 def test_access_authentication_requires_active_server_session():
