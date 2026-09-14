@@ -422,6 +422,34 @@ class AccountContactTests(TestCase):
         self.assertEqual(contact.user, user)
         self.assertEqual(list(user.account_contacts.all()), [contact])
 
+    def test_phone_is_trimmed_and_validated_as_e164(self):
+        user = get_user_model().objects.create_user(
+            email="phone-contact@example.test",
+            password=None,
+        )
+
+        contact = AccountContact.objects.create(
+            user=user,
+            kind=AccountContact.Kind.PHONE,
+            value="  +4915112345678  ",
+        )
+
+        self.assertEqual(contact.value, "+4915112345678")
+
+    def test_non_e164_phone_values_are_rejected(self):
+        user = get_user_model().objects.create_user(
+            email="invalid-phone-contact@example.test",
+            password=None,
+        )
+
+        for value in ("015112345678", "+01", "+49 151 12345678", "+" + "1" * 16):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                AccountContact.objects.create(
+                    user=user,
+                    kind=AccountContact.Kind.PHONE,
+                    value=value,
+                )
+
 
 class VerificationChallengeTests(TestCase):
     @classmethod
