@@ -8,7 +8,7 @@ from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
-from dotick.identity.validators import validate_iana_timezone
+from dotick.identity.validators import normalize_contact_value, validate_iana_timezone
 
 HANDLE_PATTERN = r"^[A-Za-z0-9_]{3,30}$"
 handle_validator = RegexValidator(
@@ -300,4 +300,51 @@ class PasskeyChallenge(models.Model):
                 fields=["purpose", "expires_at"],
                 name="identity_passkey_challenge",
             )
+        ]
+
+
+class AccountContact(models.Model):
+    class Kind(models.TextChoices):
+        EMAIL = "email", "Email"
+        PHONE = "phone", "Phone"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="account_contacts",
+    )
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    value = models.CharField(max_length=254)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.value = normalize_contact_value(self.kind, self.value)
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = "identity_account_contacts"
+        indexes = [
+            models.Index(
+                fields=["user", "kind", "verified_at"],
+                name="identity_contact_user",
+            )
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(kind__in=["email", "phone"]),
+                name="identity_contact_kind_valid",
+            ),
+            models.UniqueConstraint(
+                fields=["kind", "value"],
+                condition=models.Q(verified_at__isnull=False),
+                name="identity_verified_contact_unique",
+            ),
         ]

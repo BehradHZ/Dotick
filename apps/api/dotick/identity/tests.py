@@ -17,6 +17,7 @@ from dotick.identity.challenges import (
     issue_challenge,
 )
 from dotick.identity.models import (
+    AccountContact,
     AuthSession,
     ExternalIdentity,
     PasskeyChallenge,
@@ -402,6 +403,24 @@ class PasskeyChallengeTests(TestCase):
         secure_random.assert_called_once_with(32)
         self.assertEqual(bytes(challenge.challenge), random_bytes)
         self.assertEqual(challenge.expires_at, issued_at + PASSKEY_CHALLENGE_TTL)
+
+
+class AccountContactTests(TestCase):
+    def test_contact_belongs_to_internal_user(self):
+        user = get_user_model().objects.create_user(
+            email="contact-owner@example.test",
+            password=None,
+        )
+
+        contact = AccountContact.objects.create(
+            user=user,
+            kind=AccountContact.Kind.EMAIL,
+            value="secondary@example.test",
+        )
+
+        self.assertIsInstance(contact.pk, uuid.UUID)
+        self.assertEqual(contact.user, user)
+        self.assertEqual(list(user.account_contacts.all()), [contact])
 
 
 class VerificationChallengeTests(TestCase):
