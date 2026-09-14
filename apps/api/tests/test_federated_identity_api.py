@@ -9,7 +9,7 @@ from dotick.identity.google_identity import (
     InvalidGoogleCredential,
     verify_google_id_credential,
 )
-from dotick.identity.models import ExternalIdentity
+from dotick.identity.models import ExternalIdentity, PasskeyCredential
 from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
 
@@ -371,3 +371,37 @@ def test_google_only_account_can_sign_in_without_password_or_passkey():
     assert response.status_code == 200
     assert not user.has_usable_password()
     assert response.json()["user"]["email"] == user.email
+
+
+def test_google_sign_in_recommends_fallback_only_when_none_exists():
+    user = get_user_model().objects.create_user(
+        email="google-passkey-fallback@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    ExternalIdentity.objects.create(
+        user=user,
+        provider=ExternalIdentity.Provider.GOOGLE,
+        subject="google-passkey-fallback-subject",
+    )
+    PasskeyCredential.objects.create(
+        user=user,
+        credential_id=b"fallback-passkey-id",
+        public_key=b"fallback-public-key",
+        name="Fallback passkey",
+    )
+    with patch(
+        "dotick.identity.application.verify_google_id_credential",
+        return_value=_google_claims(
+            subject="google-passkey-fallback-subject",
+            email=user.email,
+        ),
+    ):
+        response = APIClient().post(
+            GOOGLE_URL,
+            {"credential": "signed-google-id-credential"},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert response.json()["fallback_recommended"] is False

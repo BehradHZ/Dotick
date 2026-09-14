@@ -295,7 +295,7 @@ def set_password(*, user, session, password, current_password=None):
 
 
 def _fallback_recommended(user):
-    return not user.has_usable_password()
+    return not user.has_usable_password() and not user.passkey_credentials.exists()
 
 
 def _verify_google_credential(credential):
