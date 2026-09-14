@@ -3,8 +3,10 @@ Django settings for the Dotick API foundation.
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -99,6 +101,21 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ]
+
+JWT_SIGNING_KEY = os.getenv("DJANGO_JWT_SIGNING_KEY", "").strip()
+if not JWT_SIGNING_KEY:
+    if not IS_LOCAL:
+        raise ImproperlyConfigured("DJANGO_JWT_SIGNING_KEY is required outside local/test.")
+    JWT_SIGNING_KEY = SECRET_KEY
+elif not IS_LOCAL and len(JWT_SIGNING_KEY) < 50:
+    raise ImproperlyConfigured("DJANGO_JWT_SIGNING_KEY must contain at least 50 characters.")
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
+}
 
 FOUNDATION_ENABLED = IS_LOCAL and os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"
 FOUNDATION_MAX_REQUEST_BODY_BYTES = 16 * 1024
