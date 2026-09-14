@@ -301,3 +301,32 @@ def test_user_can_revoke_one_owned_session_but_not_another_users_session():
     assert revoked.status_code == 204
     owned.refresh_from_db()
     assert owned.revoked_at is not None
+
+
+def test_user_can_revoke_all_owned_sessions():
+    user = get_user_model().objects.create_user(
+        email="revoke-all@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    other_user = get_user_model().objects.create_user(
+        email="other-revoke-all@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    current, current_pair = create_auth_session(user=user)
+    second, _ = create_auth_session(user=user)
+    other, _ = create_auth_session(user=other_user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {current_pair.access}")
+
+    response = client.delete(SESSIONS_URL)
+
+    assert response.status_code == 204
+    current.refresh_from_db()
+    second.refresh_from_db()
+    other.refresh_from_db()
+    assert current.revoked_at is not None
+    assert second.revoked_at is not None
+    assert other.revoked_at is None
+    assert client.get(SESSIONS_URL).status_code == 401

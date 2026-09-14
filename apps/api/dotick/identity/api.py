@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 
 from dotick.identity import application
 from dotick.identity.models import AuthSession
-from dotick.identity.sessions import revoke_session
+from dotick.identity.sessions import revoke_all_sessions, revoke_session
 
 
 class StrictSerializer(serializers.Serializer):
@@ -168,6 +168,10 @@ class ActiveSessions(AuthenticatedIdentityView):
             context={"current_session_id": request.auth_session.id},
         )
         return Response({"results": serializer.data})
+
+    def delete(self, request):
+        revoke_all_sessions(user=request.user)
+        return Response(status=204)
 
 
 class RevokeOwnedSession(AuthenticatedIdentityView):

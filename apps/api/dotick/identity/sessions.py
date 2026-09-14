@@ -65,3 +65,10 @@ def revoke_session(*, session):
     if session.revoked_at is None:
         session.revoked_at = timezone.now()
         session.save(update_fields=["revoked_at"])
+
+
+def revoke_all_sessions(*, user):
+    return AuthSession.objects.filter(
+        user=user,
+        revoked_at__isnull=True,
+    ).update(revoked_at=timezone.now())
