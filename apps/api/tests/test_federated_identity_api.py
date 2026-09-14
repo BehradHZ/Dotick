@@ -259,3 +259,26 @@ def test_authenticated_user_can_explicitly_link_google_identity():
         provider=ExternalIdentity.Provider.GOOGLE,
         subject="explicit-link-subject",
     ).user == user
+
+
+def test_google_linking_requires_recent_authentication():
+    user = get_user_model().objects.create_user(
+        email="stale-link-target@example.test",
+        password="Independent-password-fallback-8!",
+        email_verified_at=timezone.now(),
+    )
+    client, _ = _authenticated_client(user, session_age=timedelta(minutes=11))
+    with patch(
+        "dotick.identity.application.verify_google_id_credential",
+        return_value=_google_claims(subject="stale-link-subject"),
+    ) as verifier:
+        response = client.post(
+            GOOGLE_LINK_URL,
+            {"credential": "signed-google-id-credential"},
+            format="json",
+        )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "recent_auth_required"
+    assert not ExternalIdentity.objects.exists()
+    verifier.assert_not_called()
