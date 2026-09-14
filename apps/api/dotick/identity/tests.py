@@ -24,6 +24,11 @@ from dotick.identity.models import (
     UserPreferences,
     VerificationChallenge,
 )
+from dotick.identity.passkeys import (
+    PASSKEY_CHALLENGE_BYTES,
+    PASSKEY_CHALLENGE_TTL,
+    issue_passkey_challenge,
+)
 
 
 class CustomUserTests(TestCase):
@@ -378,6 +383,25 @@ class PasskeyChallengeTests(TestCase):
         self.assertIsNone(authentication.user)
         self.assertIsNone(registration.consumed_at)
         self.assertIsNone(authentication.consumed_at)
+
+    def test_challenge_uses_32_secure_random_bytes_and_expires_in_five_minutes(self):
+        issued_at = timezone.now()
+        random_bytes = b"x" * PASSKEY_CHALLENGE_BYTES
+
+        with (
+            patch("dotick.identity.passkeys.timezone.now", return_value=issued_at),
+            patch(
+                "dotick.identity.passkeys.secrets.token_bytes",
+                return_value=random_bytes,
+            ) as secure_random,
+        ):
+            challenge = issue_passkey_challenge(
+                purpose=PasskeyChallenge.Purpose.AUTHENTICATION,
+            )
+
+        secure_random.assert_called_once_with(32)
+        self.assertEqual(bytes(challenge.challenge), random_bytes)
+        self.assertEqual(challenge.expires_at, issued_at + PASSKEY_CHALLENGE_TTL)
 
 
 class VerificationChallengeTests(TestCase):
