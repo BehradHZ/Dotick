@@ -317,3 +317,28 @@ def test_google_subject_is_authoritative_when_claimed_email_matches_another_acco
     assert response.json()["user"]["email"] == subject_owner.email
     assert subject_owner.auth_sessions.count() == 1
     assert email_owner.auth_sessions.count() == 0
+
+
+def test_google_sign_in_never_auto_links_existing_account_by_email():
+    existing = get_user_model().objects.create_user(
+        email="existing-google-email@example.test",
+        password="Independent-password-fallback-8!",
+        email_verified_at=timezone.now(),
+    )
+    with patch(
+        "dotick.identity.application.verify_google_id_credential",
+        return_value=_google_claims(
+            subject="unlinked-google-subject",
+            email=existing.email,
+        ),
+    ):
+        response = APIClient().post(
+            GOOGLE_URL,
+            {"credential": "signed-google-id-credential"},
+            format="json",
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "account_link_required"
+    assert not ExternalIdentity.objects.exists()
+    assert not existing.auth_sessions.exists()
