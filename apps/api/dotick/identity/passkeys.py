@@ -9,8 +9,15 @@ from webauthn import (
     generate_authentication_options,
     generate_registration_options,
     options_to_json,
+    verify_authentication_response,
     verify_registration_response,
 )
+from webauthn.authentication.verify_authentication_response import (
+    InvalidAuthenticationResponse,
+    InvalidSignature,
+)
+from webauthn.helpers import parse_authentication_credential_json
+from webauthn.helpers.exceptions import InvalidJSONStructure
 from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
@@ -20,6 +27,7 @@ from webauthn.helpers.structs import (
 from webauthn.registration.verify_registration_response import InvalidRegistrationResponse
 
 from dotick.identity.models import PasskeyChallenge, PasskeyCredential
+from dotick.identity.sessions import create_auth_session
 
 PASSKEY_CHALLENGE_BYTES = 32
 PASSKEY_CHALLENGE_TTL = timedelta(minutes=5)
@@ -135,3 +143,66 @@ def begin_passkey_authentication():
         user_verification=UserVerificationRequirement.REQUIRED,
     )
     return challenge, json.loads(options_to_json(options))
+
+
+@transaction.atomic
+def finish_passkey_authentication(*, challenge_id, credential, user_agent=""):
+    now = timezone.now()
+    try:
+        challenge = PasskeyChallenge.objects.select_for_update().get(
+            id=challenge_id,
+            purpose=PasskeyChallenge.Purpose.AUTHENTICATION,
+            consumed_at__isnull=True,
+            expires_at__gt=now,
+        )
+        parsed_credential = parse_authentication_credential_json(credential)
+        passkey = (
+            PasskeyCredential.objects.select_for_update()
+            .select_related("user")
+            .get(
+                credential_id=parsed_credential.raw_id,
+                user__is_active=True,
+            )
+        )
+    except (
+        InvalidAuthenticationResponse,
+        InvalidJSONStructure,
+        PasskeyChallenge.DoesNotExist,
+        PasskeyCredential.DoesNotExist,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as error:
+        raise InvalidPasskeyChallenge from error
+
+    user_handle = parsed_credential.response.user_handle
+    if user_handle is None or user_handle != passkey.user_id.bytes:
+        raise InvalidPasskeyChallenge
+
+    try:
+        verification = verify_authentication_response(
+            credential=parsed_credential,
+            expected_challenge=bytes(challenge.challenge),
+            expected_rp_id=settings.WEBAUTHN_RP_ID,
+            expected_origin=settings.WEBAUTHN_ORIGIN,
+            credential_public_key=bytes(passkey.public_key),
+            credential_current_sign_count=passkey.sign_count,
+            require_user_verification=True,
+        )
+    except (InvalidAuthenticationResponse, InvalidSignature, TypeError, ValueError) as error:
+        raise InvalidPasskeyChallenge from error
+
+    if verification.credential_id != bytes(passkey.credential_id):
+        raise InvalidPasskeyChallenge
+
+    passkey.sign_count = verification.new_sign_count
+    passkey.device_type = verification.credential_device_type.value
+    passkey.backed_up = verification.credential_backed_up
+    passkey.last_used_at = now
+    passkey.save(
+        update_fields=["sign_count", "device_type", "backed_up", "last_used_at"]
+    )
+    challenge.consumed_at = now
+    challenge.save(update_fields=["consumed_at"])
+    _, token_pair = create_auth_session(user=passkey.user, user_agent=user_agent)
+    return passkey.user, token_pair

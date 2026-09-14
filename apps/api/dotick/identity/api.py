@@ -15,6 +15,7 @@ from dotick.identity.passkeys import (
     PasskeyCredentialConflict,
     begin_passkey_authentication,
     begin_passkey_registration,
+    finish_passkey_authentication,
     finish_passkey_registration,
 )
 from dotick.identity.sessions import (
@@ -377,6 +378,31 @@ class BeginPasskeyAuthentication(PublicIdentityView):
             {
                 "challenge_id": challenge.id,
                 "public_key": public_key,
+            }
+        )
+
+
+class FinishPasskeyAuthentication(PublicIdentityView):
+    def post(self, request):
+        serializer = PasskeyCeremonyInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            user, token_pair = finish_passkey_authentication(
+                **serializer.validated_data,
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except InvalidPasskeyChallenge as error:
+            raise InvalidPasskeyCeremony from error
+        return Response(
+            {
+                "access": token_pair.access,
+                "refresh": token_pair.refresh,
+                "user": {
+                    "email": user.email,
+                    "handle": user.handle,
+                    "display_name": user.display_name,
+                },
+                "fallback_recommended": False,
             }
         )
 

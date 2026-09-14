@@ -13,7 +13,7 @@ from dotick.identity.google_identity import (
 from dotick.identity.models import ExternalIdentity, PasskeyChallenge, PasskeyCredential
 from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
-from webauthn.helpers import base64url_to_bytes
+from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 from webauthn.helpers.structs import CredentialDeviceType
 
 pytestmark = pytest.mark.django_db
@@ -25,6 +25,7 @@ GOOGLE_LINK_URL = "/api/v1/auth/google/link"
 PASSKEY_REGISTRATION_OPTIONS_URL = "/api/v1/auth/passkeys/registration/options"
 PASSKEY_REGISTRATION_VERIFY_URL = "/api/v1/auth/passkeys/registration/verify"
 PASSKEY_AUTHENTICATION_OPTIONS_URL = "/api/v1/auth/passkeys/authentication/options"
+PASSKEY_AUTHENTICATION_VERIFY_URL = "/api/v1/auth/passkeys/authentication/verify"
 
 
 def _authenticated_client(user, *, session_age=timedelta(0)):
@@ -517,3 +518,80 @@ def test_passkey_authentication_options_are_discoverable_and_public():
     assert base64url_to_bytes(public_key["challenge"]) == bytes(challenge.challenge)
     assert public_key.get("allowCredentials") in (None, [])
     assert public_key["userVerification"] == "required"
+
+
+def test_passkey_authentication_verification_updates_counter_and_creates_session():
+    user = get_user_model().objects.create_user(
+        email="passkey-authentication@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    passkey = PasskeyCredential.objects.create(
+        user=user,
+        credential_id=b"authentication-credential-id",
+        public_key=b"authentication-public-key",
+        sign_count=3,
+        device_type="single_device",
+        backed_up=False,
+        name="Authentication passkey",
+    )
+    options = APIClient().post(
+        PASSKEY_AUTHENTICATION_OPTIONS_URL,
+        {},
+        format="json",
+    ).json()
+    credential = {
+        "id": bytes_to_base64url(bytes(passkey.credential_id)),
+        "rawId": bytes_to_base64url(bytes(passkey.credential_id)),
+        "response": {
+            "clientDataJSON": bytes_to_base64url(b"client-data"),
+            "authenticatorData": bytes_to_base64url(b"authenticator-data"),
+            "signature": bytes_to_base64url(b"signature"),
+            "userHandle": bytes_to_base64url(user.id.bytes),
+        },
+        "type": "public-key",
+    }
+    verification = SimpleNamespace(
+        credential_id=bytes(passkey.credential_id),
+        new_sign_count=4,
+        credential_device_type=CredentialDeviceType.MULTI_DEVICE,
+        credential_backed_up=True,
+    )
+
+    with patch(
+        "dotick.identity.passkeys.verify_authentication_response",
+        return_value=verification,
+    ) as verifier:
+        response = APIClient().post(
+            PASSKEY_AUTHENTICATION_VERIFY_URL,
+            {
+                "challenge_id": options["challenge_id"],
+                "credential": credential,
+            },
+            format="json",
+            HTTP_USER_AGENT="Passkey test client",
+        )
+
+    assert response.status_code == 200
+    passkey.refresh_from_db()
+    challenge = PasskeyChallenge.objects.get(id=options["challenge_id"])
+    assert passkey.sign_count == 4
+    assert passkey.device_type == "multi_device"
+    assert passkey.backed_up is True
+    assert passkey.last_used_at is not None
+    assert challenge.consumed_at is not None
+    assert user.auth_sessions.get().user_agent == "Passkey test client"
+    assert response.json()["user"]["email"] == user.email
+    assert response.json()["fallback_recommended"] is False
+    assert verifier.call_args.kwargs["credential_current_sign_count"] == 3
+    assert verifier.call_args.kwargs["require_user_verification"] is True
+
+    replay = APIClient().post(
+        PASSKEY_AUTHENTICATION_VERIFY_URL,
+        {
+            "challenge_id": options["challenge_id"],
+            "credential": credential,
+        },
+        format="json",
+    )
+    assert replay.status_code == 400
