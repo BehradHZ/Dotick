@@ -19,6 +19,7 @@ from dotick.identity.challenges import (
 from dotick.identity.models import (
     AuthSession,
     ExternalIdentity,
+    PasskeyCredential,
     UserPreferences,
     VerificationChallenge,
 )
@@ -294,6 +295,29 @@ class ExternalIdentityTests(TestCase):
                     provider=ExternalIdentity.Provider.GOOGLE,
                     subject="global-google-subject",
                 )
+
+
+class PasskeyCredentialTests(TestCase):
+    def test_passkey_credential_belongs_to_internal_user(self):
+        user = get_user_model().objects.create_user(
+            email="passkey@example.test",
+            password=None,
+        )
+
+        passkey = PasskeyCredential.objects.create(
+            user=user,
+            credential_id=b"credential-id",
+            public_key=b"credential-public-key",
+            sign_count=4,
+            device_type="multi_device",
+            backed_up=True,
+            transports=["internal"],
+            name="Laptop passkey",
+        )
+
+        self.assertIsInstance(passkey.pk, uuid.UUID)
+        self.assertEqual(passkey.user, user)
+        self.assertEqual(list(user.passkey_credentials.all()), [passkey])
 
 
 class VerificationChallengeTests(TestCase):

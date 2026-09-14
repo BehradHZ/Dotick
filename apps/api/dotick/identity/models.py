@@ -236,3 +236,34 @@ class ExternalIdentity(models.Model):
                 name="identity_external_user_provider_unique",
             ),
         ]
+
+
+class PasskeyCredential(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="passkey_credentials",
+    )
+    credential_id = models.BinaryField(unique=True)
+    public_key = models.BinaryField()
+    sign_count = models.PositiveBigIntegerField(default=0)
+    device_type = models.CharField(max_length=32)
+    backed_up = models.BooleanField(default=False)
+    transports = models.JSONField(default=list, blank=True)
+    name = models.CharField(max_length=120)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "identity_passkey_credentials"
+        indexes = [
+            models.Index(
+                fields=["user", "-created_at"],
+                name="identity_passkey_user",
+            )
+        ]
