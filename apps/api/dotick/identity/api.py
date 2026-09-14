@@ -116,6 +116,14 @@ class VerifyEmail(PublicIdentityView):
         return Response(status=204)
 
 
+class RequestPasswordReset(PublicIdentityView):
+    def post(self, request):
+        serializer = EmailInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        application.request_password_reset(**serializer.validated_data)
+        return Response({"status": "accepted"}, status=202)
+
+
 class CreateTokenPair(PublicIdentityView):
     def post(self, request):
         serializer = TokenInput(data=request.data)

@@ -48,6 +48,15 @@ def _send_verification_email(*, user, code):
     )
 
 
+def _send_password_reset_email(*, user, code):
+    send_mail(
+        subject="Reset your Dotick password",
+        message=f"Your Dotick password reset code is {code}. It expires in 10 minutes.",
+        from_email=None,
+        recipient_list=[user.email],
+    )
+
+
 def _issue_email_verification(user):
     try:
         return issue_challenge(
@@ -121,6 +130,34 @@ def resend_email_verification(*, email):
 
     if recipient is not None and code is not None:
         _send_verification_email(user=recipient, code=code)
+
+
+def request_password_reset(*, email):
+    user_model = get_user_model()
+    recipient = None
+    code = None
+
+    with transaction.atomic():
+        recipient = (
+            user_model.objects.select_for_update()
+            .filter(
+                email__iexact=normalize_email(email),
+                email_verified_at__isnull=False,
+                is_active=True,
+            )
+            .first()
+        )
+        if recipient is not None:
+            try:
+                code = issue_challenge(
+                    user=recipient,
+                    purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+                )
+            except ChallengeIssuanceBlocked:
+                code = None
+
+    if recipient is not None and code is not None:
+        _send_password_reset_email(user=recipient, code=code)
 
 
 def verify_email(*, email, code):
