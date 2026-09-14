@@ -342,3 +342,32 @@ def test_google_sign_in_never_auto_links_existing_account_by_email():
     assert response.json()["error"]["code"] == "account_link_required"
     assert not ExternalIdentity.objects.exists()
     assert not existing.auth_sessions.exists()
+
+
+def test_google_only_account_can_sign_in_without_password_or_passkey():
+    user = get_user_model().objects.create_user(
+        email="google-only-returning@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    ExternalIdentity.objects.create(
+        user=user,
+        provider=ExternalIdentity.Provider.GOOGLE,
+        subject="google-only-returning-subject",
+    )
+    with patch(
+        "dotick.identity.application.verify_google_id_credential",
+        return_value=_google_claims(
+            subject="google-only-returning-subject",
+            email=user.email,
+        ),
+    ):
+        response = APIClient().post(
+            GOOGLE_URL,
+            {"credential": "signed-google-id-credential"},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert not user.has_usable_password()
+    assert response.json()["user"]["email"] == user.email
