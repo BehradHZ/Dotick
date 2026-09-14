@@ -672,3 +672,22 @@ def test_passkey_deletion_is_scoped_to_owner():
     assert PasskeyCredential.objects.filter(pk=foreign.id).exists()
     assert deleted.status_code == 204
     assert not PasskeyCredential.objects.filter(pk=owned.id).exists()
+
+
+def test_passkey_enrollment_requires_recent_authenticated_session():
+    user = get_user_model().objects.create_user(
+        email="stale-passkey-enrollment@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    client, _ = _authenticated_client(user, session_age=timedelta(minutes=11))
+
+    response = client.post(
+        PASSKEY_REGISTRATION_OPTIONS_URL,
+        {"name": "Stale session passkey"},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "recent_auth_required"
+    assert not PasskeyChallenge.objects.exists()
