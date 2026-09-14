@@ -638,3 +638,37 @@ def test_passkey_listing_contains_only_owned_credentials():
             "last_used_at": None,
         }
     ]
+
+
+def test_passkey_deletion_is_scoped_to_owner():
+    user = get_user_model().objects.create_user(
+        email="passkey-delete@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    other_user = get_user_model().objects.create_user(
+        email="other-passkey-delete@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    owned = PasskeyCredential.objects.create(
+        user=user,
+        credential_id=b"owned-delete-credential",
+        public_key=b"owned-delete-public-key",
+        name="Owned passkey",
+    )
+    foreign = PasskeyCredential.objects.create(
+        user=other_user,
+        credential_id=b"foreign-delete-credential",
+        public_key=b"foreign-delete-public-key",
+        name="Foreign passkey",
+    )
+    client, _ = _authenticated_client(user)
+
+    hidden = client.delete(f"{PASSKEYS_URL}/{foreign.id}")
+    deleted = client.delete(f"{PASSKEYS_URL}/{owned.id}")
+
+    assert hidden.status_code == 404
+    assert PasskeyCredential.objects.filter(pk=foreign.id).exists()
+    assert deleted.status_code == 204
+    assert not PasskeyCredential.objects.filter(pk=owned.id).exists()

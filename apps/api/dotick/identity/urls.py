@@ -12,6 +12,7 @@ urlpatterns = [
     path("google", api.GoogleSignIn.as_view()),
     path("google/link", api.LinkGoogleIdentity.as_view()),
     path("passkeys", api.Passkeys.as_view()),
+    path("passkeys/<uuid:passkey_id>", api.DeletePasskey.as_view()),
     path("passkeys/registration/options", api.BeginPasskeyRegistration.as_view()),
     path("passkeys/registration/verify", api.FinishPasskeyRegistration.as_view()),
     path("passkeys/authentication/options", api.BeginPasskeyAuthentication.as_view()),

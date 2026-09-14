@@ -413,6 +413,17 @@ class Passkeys(AuthenticatedIdentityView):
         return Response({"results": PasskeyOutput(passkeys, many=True).data})
 
 
+class DeletePasskey(AuthenticatedIdentityView):
+    def delete(self, request, passkey_id):
+        passkey = get_object_or_404(
+            PasskeyCredential,
+            id=passkey_id,
+            user=request.user,
+        )
+        passkey.delete()
+        return Response(status=204)
+
+
 class RevokeOwnedSession(AuthenticatedIdentityView):
     def delete(self, request, session_id):
         session = get_object_or_404(
