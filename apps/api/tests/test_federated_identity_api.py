@@ -12,6 +12,7 @@ from dotick.identity.google_identity import (
 from dotick.identity.models import ExternalIdentity, PasskeyCredential
 from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
+from webauthn.helpers import base64url_to_bytes
 
 pytestmark = pytest.mark.django_db
 
@@ -19,6 +20,7 @@ PASSWORD_URL = "/api/v1/auth/password"
 TOKEN_URL = "/api/v1/auth/token"
 GOOGLE_URL = "/api/v1/auth/google"
 GOOGLE_LINK_URL = "/api/v1/auth/google/link"
+PASSKEY_REGISTRATION_OPTIONS_URL = "/api/v1/auth/passkeys/registration/options"
 
 
 def _authenticated_client(user, *, session_age=timedelta(0)):
@@ -405,3 +407,28 @@ def test_google_sign_in_recommends_fallback_only_when_none_exists():
 
     assert response.status_code == 200
     assert response.json()["fallback_recommended"] is False
+
+
+def test_passkey_registration_options_use_persisted_challenge_and_account_identity():
+    user = get_user_model().objects.create_user(
+        email="registration-options@example.test",
+        password=None,
+        display_name="Registration Options User",
+        email_verified_at=timezone.now(),
+    )
+    client, _ = _authenticated_client(user)
+
+    response = client.post(
+        PASSKEY_REGISTRATION_OPTIONS_URL,
+        {"name": "Laptop passkey"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    challenge = user.passkey_challenges.get(id=payload["challenge_id"])
+    public_key = payload["public_key"]
+    assert base64url_to_bytes(public_key["challenge"]) == bytes(challenge.challenge)
+    assert base64url_to_bytes(public_key["user"]["id"]) == user.id.bytes
+    assert public_key["user"]["name"] == user.email
+    assert challenge.name == "Laptop passkey"

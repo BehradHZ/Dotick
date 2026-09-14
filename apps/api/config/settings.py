@@ -118,6 +118,9 @@ SIMPLE_JWT = {
 }
 
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+WEBAUTHN_RP_ID = os.getenv("WEBAUTHN_RP_ID", "localhost").strip()
+WEBAUTHN_RP_NAME = os.getenv("WEBAUTHN_RP_NAME", "Dotick").strip()
+WEBAUTHN_ORIGIN = os.getenv("WEBAUTHN_ORIGIN", "http://localhost:8081").strip()
 
 FOUNDATION_ENABLED = IS_LOCAL and os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"
 FOUNDATION_MAX_REQUEST_BODY_BYTES = 16 * 1024

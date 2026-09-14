@@ -3,13 +3,20 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.identity import application
 from dotick.identity.models import AuthSession
-from dotick.identity.sessions import revoke_all_sessions, revoke_session
+from dotick.identity.passkeys import begin_passkey_registration
+from dotick.identity.sessions import (
+    RecentAuthenticationRequired,
+    require_recent_authentication,
+    revoke_all_sessions,
+    revoke_session,
+)
 
 
 class StrictSerializer(serializers.Serializer):
@@ -115,6 +122,10 @@ class GoogleCredentialInput(StrictSerializer):
         trim_whitespace=False,
         write_only=True,
     )
+
+
+class PasskeyNameInput(StrictSerializer):
+    name = serializers.CharField(max_length=120, trim_whitespace=True)
 
 
 class AuthSessionOutput(serializers.ModelSerializer):
@@ -283,6 +294,29 @@ class LinkGoogleIdentity(AuthenticatedIdentityView):
             **serializer.validated_data,
         )
         return Response(status=204)
+
+
+class BeginPasskeyRegistration(AuthenticatedIdentityView):
+    def post(self, request):
+        serializer = PasskeyNameInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            require_recent_authentication(session=request.auth_session)
+        except RecentAuthenticationRequired as error:
+            raise PermissionDenied(
+                "Recent authentication is required.",
+                code="recent_auth_required",
+            ) from error
+        challenge, public_key = begin_passkey_registration(
+            user=request.user,
+            **serializer.validated_data,
+        )
+        return Response(
+            {
+                "challenge_id": challenge.id,
+                "public_key": public_key,
+            }
+        )
 
 
 class RevokeOwnedSession(AuthenticatedIdentityView):
