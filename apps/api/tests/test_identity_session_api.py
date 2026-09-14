@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from dotick.identity.authentication import SessionJWTAuthentication
 from dotick.identity.models import AuthSession
-from dotick.identity.sessions import create_auth_session, revoke_current_session
+from dotick.identity.sessions import create_auth_session, revoke_session
 from dotick.identity.tokens import issue_token_pair
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIClient, APIRequestFactory
@@ -260,7 +260,7 @@ def test_active_session_listing_is_owned_and_marks_current_session():
     current, current_pair = create_auth_session(user=user, user_agent="Current browser")
     second, _ = create_auth_session(user=user, user_agent="Phone")
     revoked, _ = create_auth_session(user=user, user_agent="Old browser")
-    revoke_current_session(session=revoked)
+    revoke_session(session=revoked)
     create_auth_session(user=other_user, user_agent="Other account")
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {current_pair.access}")
@@ -273,3 +273,31 @@ def test_active_session_listing_is_owned_and_marks_current_session():
     assert {entry["user_agent"] for entry in results} == {"Current browser", "Phone"}
     assert next(entry for entry in results if entry["id"] == str(current.id))["current"] is True
     assert next(entry for entry in results if entry["id"] == str(second.id))["current"] is False
+
+
+def test_user_can_revoke_one_owned_session_but_not_another_users_session():
+    user = get_user_model().objects.create_user(
+        email="session-owner@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    other_user = get_user_model().objects.create_user(
+        email="other-session-owner@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    _, current_pair = create_auth_session(user=user)
+    owned, _ = create_auth_session(user=user)
+    other, _ = create_auth_session(user=other_user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {current_pair.access}")
+
+    hidden = client.delete(f"{SESSIONS_URL}/{other.id}")
+    revoked = client.delete(f"{SESSIONS_URL}/{owned.id}")
+
+    assert hidden.status_code == 404
+    other.refresh_from_db()
+    assert other.revoked_at is None
+    assert revoked.status_code == 204
+    owned.refresh_from_db()
+    assert owned.revoked_at is not None

@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -8,7 +9,7 @@ from rest_framework.views import APIView
 
 from dotick.identity import application
 from dotick.identity.models import AuthSession
-from dotick.identity.sessions import revoke_current_session
+from dotick.identity.sessions import revoke_session
 
 
 class StrictSerializer(serializers.Serializer):
@@ -151,7 +152,7 @@ class RotateRefreshToken(PublicIdentityView):
 
 class LogoutCurrentSession(AuthenticatedIdentityView):
     def post(self, request):
-        revoke_current_session(session=request.auth_session)
+        revoke_session(session=request.auth_session)
         return Response(status=204)
 
 
@@ -167,3 +168,14 @@ class ActiveSessions(AuthenticatedIdentityView):
             context={"current_session_id": request.auth_session.id},
         )
         return Response({"results": serializer.data})
+
+
+class RevokeOwnedSession(AuthenticatedIdentityView):
+    def delete(self, request, session_id):
+        session = get_object_or_404(
+            AuthSession,
+            id=session_id,
+            user=request.user,
+        )
+        revoke_session(session=session)
+        return Response(status=204)

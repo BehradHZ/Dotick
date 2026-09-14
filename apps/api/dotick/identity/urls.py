@@ -10,4 +10,5 @@ urlpatterns = [
     path("token/refresh", api.RotateRefreshToken.as_view()),
     path("logout", api.LogoutCurrentSession.as_view()),
     path("sessions", api.ActiveSessions.as_view()),
+    path("sessions/<uuid:session_id>", api.RevokeOwnedSession.as_view()),
 ]
