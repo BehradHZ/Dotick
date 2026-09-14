@@ -109,6 +109,14 @@ class PasswordSetInput(StrictSerializer):
         return attrs
 
 
+class GoogleCredentialInput(StrictSerializer):
+    credential = serializers.CharField(
+        max_length=8192,
+        trim_whitespace=False,
+        write_only=True,
+    )
+
+
 class AuthSessionOutput(serializers.ModelSerializer):
     current = serializers.SerializerMethodField()
 
@@ -241,6 +249,28 @@ class SetPassword(AuthenticatedIdentityView):
             current_password=serializer.validated_data.get("current_password"),
         )
         return Response(status=204)
+
+
+class GoogleSignIn(PublicIdentityView):
+    def post(self, request):
+        serializer = GoogleCredentialInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user, token_pair, fallback_recommended = application.sign_in_with_google(
+            **serializer.validated_data,
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        return Response(
+            {
+                "access": token_pair.access,
+                "refresh": token_pair.refresh,
+                "user": {
+                    "email": user.email,
+                    "handle": user.handle,
+                    "display_name": user.display_name,
+                },
+                "fallback_recommended": fallback_recommended,
+            }
+        )
 
 
 class RevokeOwnedSession(AuthenticatedIdentityView):

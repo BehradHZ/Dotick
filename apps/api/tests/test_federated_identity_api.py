@@ -5,9 +5,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from dotick.identity.google_identity import (
+    GoogleIdentityClaims,
     InvalidGoogleCredential,
     verify_google_id_credential,
 )
+from dotick.identity.models import ExternalIdentity
 from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
 
@@ -15,6 +17,7 @@ pytestmark = pytest.mark.django_db
 
 PASSWORD_URL = "/api/v1/auth/password"
 TOKEN_URL = "/api/v1/auth/token"
+GOOGLE_URL = "/api/v1/auth/google"
 
 
 def _authenticated_client(user, *, session_age=timedelta(0)):
@@ -165,3 +168,65 @@ def test_google_id_credential_requires_verified_email(settings):
     ):
         with pytest.raises(InvalidGoogleCredential):
             verify_google_id_credential("signed-google-id-credential")
+
+
+def _google_claims(*, subject="google-subject-123", email="google@example.test"):
+    return GoogleIdentityClaims(
+        subject=subject,
+        email=email,
+        display_name="Google Person",
+        picture_url="https://example.test/google-person.png",
+    )
+
+
+def test_google_sign_in_creates_google_only_account_and_session():
+    with patch(
+        "dotick.identity.application.verify_google_id_credential",
+        return_value=_google_claims(),
+    ):
+        response = APIClient().post(
+            GOOGLE_URL,
+            {"credential": "signed-google-id-credential"},
+            format="json",
+            HTTP_USER_AGENT="Google test client",
+        )
+
+    assert response.status_code == 200
+    user = get_user_model().objects.get(email="google@example.test")
+    assert user.is_active
+    assert user.email_verified_at is not None
+    assert not user.has_usable_password()
+    assert ExternalIdentity.objects.get(user=user).subject == "google-subject-123"
+    assert user.auth_sessions.get().user_agent == "Google test client"
+    assert response.json()["user"]["email"] == user.email
+    assert response.json()["fallback_recommended"] is True
+
+
+def test_google_sign_in_resolves_existing_linked_identity():
+    user = get_user_model().objects.create_user(
+        email="linked@example.test",
+        password="Independent-password-fallback-8!",
+        email_verified_at=timezone.now(),
+    )
+    ExternalIdentity.objects.create(
+        user=user,
+        provider=ExternalIdentity.Provider.GOOGLE,
+        subject="linked-google-subject",
+    )
+    with patch(
+        "dotick.identity.application.verify_google_id_credential",
+        return_value=_google_claims(
+            subject="linked-google-subject",
+            email="changed-at-google@example.test",
+        ),
+    ):
+        response = APIClient().post(
+            GOOGLE_URL,
+            {"credential": "signed-google-id-credential"},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert get_user_model().objects.count() == 1
+    assert response.json()["user"]["email"] == user.email
+    assert response.json()["fallback_recommended"] is False

@@ -9,7 +9,12 @@ from dotick.identity.challenges import (
     issue_challenge,
     try_consume_challenge,
 )
-from dotick.identity.models import VerificationChallenge
+from dotick.identity.google_identity import (
+    GoogleProviderUnavailable,
+    InvalidGoogleCredential,
+    verify_google_id_credential,
+)
+from dotick.identity.models import ExternalIdentity, VerificationChallenge
 from dotick.identity.sessions import InvalidSessionToken as SessionTokenError
 from dotick.identity.sessions import (
     RecentAuthenticationRequired,
@@ -37,6 +42,24 @@ class InvalidSessionToken(APIException):
     status_code = 401
     default_detail = "Token or session is invalid."
     default_code = "token_not_valid"
+
+
+class InvalidExternalAuthentication(APIException):
+    status_code = 401
+    default_detail = "External credential is invalid."
+    default_code = "invalid_external_credential"
+
+
+class AccountLinkRequired(APIException):
+    status_code = 409
+    default_detail = "Authenticate to the existing account before linking Google."
+    default_code = "account_link_required"
+
+
+class ExternalProviderUnavailable(APIException):
+    status_code = 503
+    default_detail = "External authentication provider is unavailable."
+    default_code = "provider_unavailable"
 
 
 def normalize_email(email):
@@ -263,3 +286,72 @@ def set_password(*, user, session, password, current_password=None):
     locked_user.set_password(password)
     locked_user.save(update_fields=["password"])
     revoke_other_sessions(user=locked_user, current_session=session)
+
+
+def _fallback_recommended(user):
+    return not user.has_usable_password()
+
+
+def _verify_google_credential(credential):
+    try:
+        return verify_google_id_credential(credential)
+    except InvalidGoogleCredential as error:
+        raise InvalidExternalAuthentication from error
+    except GoogleProviderUnavailable as error:
+        raise ExternalProviderUnavailable from error
+
+
+def sign_in_with_google(*, credential, user_agent=""):
+    claims = _verify_google_credential(credential)
+    user_model = get_user_model()
+
+    with transaction.atomic():
+        identity = (
+            ExternalIdentity.objects.select_for_update()
+            .select_related("user")
+            .filter(
+                provider=ExternalIdentity.Provider.GOOGLE,
+                subject=claims.subject,
+            )
+            .first()
+        )
+        if identity is not None:
+            user = identity.user
+        else:
+            if user_model.objects.filter(email__iexact=claims.email).exists():
+                raise AccountLinkRequired
+
+            try:
+                with transaction.atomic():
+                    user = user_model.objects.create_user(
+                        email=claims.email,
+                        password=None,
+                        display_name=claims.display_name[:120],
+                        profile_picture_url=(claims.picture_url or "")[:2048] or None,
+                        email_verified_at=timezone.now(),
+                        is_active=True,
+                    )
+                    ExternalIdentity.objects.create(
+                        user=user,
+                        provider=ExternalIdentity.Provider.GOOGLE,
+                        subject=claims.subject,
+                    )
+            except IntegrityError:
+                identity = (
+                    ExternalIdentity.objects.select_related("user")
+                    .filter(
+                        provider=ExternalIdentity.Provider.GOOGLE,
+                        subject=claims.subject,
+                    )
+                    .first()
+                )
+                if identity is None:
+                    raise AccountLinkRequired from None
+                user = identity.user
+
+        if not user.is_active:
+            raise InvalidExternalAuthentication
+
+        _, token_pair = create_auth_session(user=user, user_agent=user_agent)
+
+    return user, token_pair, _fallback_recommended(user)
