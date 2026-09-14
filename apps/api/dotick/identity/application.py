@@ -10,7 +10,11 @@ from dotick.identity.challenges import (
     try_consume_challenge,
 )
 from dotick.identity.models import VerificationChallenge
-from dotick.identity.sessions import create_auth_session
+from dotick.identity.sessions import InvalidSessionToken as SessionTokenError
+from dotick.identity.sessions import (
+    create_auth_session,
+    rotate_refresh_token,
+)
 
 
 class InvalidVerificationCode(APIException):
@@ -23,6 +27,12 @@ class InvalidCredentials(APIException):
     status_code = 401
     default_detail = "Invalid credentials."
     default_code = "invalid_credentials"
+
+
+class InvalidSessionToken(APIException):
+    status_code = 401
+    default_detail = "Token or session is invalid."
+    default_code = "token_not_valid"
 
 
 def normalize_email(email):
@@ -153,3 +163,10 @@ def login_with_password(*, email, password, user_agent=""):
         user_agent=user_agent,
     )
     return user, token_pair
+
+
+def refresh_session(*, refresh):
+    try:
+        return rotate_refresh_token(encoded_refresh=refresh)
+    except SessionTokenError as error:
+        raise InvalidSessionToken from error

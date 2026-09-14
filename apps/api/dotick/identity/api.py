@@ -61,6 +61,14 @@ class TokenInput(EmailInput):
     )
 
 
+class RefreshInput(StrictSerializer):
+    refresh = serializers.CharField(
+        max_length=4096,
+        trim_whitespace=False,
+        write_only=True,
+    )
+
+
 class PublicIdentityView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
@@ -107,5 +115,18 @@ class CreateTokenPair(PublicIdentityView):
                     "handle": user.handle,
                     "display_name": user.display_name,
                 },
+            }
+        )
+
+
+class RotateRefreshToken(PublicIdentityView):
+    def post(self, request):
+        serializer = RefreshInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token_pair = application.refresh_session(**serializer.validated_data)
+        return Response(
+            {
+                "access": token_pair.access,
+                "refresh": token_pair.refresh,
             }
         )

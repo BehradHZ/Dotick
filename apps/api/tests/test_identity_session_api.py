@@ -12,6 +12,7 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 pytestmark = pytest.mark.django_db
 
 TOKEN_URL = "/api/v1/auth/token"
+REFRESH_URL = "/api/v1/auth/token/refresh"
 
 
 def test_jwt_access_and_refresh_lifetimes():
@@ -118,3 +119,27 @@ def test_login_failures_share_one_surface(account_state):
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "invalid_credentials"
     assert AuthSession.objects.count() == 0
+
+
+def test_refresh_rotates_token_pair_for_locked_session():
+    user = get_user_model().objects.create_user(
+        email="rotate@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    session, original_pair = create_auth_session(user=user)
+    original_jti = session.refresh_jti
+
+    response = APIClient().post(
+        REFRESH_URL,
+        {"refresh": original_pair.refresh},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    session.refresh_from_db()
+    rotated_refresh = RefreshToken(response.json()["refresh"])
+    rotated_access = AccessToken(response.json()["access"])
+    assert session.refresh_jti == rotated_refresh["jti"]
+    assert session.refresh_jti != original_jti
+    assert rotated_refresh["sid"] == rotated_access["sid"] == str(session.id)
