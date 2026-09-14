@@ -2,12 +2,16 @@ from datetime import timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from dotick.identity.models import AuthSession
 from dotick.identity.sessions import create_auth_session
 from dotick.identity.tokens import issue_token_pair
+from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 pytestmark = pytest.mark.django_db
+
+TOKEN_URL = "/api/v1/auth/token"
 
 
 def test_jwt_access_and_refresh_lifetimes():
@@ -53,3 +57,64 @@ def test_session_persists_only_current_refresh_jti():
     assert "access_token" not in field_names
     assert pair.refresh not in str(session.__dict__)
     assert pair.access not in str(session.__dict__)
+
+
+def test_verified_account_can_log_in_with_email_and_password():
+    password = "Long-unique-password-for-tests-8!"
+    user = get_user_model().objects.create_user(
+        email="login@example.test",
+        password=password,
+        handle="login_user",
+        display_name="Login User",
+        email_verified_at=timezone.now(),
+    )
+
+    response = APIClient().post(
+        TOKEN_URL,
+        {"email": "LOGIN@EXAMPLE.TEST", "password": password},
+        format="json",
+        HTTP_USER_AGENT="Dotick test client",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user"] == {
+        "email": user.email,
+        "handle": user.handle,
+        "display_name": user.display_name,
+    }
+    session = AuthSession.objects.get(user=user)
+    assert session.user_agent == "Dotick test client"
+    assert AccessToken(response.json()["access"])["sid"] == str(session.id)
+    assert RefreshToken(response.json()["refresh"])["sid"] == str(session.id)
+
+
+@pytest.mark.parametrize("account_state", ["unknown", "wrong_password", "unverified", "inactive"])
+def test_login_failures_share_one_surface(account_state):
+    password = "Long-unique-password-for-tests-8!"
+    email = f"{account_state}@example.test"
+    submitted_password = password
+
+    if account_state != "unknown":
+        user = get_user_model().objects.create_user(
+            email=email,
+            password=password,
+            email_verified_at=timezone.now(),
+        )
+        if account_state == "wrong_password":
+            submitted_password = "Different-long-password-for-tests-9!"
+        elif account_state == "unverified":
+            user.email_verified_at = None
+            user.save(update_fields=["email_verified_at"])
+        elif account_state == "inactive":
+            user.is_active = False
+            user.save(update_fields=["is_active"])
+
+    response = APIClient().post(
+        TOKEN_URL,
+        {"email": email, "password": submitted_password},
+        format="json",
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "invalid_credentials"
+    assert AuthSession.objects.count() == 0

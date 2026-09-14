@@ -53,6 +53,14 @@ class VerifyEmailInput(EmailInput):
     code = serializers.RegexField(r"^[0-9]{6}$", max_length=6)
 
 
+class TokenInput(EmailInput):
+    password = serializers.CharField(
+        max_length=128,
+        trim_whitespace=False,
+        write_only=True,
+    )
+
+
 class PublicIdentityView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
@@ -80,3 +88,24 @@ class VerifyEmail(PublicIdentityView):
         serializer.is_valid(raise_exception=True)
         application.verify_email(**serializer.validated_data)
         return Response(status=204)
+
+
+class CreateTokenPair(PublicIdentityView):
+    def post(self, request):
+        serializer = TokenInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user, token_pair = application.login_with_password(
+            **serializer.validated_data,
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        return Response(
+            {
+                "access": token_pair.access,
+                "refresh": token_pair.refresh,
+                "user": {
+                    "email": user.email,
+                    "handle": user.handle,
+                    "display_name": user.display_name,
+                },
+            }
+        )

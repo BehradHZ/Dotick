@@ -1,4 +1,4 @@
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -10,12 +10,19 @@ from dotick.identity.challenges import (
     try_consume_challenge,
 )
 from dotick.identity.models import VerificationChallenge
+from dotick.identity.sessions import create_auth_session
 
 
 class InvalidVerificationCode(APIException):
     status_code = 400
     default_detail = "Invalid or expired verification code."
     default_code = "invalid_verification_code"
+
+
+class InvalidCredentials(APIException):
+    status_code = 401
+    default_detail = "Invalid credentials."
+    default_code = "invalid_credentials"
 
 
 def normalize_email(email):
@@ -131,3 +138,18 @@ def verify_email(*, email, code):
 
     if not verified:
         raise InvalidVerificationCode
+
+
+def login_with_password(*, email, password, user_agent=""):
+    user = authenticate(
+        email=normalize_email(email),
+        password=password,
+    )
+    if user is None or not user.is_active or user.email_verified_at is None:
+        raise InvalidCredentials
+
+    _, token_pair = create_auth_session(
+        user=user,
+        user_agent=user_agent,
+    )
+    return user, token_pair
