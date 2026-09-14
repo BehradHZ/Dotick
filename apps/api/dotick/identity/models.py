@@ -200,3 +200,39 @@ class AuthSession(models.Model):
                 name="identity_session_active",
             )
         ]
+
+
+class ExternalIdentity(models.Model):
+    class Provider(models.TextChoices):
+        GOOGLE = "google", "Google"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="external_identities",
+    )
+    provider = models.CharField(max_length=32, choices=Provider.choices)
+    subject = models.CharField(max_length=255)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = "identity_external_identities"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(provider="google"),
+                name="identity_external_provider_google",
+            ),
+            models.UniqueConstraint(
+                fields=["provider", "subject"],
+                name="identity_external_subject_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "provider"],
+                name="identity_external_user_provider_unique",
+            ),
+        ]

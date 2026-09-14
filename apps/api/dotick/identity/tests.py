@@ -16,7 +16,12 @@ from dotick.identity.challenges import (
     consume_challenge,
     issue_challenge,
 )
-from dotick.identity.models import AuthSession, UserPreferences, VerificationChallenge
+from dotick.identity.models import (
+    AuthSession,
+    ExternalIdentity,
+    UserPreferences,
+    VerificationChallenge,
+)
 
 
 class CustomUserTests(TestCase):
@@ -234,6 +239,24 @@ class AuthSessionTests(TestCase):
         self.assertEqual(session.user, user)
         self.assertEqual(list(user.auth_sessions.all()), [session])
         self.assertIsNone(session.revoked_at)
+
+
+class ExternalIdentityTests(TestCase):
+    def test_external_identity_belongs_to_internal_user(self):
+        user = get_user_model().objects.create_user(
+            email="external@example.test",
+            password=None,
+        )
+
+        identity = ExternalIdentity.objects.create(
+            user=user,
+            provider=ExternalIdentity.Provider.GOOGLE,
+            subject="google-subject-123",
+        )
+
+        self.assertIsInstance(identity.pk, uuid.UUID)
+        self.assertEqual(identity.user, user)
+        self.assertEqual(list(user.external_identities.all()), [identity])
 
 
 class VerificationChallengeTests(TestCase):
