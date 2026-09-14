@@ -1,4 +1,5 @@
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -13,6 +14,7 @@ from dotick.identity.models import ExternalIdentity, PasskeyCredential
 from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
 from webauthn.helpers import base64url_to_bytes
+from webauthn.helpers.structs import CredentialDeviceType
 
 pytestmark = pytest.mark.django_db
 
@@ -21,6 +23,7 @@ TOKEN_URL = "/api/v1/auth/token"
 GOOGLE_URL = "/api/v1/auth/google"
 GOOGLE_LINK_URL = "/api/v1/auth/google/link"
 PASSKEY_REGISTRATION_OPTIONS_URL = "/api/v1/auth/passkeys/registration/options"
+PASSKEY_REGISTRATION_VERIFY_URL = "/api/v1/auth/passkeys/registration/verify"
 
 
 def _authenticated_client(user, *, session_age=timedelta(0)):
@@ -432,3 +435,66 @@ def test_passkey_registration_options_use_persisted_challenge_and_account_identi
     assert base64url_to_bytes(public_key["user"]["id"]) == user.id.bytes
     assert public_key["user"]["name"] == user.email
     assert challenge.name == "Laptop passkey"
+
+
+def test_passkey_registration_verification_persists_verified_credential():
+    user = get_user_model().objects.create_user(
+        email="registration-verify@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    client, _ = _authenticated_client(user)
+    options = client.post(
+        PASSKEY_REGISTRATION_OPTIONS_URL,
+        {"name": "Phone passkey"},
+        format="json",
+    ).json()
+    credential = {
+        "id": "credential-id",
+        "response": {"transports": ["internal", "hybrid"]},
+    }
+    verification = SimpleNamespace(
+        credential_id=b"verified-credential-id",
+        credential_public_key=b"verified-public-key",
+        sign_count=7,
+        credential_device_type=CredentialDeviceType.MULTI_DEVICE,
+        credential_backed_up=True,
+    )
+
+    with patch(
+        "dotick.identity.passkeys.verify_registration_response",
+        return_value=verification,
+    ) as verifier:
+        response = client.post(
+            PASSKEY_REGISTRATION_VERIFY_URL,
+            {
+                "challenge_id": options["challenge_id"],
+                "credential": credential,
+            },
+            format="json",
+        )
+
+    assert response.status_code == 201
+    passkey = PasskeyCredential.objects.get(user=user)
+    challenge = user.passkey_challenges.get(id=options["challenge_id"])
+    assert bytes(passkey.credential_id) == b"verified-credential-id"
+    assert bytes(passkey.public_key) == b"verified-public-key"
+    assert passkey.sign_count == 7
+    assert passkey.device_type == "multi_device"
+    assert passkey.backed_up is True
+    assert passkey.transports == ["internal", "hybrid"]
+    assert passkey.name == "Phone passkey"
+    assert challenge.consumed_at is not None
+    assert verifier.call_args.kwargs["expected_challenge"] == bytes(challenge.challenge)
+    assert verifier.call_args.kwargs["require_user_verification"] is True
+
+    replay = client.post(
+        PASSKEY_REGISTRATION_VERIFY_URL,
+        {
+            "challenge_id": options["challenge_id"],
+            "credential": credential,
+        },
+        format="json",
+    )
+    assert replay.status_code == 400
+    assert replay.json()["error"]["code"] == "invalid_passkey_ceremony"

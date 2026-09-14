@@ -3,14 +3,19 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.identity import application
-from dotick.identity.models import AuthSession
-from dotick.identity.passkeys import begin_passkey_registration
+from dotick.identity.models import AuthSession, PasskeyCredential
+from dotick.identity.passkeys import (
+    InvalidPasskeyChallenge,
+    PasskeyCredentialConflict,
+    begin_passkey_registration,
+    finish_passkey_registration,
+)
 from dotick.identity.sessions import (
     RecentAuthenticationRequired,
     require_recent_authentication,
@@ -126,6 +131,29 @@ class GoogleCredentialInput(StrictSerializer):
 
 class PasskeyNameInput(StrictSerializer):
     name = serializers.CharField(max_length=120, trim_whitespace=True)
+
+
+class PasskeyCeremonyInput(StrictSerializer):
+    challenge_id = serializers.UUIDField()
+    credential = serializers.DictField()
+
+
+class PasskeyOutput(serializers.ModelSerializer):
+    class Meta:
+        model = PasskeyCredential
+        fields = ["id", "name", "device_type", "backed_up", "created_at", "last_used_at"]
+
+
+class InvalidPasskeyCeremony(APIException):
+    status_code = 400
+    default_detail = "Passkey ceremony is invalid or expired."
+    default_code = "invalid_passkey_ceremony"
+
+
+class PasskeyConflict(APIException):
+    status_code = 409
+    default_detail = "Passkey credential already exists."
+    default_code = "passkey_conflict"
 
 
 class AuthSessionOutput(serializers.ModelSerializer):
@@ -317,6 +345,22 @@ class BeginPasskeyRegistration(AuthenticatedIdentityView):
                 "public_key": public_key,
             }
         )
+
+
+class FinishPasskeyRegistration(AuthenticatedIdentityView):
+    def post(self, request):
+        serializer = PasskeyCeremonyInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            passkey = finish_passkey_registration(
+                user=request.user,
+                **serializer.validated_data,
+            )
+        except InvalidPasskeyChallenge as error:
+            raise InvalidPasskeyCeremony from error
+        except PasskeyCredentialConflict as error:
+            raise PasskeyConflict from error
+        return Response(PasskeyOutput(passkey).data, status=201)
 
 
 class RevokeOwnedSession(AuthenticatedIdentityView):
