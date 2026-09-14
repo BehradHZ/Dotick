@@ -318,6 +318,38 @@ class PasskeyCredentialTests(TestCase):
         self.assertIsInstance(passkey.pk, uuid.UUID)
         self.assertEqual(passkey.user, user)
         self.assertEqual(list(user.passkey_credentials.all()), [passkey])
+        self.assertEqual(bytes(passkey.credential_id), b"credential-id")
+        self.assertEqual(bytes(passkey.public_key), b"credential-public-key")
+        self.assertEqual(passkey.sign_count, 4)
+        self.assertEqual(passkey.device_type, "multi_device")
+        self.assertTrue(passkey.backed_up)
+        self.assertEqual(passkey.transports, ["internal"])
+        self.assertEqual(passkey.name, "Laptop passkey")
+
+    def test_credential_id_is_globally_unique(self):
+        first_user = get_user_model().objects.create_user(
+            email="first-passkey@example.test",
+            password=None,
+        )
+        second_user = get_user_model().objects.create_user(
+            email="second-passkey@example.test",
+            password=None,
+        )
+        PasskeyCredential.objects.create(
+            user=first_user,
+            credential_id=b"shared-credential-id",
+            public_key=b"first-public-key",
+            name="First passkey",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PasskeyCredential.objects.create(
+                    user=second_user,
+                    credential_id=b"shared-credential-id",
+                    public_key=b"second-public-key",
+                    name="Second passkey",
+                )
 
 
 class VerificationChallengeTests(TestCase):
