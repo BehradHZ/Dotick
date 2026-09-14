@@ -1,8 +1,13 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from dotick.identity.google_identity import (
+    InvalidGoogleCredential,
+    verify_google_id_credential,
+)
 from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
 
@@ -123,3 +128,40 @@ def test_existing_password_change_requires_recent_auth_and_revokes_other_session
     assert user.check_password(replacement)
     assert current_session.revoked_at is None
     assert other_session.revoked_at is not None
+
+
+def test_google_id_credential_is_verified_for_configured_audience(settings):
+    settings.GOOGLE_OAUTH_CLIENT_ID = "dotick-google-client-id"
+    verified_claims = {
+        "sub": "google-subject-123",
+        "email": "Person@Example.TEST",
+        "email_verified": True,
+        "name": "Test Person",
+        "picture": "https://example.test/person.png",
+    }
+
+    with patch(
+        "dotick.identity.google_identity.id_token.verify_oauth2_token",
+        return_value=verified_claims,
+    ) as verifier:
+        claims = verify_google_id_credential("signed-google-id-credential")
+
+    assert claims.subject == "google-subject-123"
+    assert claims.email == "person@example.test"
+    assert claims.display_name == "Test Person"
+    verifier.assert_called_once()
+    assert verifier.call_args.kwargs["audience"] == "dotick-google-client-id"
+
+
+def test_google_id_credential_requires_verified_email(settings):
+    settings.GOOGLE_OAUTH_CLIENT_ID = "dotick-google-client-id"
+    with patch(
+        "dotick.identity.google_identity.id_token.verify_oauth2_token",
+        return_value={
+            "sub": "google-subject-123",
+            "email": "person@example.test",
+            "email_verified": False,
+        },
+    ):
+        with pytest.raises(InvalidGoogleCredential):
+            verify_google_id_credential("signed-google-id-credential")
