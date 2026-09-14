@@ -13,6 +13,7 @@ pytestmark = [
 ]
 
 RESET_REQUEST_URL = "/api/v1/auth/password/reset/request"
+RESET_CONFIRM_URL = "/api/v1/auth/password/reset/confirm"
 
 
 @pytest.fixture
@@ -91,3 +92,98 @@ def test_password_reset_request_hides_challenge_cooldown():
     assert first.status_code == blocked.status_code == 202
     assert first.json() == blocked.json() == {"status": "accepted"}
     assert len(mail.outbox) == 1
+
+
+def test_password_reset_confirmation_changes_password_and_consumes_code():
+    old_password = "Long-unique-password-for-tests-8!"
+    new_password = "Different-long-password-for-tests-9!"
+    user = get_user_model().objects.create_user(
+        email="reset-confirm@example.test",
+        password=old_password,
+        email_verified_at=timezone.now(),
+    )
+    client = APIClient()
+    client.post(RESET_REQUEST_URL, {"email": user.email}, format="json")
+    code = _delivered_code(mail.outbox[0])
+
+    response = client.post(
+        RESET_CONFIRM_URL,
+        {"email": user.email, "code": code, "password": new_password},
+        format="json",
+    )
+
+    assert response.status_code == 204
+    user.refresh_from_db()
+    assert user.check_password(new_password)
+    assert not user.check_password(old_password)
+    assert VerificationChallenge.objects.get().consumed_at is not None
+    replay = client.post(
+        RESET_CONFIRM_URL,
+        {"email": user.email, "code": code, "password": new_password},
+        format="json",
+    )
+    assert replay.status_code == 400
+    assert replay.json()["error"]["code"] == "invalid_verification_code"
+
+
+def test_weak_password_does_not_consume_valid_reset_code():
+    user = get_user_model().objects.create_user(
+        email="reset-policy@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    client = APIClient()
+    client.post(RESET_REQUEST_URL, {"email": user.email}, format="json")
+    code = _delivered_code(mail.outbox[0])
+
+    rejected = client.post(
+        RESET_CONFIRM_URL,
+        {"email": user.email, "code": code, "password": "short"},
+        format="json",
+    )
+    accepted = client.post(
+        RESET_CONFIRM_URL,
+        {
+            "email": user.email,
+            "code": code,
+            "password": "Different-long-password-for-tests-9!",
+        },
+        format="json",
+    )
+
+    assert rejected.status_code == 400
+    assert rejected.json()["error"]["code"] == "validation_error"
+    assert accepted.status_code == 204
+
+
+@pytest.mark.parametrize("code_state", ["incorrect", "expired", "unknown_email"])
+def test_invalid_reset_confirmations_share_one_failure(code_state):
+    user = get_user_model().objects.create_user(
+        email=f"{code_state}-confirm@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    client = APIClient()
+    client.post(RESET_REQUEST_URL, {"email": user.email}, format="json")
+    code = _delivered_code(mail.outbox[0])
+    submitted_email = user.email
+    submitted_code = code
+    if code_state == "incorrect":
+        submitted_code = "000000" if code != "000000" else "111111"
+    elif code_state == "expired":
+        VerificationChallenge.objects.update(expires_at=timezone.now())
+    else:
+        submitted_email = "unknown-confirm@example.test"
+
+    response = client.post(
+        RESET_CONFIRM_URL,
+        {
+            "email": submitted_email,
+            "code": submitted_code,
+            "password": "Different-long-password-for-tests-9!",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_verification_code"

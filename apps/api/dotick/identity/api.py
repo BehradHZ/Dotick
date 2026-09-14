@@ -56,6 +56,22 @@ class VerifyEmailInput(EmailInput):
     code = serializers.RegexField(r"^[0-9]{6}$", max_length=6)
 
 
+class PasswordResetConfirmInput(VerifyEmailInput):
+    password = serializers.CharField(
+        max_length=128,
+        trim_whitespace=False,
+        write_only=True,
+    )
+
+    def validate(self, attrs):
+        candidate = get_user_model()(email=attrs["email"])
+        try:
+            validate_password(attrs["password"], user=candidate)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({"password": error.messages}) from error
+        return attrs
+
+
 class TokenInput(EmailInput):
     password = serializers.CharField(
         max_length=128,
@@ -122,6 +138,14 @@ class RequestPasswordReset(PublicIdentityView):
         serializer.is_valid(raise_exception=True)
         application.request_password_reset(**serializer.validated_data)
         return Response({"status": "accepted"}, status=202)
+
+
+class ConfirmPasswordReset(PublicIdentityView):
+    def post(self, request):
+        serializer = PasswordResetConfirmInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        application.confirm_password_reset(**serializer.validated_data)
+        return Response(status=204)
 
 
 class CreateTokenPair(PublicIdentityView):

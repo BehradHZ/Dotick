@@ -160,6 +160,35 @@ def request_password_reset(*, email):
         _send_password_reset_email(user=recipient, code=code)
 
 
+def confirm_password_reset(*, email, code, password):
+    user_model = get_user_model()
+    changed = False
+
+    with transaction.atomic():
+        user = (
+            user_model.objects.select_for_update()
+            .filter(
+                email__iexact=normalize_email(email),
+                email_verified_at__isnull=False,
+                is_active=True,
+            )
+            .first()
+        )
+        if user is not None:
+            challenge = try_consume_challenge(
+                user=user,
+                purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+                code=code,
+            )
+            if challenge is not None:
+                user.set_password(password)
+                user.save(update_fields=["password"])
+                changed = True
+
+    if not changed:
+        raise InvalidVerificationCode
+
+
 def verify_email(*, email, code):
     user_model = get_user_model()
     verified = False

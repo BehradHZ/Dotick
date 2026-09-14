@@ -7,6 +7,7 @@ urlpatterns = [
     path("email/resend", api.ResendEmailVerification.as_view()),
     path("email/verify", api.VerifyEmail.as_view()),
     path("password/reset/request", api.RequestPasswordReset.as_view()),
+    path("password/reset/confirm", api.ConfirmPasswordReset.as_view()),
     path("token", api.CreateTokenPair.as_view()),
     path("token/refresh", api.RotateRefreshToken.as_view()),
     path("logout", api.LogoutCurrentSession.as_view()),
