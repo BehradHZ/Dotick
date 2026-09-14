@@ -88,6 +88,27 @@ class RefreshInput(StrictSerializer):
     )
 
 
+class PasswordSetInput(StrictSerializer):
+    password = serializers.CharField(
+        max_length=128,
+        trim_whitespace=False,
+        write_only=True,
+    )
+    current_password = serializers.CharField(
+        max_length=128,
+        trim_whitespace=False,
+        write_only=True,
+        required=False,
+    )
+
+    def validate(self, attrs):
+        try:
+            validate_password(attrs["password"], user=self.context["request"].user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({"password": error.messages}) from error
+        return attrs
+
+
 class AuthSessionOutput(serializers.ModelSerializer):
     current = serializers.SerializerMethodField()
 
@@ -203,6 +224,21 @@ class ActiveSessions(AuthenticatedIdentityView):
 
     def delete(self, request):
         revoke_all_sessions(user=request.user)
+        return Response(status=204)
+
+
+class SetPassword(AuthenticatedIdentityView):
+    def put(self, request):
+        serializer = PasswordSetInput(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        application.add_password_fallback(
+            user=request.user,
+            session=request.auth_session,
+            password=serializer.validated_data["password"],
+        )
         return Response(status=204)
 
 

@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 
 from dotick.identity.challenges import (
     ChallengeIssuanceBlocked,
@@ -12,7 +12,9 @@ from dotick.identity.challenges import (
 from dotick.identity.models import VerificationChallenge
 from dotick.identity.sessions import InvalidSessionToken as SessionTokenError
 from dotick.identity.sessions import (
+    RecentAuthenticationRequired,
     create_auth_session,
+    require_recent_authentication,
     revoke_all_sessions,
     rotate_refresh_token,
 )
@@ -238,3 +240,21 @@ def refresh_session(*, refresh):
         return rotate_refresh_token(encoded_refresh=refresh)
     except SessionTokenError as error:
         raise InvalidSessionToken from error
+
+
+@transaction.atomic
+def add_password_fallback(*, user, session, password):
+    try:
+        require_recent_authentication(session=session)
+    except RecentAuthenticationRequired as error:
+        raise PermissionDenied(
+            "Recent authentication is required.",
+            code="recent_auth_required",
+        ) from error
+
+    locked_user = get_user_model().objects.select_for_update().get(pk=user.pk)
+    if locked_user.has_usable_password():
+        raise ValidationError({"current_password": ["Current password is required."]})
+
+    locked_user.set_password(password)
+    locked_user.save(update_fields=["password"])

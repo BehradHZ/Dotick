@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 
 from django.db import transaction
 from django.utils import timezone
@@ -11,6 +12,13 @@ from dotick.identity.tokens import issue_token_pair
 
 class InvalidSessionToken(Exception):
     pass
+
+
+class RecentAuthenticationRequired(Exception):
+    pass
+
+
+RECENT_AUTHENTICATION_WINDOW = timedelta(minutes=10)
 
 
 @transaction.atomic
@@ -72,3 +80,8 @@ def revoke_all_sessions(*, user):
         user=user,
         revoked_at__isnull=True,
     ).update(revoked_at=timezone.now())
+
+
+def require_recent_authentication(*, session):
+    if session.created_at < timezone.now() - RECENT_AUTHENTICATION_WINDOW:
+        raise RecentAuthenticationRequired
