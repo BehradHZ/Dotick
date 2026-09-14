@@ -143,3 +143,34 @@ def test_refresh_rotates_token_pair_for_locked_session():
     assert session.refresh_jti == rotated_refresh["jti"]
     assert session.refresh_jti != original_jti
     assert rotated_refresh["sid"] == rotated_access["sid"] == str(session.id)
+
+
+def test_refresh_rejects_reuse_without_invalidating_current_token():
+    user = get_user_model().objects.create_user(
+        email="refresh-reuse@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    _, original_pair = create_auth_session(user=user)
+    client = APIClient()
+
+    rotated = client.post(
+        REFRESH_URL,
+        {"refresh": original_pair.refresh},
+        format="json",
+    )
+    replayed = client.post(
+        REFRESH_URL,
+        {"refresh": original_pair.refresh},
+        format="json",
+    )
+    current = client.post(
+        REFRESH_URL,
+        {"refresh": rotated.json()["refresh"]},
+        format="json",
+    )
+
+    assert rotated.status_code == 200
+    assert replayed.status_code == 401
+    assert replayed.json()["error"]["code"] == "token_not_valid"
+    assert current.status_code == 200
