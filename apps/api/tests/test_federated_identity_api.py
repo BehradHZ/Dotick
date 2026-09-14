@@ -437,6 +437,7 @@ def test_passkey_registration_options_use_persisted_challenge_and_account_identi
     assert base64url_to_bytes(public_key["challenge"]) == bytes(challenge.challenge)
     assert base64url_to_bytes(public_key["user"]["id"]) == user.id.bytes
     assert public_key["user"]["name"] == user.email
+    assert public_key["authenticatorSelection"]["userVerification"] == "required"
     assert challenge.name == "Laptop passkey"
 
 
