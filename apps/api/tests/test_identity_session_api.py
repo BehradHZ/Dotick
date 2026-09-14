@@ -3,10 +3,12 @@ from datetime import timedelta
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from dotick.identity.authentication import SessionJWTAuthentication
 from dotick.identity.models import AuthSession
 from dotick.identity.sessions import create_auth_session
 from dotick.identity.tokens import issue_token_pair
-from rest_framework.test import APIClient
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 pytestmark = pytest.mark.django_db
@@ -174,3 +176,49 @@ def test_refresh_rejects_reuse_without_invalidating_current_token():
     assert replayed.status_code == 401
     assert replayed.json()["error"]["code"] == "token_not_valid"
     assert current.status_code == 200
+
+
+def test_access_authentication_requires_active_server_session():
+    user = get_user_model().objects.create_user(
+        email="authenticated-session@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    session, pair = create_auth_session(user=user)
+    request = APIRequestFactory().get(
+        "/protected",
+        HTTP_AUTHORIZATION=f"Bearer {pair.access}",
+    )
+
+    authenticated_user, _ = SessionJWTAuthentication().authenticate(request)
+
+    assert authenticated_user == user
+    assert request.auth_session == session
+
+    session.revoked_at = timezone.now()
+    session.save(update_fields=["revoked_at"])
+    revoked_request = APIRequestFactory().get(
+        "/protected",
+        HTTP_AUTHORIZATION=f"Bearer {pair.access}",
+    )
+    with pytest.raises(AuthenticationFailed) as rejected:
+        SessionJWTAuthentication().authenticate(revoked_request)
+    assert rejected.value.get_codes() == "token_not_valid"
+
+
+def test_access_authentication_rejects_missing_session_claim():
+    user = get_user_model().objects.create_user(
+        email="missing-session-claim@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    access = RefreshToken.for_user(user).access_token
+    request = APIRequestFactory().get(
+        "/protected",
+        HTTP_AUTHORIZATION=f"Bearer {access}",
+    )
+
+    with pytest.raises(AuthenticationFailed) as rejected:
+        SessionJWTAuthentication().authenticate(request)
+
+    assert rejected.value.get_codes() == "token_not_valid"

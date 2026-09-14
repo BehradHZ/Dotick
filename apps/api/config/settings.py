@@ -141,6 +141,9 @@ X_FRAME_OPTIONS = "DENY"
 
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "config.errors.api_exception_handler",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "dotick.identity.authentication.SessionJWTAuthentication",
+    ],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
 }
