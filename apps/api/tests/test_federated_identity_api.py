@@ -10,7 +10,7 @@ from dotick.identity.google_identity import (
     InvalidGoogleCredential,
     verify_google_id_credential,
 )
-from dotick.identity.models import ExternalIdentity, PasskeyCredential
+from dotick.identity.models import ExternalIdentity, PasskeyChallenge, PasskeyCredential
 from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
 from webauthn.helpers import base64url_to_bytes
@@ -24,6 +24,7 @@ GOOGLE_URL = "/api/v1/auth/google"
 GOOGLE_LINK_URL = "/api/v1/auth/google/link"
 PASSKEY_REGISTRATION_OPTIONS_URL = "/api/v1/auth/passkeys/registration/options"
 PASSKEY_REGISTRATION_VERIFY_URL = "/api/v1/auth/passkeys/registration/verify"
+PASSKEY_AUTHENTICATION_OPTIONS_URL = "/api/v1/auth/passkeys/authentication/options"
 
 
 def _authenticated_client(user, *, session_age=timedelta(0)):
@@ -498,3 +499,21 @@ def test_passkey_registration_verification_persists_verified_credential():
     )
     assert replay.status_code == 400
     assert replay.json()["error"]["code"] == "invalid_passkey_ceremony"
+
+
+def test_passkey_authentication_options_are_discoverable_and_public():
+    response = APIClient().post(
+        PASSKEY_AUTHENTICATION_OPTIONS_URL,
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    challenge = PasskeyChallenge.objects.get(id=payload["challenge_id"])
+    public_key = payload["public_key"]
+    assert challenge.user is None
+    assert challenge.purpose == PasskeyChallenge.Purpose.AUTHENTICATION
+    assert base64url_to_bytes(public_key["challenge"]) == bytes(challenge.challenge)
+    assert public_key.get("allowCredentials") in (None, [])
+    assert public_key["userVerification"] == "required"

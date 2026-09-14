@@ -13,6 +13,7 @@ from dotick.identity.models import AuthSession, PasskeyCredential
 from dotick.identity.passkeys import (
     InvalidPasskeyChallenge,
     PasskeyCredentialConflict,
+    begin_passkey_authentication,
     begin_passkey_registration,
     finish_passkey_registration,
 )
@@ -131,6 +132,10 @@ class GoogleCredentialInput(StrictSerializer):
 
 class PasskeyNameInput(StrictSerializer):
     name = serializers.CharField(max_length=120, trim_whitespace=True)
+
+
+class EmptyInput(StrictSerializer):
+    pass
 
 
 class PasskeyCeremonyInput(StrictSerializer):
@@ -361,6 +366,19 @@ class FinishPasskeyRegistration(AuthenticatedIdentityView):
         except PasskeyCredentialConflict as error:
             raise PasskeyConflict from error
         return Response(PasskeyOutput(passkey).data, status=201)
+
+
+class BeginPasskeyAuthentication(PublicIdentityView):
+    def post(self, request):
+        serializer = EmptyInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        challenge, public_key = begin_passkey_authentication()
+        return Response(
+            {
+                "challenge_id": challenge.id,
+                "public_key": public_key,
+            }
+        )
 
 
 class RevokeOwnedSession(AuthenticatedIdentityView):

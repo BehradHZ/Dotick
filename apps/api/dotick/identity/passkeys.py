@@ -5,7 +5,12 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from webauthn import generate_registration_options, options_to_json, verify_registration_response
+from webauthn import (
+    generate_authentication_options,
+    generate_registration_options,
+    options_to_json,
+    verify_registration_response,
+)
 from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
@@ -117,3 +122,16 @@ def finish_passkey_registration(*, user, challenge_id, credential):
     challenge.consumed_at = now
     challenge.save(update_fields=["consumed_at"])
     return passkey
+
+
+def begin_passkey_authentication():
+    challenge = issue_passkey_challenge(
+        purpose=PasskeyChallenge.Purpose.AUTHENTICATION,
+    )
+    options = generate_authentication_options(
+        rp_id=settings.WEBAUTHN_RP_ID,
+        challenge=bytes(challenge.challenge),
+        allow_credentials=None,
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    return challenge, json.loads(options_to_json(options))
