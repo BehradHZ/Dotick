@@ -282,3 +282,38 @@ def test_google_linking_requires_recent_authentication():
     assert response.json()["error"]["code"] == "recent_auth_required"
     assert not ExternalIdentity.objects.exists()
     verifier.assert_not_called()
+
+
+def test_google_subject_is_authoritative_when_claimed_email_matches_another_account():
+    subject_owner = get_user_model().objects.create_user(
+        email="subject-owner@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    email_owner = get_user_model().objects.create_user(
+        email="claimed-email-owner@example.test",
+        password="Independent-password-fallback-8!",
+        email_verified_at=timezone.now(),
+    )
+    ExternalIdentity.objects.create(
+        user=subject_owner,
+        provider=ExternalIdentity.Provider.GOOGLE,
+        subject="authoritative-google-subject",
+    )
+    with patch(
+        "dotick.identity.application.verify_google_id_credential",
+        return_value=_google_claims(
+            subject="authoritative-google-subject",
+            email=email_owner.email,
+        ),
+    ):
+        response = APIClient().post(
+            GOOGLE_URL,
+            {"credential": "signed-google-id-credential"},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert response.json()["user"]["email"] == subject_owner.email
+    assert subject_owner.auth_sessions.count() == 1
+    assert email_owner.auth_sessions.count() == 0
