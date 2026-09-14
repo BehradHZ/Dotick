@@ -4,7 +4,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.utils import timezone
-from dotick.identity.models import VerificationChallenge
+from dotick.identity.models import AuthSession, VerificationChallenge
+from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
 
 pytestmark = [
@@ -187,3 +188,43 @@ def test_invalid_reset_confirmations_share_one_failure(code_state):
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "invalid_verification_code"
+
+
+def test_successful_password_reset_revokes_all_active_sessions():
+    user = get_user_model().objects.create_user(
+        email="reset-sessions@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    first_session, first_pair = create_auth_session(user=user)
+    second_session, _ = create_auth_session(user=user)
+    client = APIClient()
+    client.post(RESET_REQUEST_URL, {"email": user.email}, format="json")
+    code = _delivered_code(mail.outbox[0])
+
+    response = client.post(
+        RESET_CONFIRM_URL,
+        {
+            "email": user.email,
+            "code": code,
+            "password": "Different-long-password-for-tests-9!",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 204
+    first_session.refresh_from_db()
+    second_session.refresh_from_db()
+    assert first_session.revoked_at is not None
+    assert second_session.revoked_at is not None
+    assert AuthSession.objects.filter(user=user, revoked_at__isnull=True).count() == 0
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {first_pair.access}")
+    assert client.get("/api/v1/auth/sessions").status_code == 401
+    assert (
+        APIClient().post(
+            "/api/v1/auth/token/refresh",
+            {"refresh": first_pair.refresh},
+            format="json",
+        ).status_code
+        == 401
+    )

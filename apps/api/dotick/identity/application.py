@@ -13,6 +13,7 @@ from dotick.identity.models import VerificationChallenge
 from dotick.identity.sessions import InvalidSessionToken as SessionTokenError
 from dotick.identity.sessions import (
     create_auth_session,
+    revoke_all_sessions,
     rotate_refresh_token,
 )
 
@@ -183,6 +184,7 @@ def confirm_password_reset(*, email, code, password):
             if challenge is not None:
                 user.set_password(password)
                 user.save(update_fields=["password"])
+                revoke_all_sessions(user=user)
                 changed = True
 
     if not changed:
