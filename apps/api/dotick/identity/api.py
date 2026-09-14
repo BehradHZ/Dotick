@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.identity import application
+from dotick.identity.models import AuthSession
 from dotick.identity.sessions import revoke_current_session
 
 
@@ -68,6 +69,17 @@ class RefreshInput(StrictSerializer):
         trim_whitespace=False,
         write_only=True,
     )
+
+
+class AuthSessionOutput(serializers.ModelSerializer):
+    current = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AuthSession
+        fields = ["id", "user_agent", "created_at", "last_seen_at", "current"]
+
+    def get_current(self, session):
+        return session.id == self.context["current_session_id"]
 
 
 class PublicIdentityView(APIView):
@@ -141,3 +153,17 @@ class LogoutCurrentSession(AuthenticatedIdentityView):
     def post(self, request):
         revoke_current_session(session=request.auth_session)
         return Response(status=204)
+
+
+class ActiveSessions(AuthenticatedIdentityView):
+    def get(self, request):
+        sessions = AuthSession.objects.filter(
+            user=request.user,
+            revoked_at__isnull=True,
+        ).order_by("-last_seen_at", "-created_at")
+        serializer = AuthSessionOutput(
+            sessions,
+            many=True,
+            context={"current_session_id": request.auth_session.id},
+        )
+        return Response({"results": serializer.data})

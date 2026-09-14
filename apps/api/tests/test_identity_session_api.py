@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from dotick.identity.authentication import SessionJWTAuthentication
 from dotick.identity.models import AuthSession
-from dotick.identity.sessions import create_auth_session
+from dotick.identity.sessions import create_auth_session, revoke_current_session
 from dotick.identity.tokens import issue_token_pair
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIClient, APIRequestFactory
@@ -16,6 +16,7 @@ pytestmark = pytest.mark.django_db
 TOKEN_URL = "/api/v1/auth/token"
 REFRESH_URL = "/api/v1/auth/token/refresh"
 LOGOUT_URL = "/api/v1/auth/logout"
+SESSIONS_URL = "/api/v1/auth/sessions"
 
 
 def test_jwt_access_and_refresh_lifetimes():
@@ -243,3 +244,32 @@ def test_logout_revokes_current_session_and_access_token():
     rejected = client.post(LOGOUT_URL, format="json")
     assert rejected.status_code == 401
     assert rejected.json()["error"]["code"] == "token_not_valid"
+
+
+def test_active_session_listing_is_owned_and_marks_current_session():
+    user = get_user_model().objects.create_user(
+        email="session-list@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    other_user = get_user_model().objects.create_user(
+        email="other-session-list@example.test",
+        password="Long-unique-password-for-tests-8!",
+        email_verified_at=timezone.now(),
+    )
+    current, current_pair = create_auth_session(user=user, user_agent="Current browser")
+    second, _ = create_auth_session(user=user, user_agent="Phone")
+    revoked, _ = create_auth_session(user=user, user_agent="Old browser")
+    revoke_current_session(session=revoked)
+    create_auth_session(user=other_user, user_agent="Other account")
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {current_pair.access}")
+
+    response = client.get(SESSIONS_URL)
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert {entry["id"] for entry in results} == {str(current.id), str(second.id)}
+    assert {entry["user_agent"] for entry in results} == {"Current browser", "Phone"}
+    assert next(entry for entry in results if entry["id"] == str(current.id))["current"] is True
+    assert next(entry for entry in results if entry["id"] == str(second.id))["current"] is False
