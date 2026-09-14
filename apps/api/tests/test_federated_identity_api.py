@@ -692,3 +692,34 @@ def test_passkey_enrollment_requires_recent_authenticated_session():
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "recent_auth_required"
     assert not PasskeyChallenge.objects.exists()
+
+
+def test_passkey_registration_verification_rechecks_recent_authentication():
+    user = get_user_model().objects.create_user(
+        email="aged-passkey-enrollment@example.test",
+        password=None,
+        email_verified_at=timezone.now(),
+    )
+    client, session = _authenticated_client(user)
+    options = client.post(
+        PASSKEY_REGISTRATION_OPTIONS_URL,
+        {"name": "Aged session passkey"},
+        format="json",
+    ).json()
+    session.created_at = timezone.now() - timedelta(minutes=11)
+    session.save(update_fields=["created_at"])
+
+    with patch("dotick.identity.passkeys.verify_registration_response") as verifier:
+        response = client.post(
+            PASSKEY_REGISTRATION_VERIFY_URL,
+            {
+                "challenge_id": options["challenge_id"],
+                "credential": {"id": "unused", "response": {}},
+            },
+            format="json",
+        )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "recent_auth_required"
+    assert PasskeyChallenge.objects.get(id=options["challenge_id"]).consumed_at is None
+    verifier.assert_not_called()

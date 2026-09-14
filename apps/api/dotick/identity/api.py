@@ -182,6 +182,16 @@ class AuthenticatedIdentityView(APIView):
     permission_classes = [IsAuthenticated]
 
 
+def require_recent_session(session):
+    try:
+        require_recent_authentication(session=session)
+    except RecentAuthenticationRequired as error:
+        raise PermissionDenied(
+            "Recent authentication is required.",
+            code="recent_auth_required",
+        ) from error
+
+
 class Register(PublicIdentityView):
     def post(self, request):
         serializer = RegisterInput(data=request.data)
@@ -334,13 +344,7 @@ class BeginPasskeyRegistration(AuthenticatedIdentityView):
     def post(self, request):
         serializer = PasskeyNameInput(data=request.data)
         serializer.is_valid(raise_exception=True)
-        try:
-            require_recent_authentication(session=request.auth_session)
-        except RecentAuthenticationRequired as error:
-            raise PermissionDenied(
-                "Recent authentication is required.",
-                code="recent_auth_required",
-            ) from error
+        require_recent_session(request.auth_session)
         challenge, public_key = begin_passkey_registration(
             user=request.user,
             **serializer.validated_data,
@@ -357,6 +361,7 @@ class FinishPasskeyRegistration(AuthenticatedIdentityView):
     def post(self, request):
         serializer = PasskeyCeremonyInput(data=request.data)
         serializer.is_valid(raise_exception=True)
+        require_recent_session(request.auth_session)
         try:
             passkey = finish_passkey_registration(
                 user=request.user,
