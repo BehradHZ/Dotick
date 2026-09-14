@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 
@@ -60,6 +60,12 @@ class ExternalProviderUnavailable(APIException):
     status_code = 503
     default_detail = "External authentication provider is unavailable."
     default_code = "provider_unavailable"
+
+
+class ExternalIdentityConflict(APIException):
+    status_code = 409
+    default_detail = "External identity is already linked."
+    default_code = "external_identity_conflict"
 
 
 def normalize_email(email):
@@ -355,3 +361,37 @@ def sign_in_with_google(*, credential, user_agent=""):
         _, token_pair = create_auth_session(user=user, user_agent=user_agent)
 
     return user, token_pair, _fallback_recommended(user)
+
+
+def link_google_identity(*, user, session, credential):
+    try:
+        require_recent_authentication(session=session)
+    except RecentAuthenticationRequired as error:
+        raise PermissionDenied(
+            "Recent authentication is required.",
+            code="recent_auth_required",
+        ) from error
+
+    claims = _verify_google_credential(credential)
+    with transaction.atomic():
+        locked_user = get_user_model().objects.select_for_update().get(pk=user.pk)
+        existing = (
+            ExternalIdentity.objects.select_for_update()
+            .filter(provider=ExternalIdentity.Provider.GOOGLE)
+            .filter(models.Q(subject=claims.subject) | models.Q(user=locked_user))
+            .first()
+        )
+        if existing is not None:
+            if existing.user_id == locked_user.id and existing.subject == claims.subject:
+                return
+            raise ExternalIdentityConflict
+
+        try:
+            with transaction.atomic():
+                ExternalIdentity.objects.create(
+                    user=locked_user,
+                    provider=ExternalIdentity.Provider.GOOGLE,
+                    subject=claims.subject,
+                )
+        except IntegrityError as error:
+            raise ExternalIdentityConflict from error

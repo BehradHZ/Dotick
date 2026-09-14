@@ -18,6 +18,7 @@ pytestmark = pytest.mark.django_db
 PASSWORD_URL = "/api/v1/auth/password"
 TOKEN_URL = "/api/v1/auth/token"
 GOOGLE_URL = "/api/v1/auth/google"
+GOOGLE_LINK_URL = "/api/v1/auth/google/link"
 
 
 def _authenticated_client(user, *, session_age=timedelta(0)):
@@ -230,3 +231,31 @@ def test_google_sign_in_resolves_existing_linked_identity():
     assert get_user_model().objects.count() == 1
     assert response.json()["user"]["email"] == user.email
     assert response.json()["fallback_recommended"] is False
+
+
+def test_authenticated_user_can_explicitly_link_google_identity():
+    user = get_user_model().objects.create_user(
+        email="link-target@example.test",
+        password="Independent-password-fallback-8!",
+        email_verified_at=timezone.now(),
+    )
+    client, _ = _authenticated_client(user)
+    with patch(
+        "dotick.identity.application.verify_google_id_credential",
+        return_value=_google_claims(
+            subject="explicit-link-subject",
+            email="different-google-email@example.test",
+        ),
+    ):
+        response = client.post(
+            GOOGLE_LINK_URL,
+            {"credential": "signed-google-id-credential"},
+            format="json",
+        )
+
+    assert response.status_code == 204
+    assert get_user_model().objects.count() == 1
+    assert ExternalIdentity.objects.get(
+        provider=ExternalIdentity.Provider.GOOGLE,
+        subject="explicit-link-subject",
+    ).user == user

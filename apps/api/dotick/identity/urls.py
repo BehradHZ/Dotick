@@ -10,6 +10,7 @@ urlpatterns = [
     path("password/reset/confirm", api.ConfirmPasswordReset.as_view()),
     path("password", api.SetPassword.as_view()),
     path("google", api.GoogleSignIn.as_view()),
+    path("google/link", api.LinkGoogleIdentity.as_view()),
     path("token", api.CreateTokenPair.as_view()),
     path("token/refresh", api.RotateRefreshToken.as_view()),
     path("logout", api.LogoutCurrentSession.as_view()),

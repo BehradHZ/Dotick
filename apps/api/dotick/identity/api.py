@@ -273,6 +273,18 @@ class GoogleSignIn(PublicIdentityView):
         )
 
 
+class LinkGoogleIdentity(AuthenticatedIdentityView):
+    def post(self, request):
+        serializer = GoogleCredentialInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        application.link_google_identity(
+            user=request.user,
+            session=request.auth_session,
+            **serializer.validated_data,
+        )
+        return Response(status=204)
+
+
 class RevokeOwnedSession(AuthenticatedIdentityView):
     def delete(self, request, session_id):
         session = get_object_or_404(
