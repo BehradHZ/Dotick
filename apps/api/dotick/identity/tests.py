@@ -421,6 +421,33 @@ class AccountContactTests(TestCase):
         self.assertIsInstance(contact.pk, uuid.UUID)
         self.assertEqual(contact.user, user)
         self.assertEqual(list(user.account_contacts.all()), [contact])
+        self.assertIsNone(contact.verified_at)
+        self.assertFalse(AccountContact.objects.filter(verified_at__isnull=False).exists())
+
+    def test_duplicate_unverified_contacts_remain_independent_pending_records(self):
+        first_user = get_user_model().objects.create_user(
+            email="first-pending-contact@example.test",
+            password=None,
+        )
+        second_user = get_user_model().objects.create_user(
+            email="second-pending-contact@example.test",
+            password=None,
+        )
+
+        first = AccountContact.objects.create(
+            user=first_user,
+            kind=AccountContact.Kind.EMAIL,
+            value=" Pending@Example.TEST ",
+        )
+        second = AccountContact.objects.create(
+            user=second_user,
+            kind=AccountContact.Kind.EMAIL,
+            value="pending@example.test",
+        )
+
+        self.assertEqual(first.value, second.value)
+        self.assertIsNone(first.verified_at)
+        self.assertIsNone(second.verified_at)
 
     def test_phone_is_trimmed_and_validated_as_e164(self):
         user = get_user_model().objects.create_user(
