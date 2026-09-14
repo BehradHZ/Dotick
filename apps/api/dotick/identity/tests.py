@@ -258,6 +258,20 @@ class ExternalIdentityTests(TestCase):
         self.assertEqual(identity.user, user)
         self.assertEqual(list(user.external_identities.all()), [identity])
 
+    def test_only_google_provider_is_allowed(self):
+        user = get_user_model().objects.create_user(
+            email="unsupported-provider@example.test",
+            password=None,
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ExternalIdentity.objects.create(
+                    user=user,
+                    provider="github",
+                    subject="unsupported-subject",
+                )
+
 
 class VerificationChallengeTests(TestCase):
     @classmethod
