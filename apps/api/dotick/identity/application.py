@@ -16,6 +16,7 @@ from dotick.identity.sessions import (
     create_auth_session,
     require_recent_authentication,
     revoke_all_sessions,
+    revoke_other_sessions,
     rotate_refresh_token,
 )
 
@@ -243,7 +244,7 @@ def refresh_session(*, refresh):
 
 
 @transaction.atomic
-def add_password_fallback(*, user, session, password):
+def set_password(*, user, session, password, current_password=None):
     try:
         require_recent_authentication(session=session)
     except RecentAuthenticationRequired as error:
@@ -254,7 +255,11 @@ def add_password_fallback(*, user, session, password):
 
     locked_user = get_user_model().objects.select_for_update().get(pk=user.pk)
     if locked_user.has_usable_password():
-        raise ValidationError({"current_password": ["Current password is required."]})
+        if not current_password:
+            raise ValidationError({"current_password": ["Current password is required."]})
+        if not locked_user.check_password(current_password):
+            raise ValidationError({"current_password": ["Current password is invalid."]})
 
     locked_user.set_password(password)
     locked_user.save(update_fields=["password"])
+    revoke_other_sessions(user=locked_user, current_session=session)

@@ -82,6 +82,13 @@ def revoke_all_sessions(*, user):
     ).update(revoked_at=timezone.now())
 
 
+def revoke_other_sessions(*, user, current_session):
+    return AuthSession.objects.filter(
+        user=user,
+        revoked_at__isnull=True,
+    ).exclude(pk=current_session.pk).update(revoked_at=timezone.now())
+
+
 def require_recent_authentication(*, session):
     if session.created_at < timezone.now() - RECENT_AUTHENTICATION_WINDOW:
         raise RecentAuthenticationRequired

@@ -234,10 +234,11 @@ class SetPassword(AuthenticatedIdentityView):
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        application.add_password_fallback(
+        application.set_password(
             user=request.user,
             session=request.auth_session,
             password=serializer.validated_data["password"],
+            current_password=serializer.validated_data.get("current_password"),
         )
         return Response(status=204)
 
