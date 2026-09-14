@@ -348,3 +348,36 @@ class AccountContact(models.Model):
                 name="identity_verified_contact_unique",
             ),
         ]
+
+
+class ContactVerificationChallenge(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    contact = models.ForeignKey(
+        AccountContact,
+        on_delete=models.CASCADE,
+        related_name="verification_challenges",
+    )
+    code_digest = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = "identity_contact_verification_challenges"
+        indexes = [
+            models.Index(
+                fields=["contact", "-created_at"],
+                name="identity_contact_challenge",
+            )
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(failed_attempts__lte=5),
+                name="identity_contact_attempts_lte_5",
+            )
+        ]

@@ -16,9 +16,16 @@ from dotick.identity.challenges import (
     consume_challenge,
     issue_challenge,
 )
+from dotick.identity.contact_challenges import (
+    CONTACT_CHALLENGE_TTL,
+    InvalidContactChallenge,
+    consume_contact_challenge,
+    issue_contact_challenge,
+)
 from dotick.identity.models import (
     AccountContact,
     AuthSession,
+    ContactVerificationChallenge,
     ExternalIdentity,
     PasskeyChallenge,
     PasskeyCredential,
@@ -477,6 +484,64 @@ class AccountContactTests(TestCase):
                     value=value,
                 )
 
+
+class ContactVerificationChallengeTests(TestCase):
+    def setUp(self):
+        user = get_user_model().objects.create_user(
+            email="contact-challenge@example.test",
+            password=None,
+        )
+        self.contact = AccountContact.objects.create(
+            user=user,
+            kind=AccountContact.Kind.PHONE,
+            value="+4915112345678",
+        )
+
+    def test_code_is_hmac_backed_and_expires_in_ten_minutes(self):
+        issued_at = timezone.now()
+        with (
+            patch("dotick.identity.contact_challenges.timezone.now", return_value=issued_at),
+            patch(
+                "dotick.identity.contact_challenges.secrets.randbelow",
+                return_value=42,
+            ),
+        ):
+            code = issue_contact_challenge(contact=self.contact)
+
+        challenge = ContactVerificationChallenge.objects.get()
+        self.assertEqual(code, "000042")
+        self.assertNotEqual(challenge.code_digest, code)
+        self.assertEqual(len(challenge.code_digest), 64)
+        self.assertEqual(challenge.expires_at, issued_at + CONTACT_CHALLENGE_TTL)
+
+    def test_challenge_is_single_use(self):
+        code = issue_contact_challenge(contact=self.contact)
+
+        consume_contact_challenge(contact=self.contact, code=code)
+
+        with self.assertRaises(InvalidContactChallenge):
+            consume_contact_challenge(contact=self.contact, code=code)
+
+    def test_failed_attempts_are_tracked_and_fifth_failure_consumes_challenge(self):
+        code = issue_contact_challenge(contact=self.contact)
+        wrong_code = "000000" if code != "000000" else "111111"
+
+        for _ in range(5):
+            with self.assertRaises(InvalidContactChallenge):
+                consume_contact_challenge(contact=self.contact, code=wrong_code)
+
+        challenge = ContactVerificationChallenge.objects.get()
+        self.assertEqual(challenge.failed_attempts, 5)
+        self.assertIsNotNone(challenge.consumed_at)
+        with self.assertRaises(InvalidContactChallenge):
+            consume_contact_challenge(contact=self.contact, code=code)
+
+    def test_expired_challenge_is_rejected(self):
+        code = issue_contact_challenge(contact=self.contact)
+        ContactVerificationChallenge.objects.update(expires_at=timezone.now())
+
+        with self.assertRaises(InvalidContactChallenge):
+            consume_contact_challenge(contact=self.contact, code=code)
 
 class VerificationChallengeTests(TestCase):
     @classmethod
