@@ -173,3 +173,30 @@ class VerificationChallenge(models.Model):
                 name="identity_challenge_attempts_lte_5",
             )
         ]
+
+
+class AuthSession(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="auth_sessions",
+    )
+    refresh_jti = models.CharField(max_length=255, unique=True)
+    user_agent = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "identity_auth_sessions"
+        indexes = [
+            models.Index(
+                fields=["user", "revoked_at", "-last_seen_at"],
+                name="identity_session_active",
+            )
+        ]

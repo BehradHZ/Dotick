@@ -16,7 +16,7 @@ from dotick.identity.challenges import (
     consume_challenge,
     issue_challenge,
 )
-from dotick.identity.models import UserPreferences, VerificationChallenge
+from dotick.identity.models import AuthSession, UserPreferences, VerificationChallenge
 
 
 class CustomUserTests(TestCase):
@@ -215,6 +215,25 @@ class UserPreferencesTests(TestCase):
         field_names = {field.name for field in UserPreferences._meta.get_fields()}
 
         self.assertNotIn("day_boundary_offset_minutes", field_names)
+
+
+class AuthSessionTests(TestCase):
+    def test_session_has_uuid_identity_and_belongs_to_user(self):
+        user = get_user_model().objects.create_user(
+            email="session@example.test",
+            password="Strong-Test-Password-123!",
+        )
+
+        session = AuthSession.objects.create(
+            user=user,
+            refresh_jti=uuid.uuid4().hex,
+            user_agent="Dotick test client",
+        )
+
+        self.assertIsInstance(session.pk, uuid.UUID)
+        self.assertEqual(session.user, user)
+        self.assertEqual(list(user.auth_sessions.all()), [session])
+        self.assertIsNone(session.revoked_at)
 
 
 class VerificationChallengeTests(TestCase):
