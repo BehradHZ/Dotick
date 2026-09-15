@@ -13,6 +13,13 @@ def _document():
     return USE_CASE_PATH.read_text(encoding="utf-8")
 
 
+def _referenced_auth_requirements(document):
+    referenced = set(re.findall(r"SRS-AUTH-\d{3}", document))
+    for start, end in re.findall(r"SRS-AUTH-(\d{3})\.\.(\d{3})", document):
+        referenced.update(f"SRS-AUTH-{number:03}" for number in range(int(start), int(end) + 1))
+    return referenced
+
+
 def test_authentication_use_case_ids_are_stable_and_complete():
     document = _document()
     headings = set(re.findall(r"^## (UC-AUTH-\d{3}) — ", document, re.MULTILINE))
@@ -25,7 +32,7 @@ def test_authentication_use_case_ids_are_stable_and_complete():
 
 def test_authentication_srs_family_has_explicit_analysis_trace():
     document = _document()
-    referenced = set(re.findall(r"SRS-AUTH-\d{3}", document))
+    referenced = _referenced_auth_requirements(document)
 
     assert IN_SCOPE_AUTH_REQUIREMENTS <= referenced
     assert PRESENTATION_ONLY_REQUIREMENTS <= referenced
