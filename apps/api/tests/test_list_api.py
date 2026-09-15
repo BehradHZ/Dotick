@@ -1,6 +1,8 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from dotick.identity.sessions import create_auth_session
+from dotick.organization.application import create_list as _create_list
 from dotick.organization.models import Column, Folder, List
 from rest_framework.test import APIClient
 
@@ -182,3 +184,81 @@ def test_inbox_cannot_be_renamed():
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "immutable_inbox"
     assert List.objects.get(pk=inbox["id"]).title == "Inbox"
+
+
+def test_list_trash_and_restore_are_recoverable():
+    user = _user("list-trash@example.test")
+    client = _authenticated_client(user)
+    folder = client.post(FOLDERS_URL, {"title": "Projects"}, format="json").json()
+    created = client.post(
+        LISTS_URL,
+        {"title": "Recoverable", "folder_id": folder["id"]},
+        format="json",
+    ).json()
+
+    deleted = client.delete(f"{LISTS_URL}/{created['id']}")
+
+    assert deleted.status_code == 204
+    assert deleted.content == b""
+    assert client.get(f"{LISTS_URL}/{created['id']}").status_code == 404
+    assert client.get(LISTS_URL).json() == {"results": []}
+    row = List.objects.get(pk=created["id"])
+    assert row.is_trashed is True
+    assert row.trashed_at is not None
+
+    restored = client.post(f"{LISTS_URL}/{created['id']}/restore", {}, format="json")
+
+    assert restored.status_code == 200
+    assert restored.json()["id"] == created["id"]
+    assert restored.json()["folder_id"] == folder["id"]
+    assert restored.json()["is_trashed"] is False
+    assert restored.json()["trashed_at"] is None
+    assert client.get(f"{LISTS_URL}/{created['id']}").status_code == 200
+
+
+def test_list_trash_and_restore_protect_inbox_ownership_and_state():
+    owner = _user("list-trash-owner@example.test")
+    other = _user("list-trash-other@example.test")
+    owner_client = _authenticated_client(owner)
+    other_client = _authenticated_client(other)
+    inbox = owner_client.put(
+        BOOTSTRAP_URL,
+        {"timezone": "Europe/Berlin"},
+        format="json",
+    ).json()["inbox"]
+    row, _ = _create_list(owner=owner, title="Private")
+
+    inbox_delete = owner_client.delete(f"{LISTS_URL}/{inbox['id']}")
+    assert inbox_delete.status_code == 409
+    assert inbox_delete.json()["error"]["code"] == "immutable_inbox"
+    assert other_client.delete(f"{LISTS_URL}/{row.id}").status_code == 404
+    assert other_client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json").status_code == 404
+
+    assert owner_client.delete(f"{LISTS_URL}/{row.id}").status_code == 204
+    assert owner_client.delete(f"{LISTS_URL}/{row.id}").status_code == 404
+    assert (
+        owner_client.post(
+            f"{LISTS_URL}/{row.id}/restore",
+            {"unexpected": True},
+            format="json",
+        ).status_code
+        == 400
+    )
+    assert other_client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json").status_code == 404
+
+
+def test_restoring_a_list_detaches_it_from_a_still_trashed_folder():
+    user = _user("list-restore-folder@example.test")
+    client = _authenticated_client(user)
+    folder = Folder.objects.create(owner=user, title="Trashed parent")
+    row, _ = _create_list(owner=user, folder=folder, title="Child")
+
+    assert client.delete(f"{LISTS_URL}/{row.id}").status_code == 204
+    folder.is_trashed = True
+    folder.trashed_at = timezone.now()
+    folder.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+
+    restored = client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json")
+
+    assert restored.status_code == 200
+    assert restored.json()["folder_id"] is None

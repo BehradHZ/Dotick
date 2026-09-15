@@ -9,4 +9,5 @@ urlpatterns = [
     path("trash/folders", api.TrashedFolders.as_view()),
     path("lists", api.Lists.as_view()),
     path("lists/<uuid:list_id>", api.ListDetail.as_view()),
+    path("lists/<uuid:list_id>/restore", api.ListRestore.as_view()),
 ]

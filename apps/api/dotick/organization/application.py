@@ -20,7 +20,7 @@ class ChildResolutionRequired(APIException):
 
 class ImmutableInbox(APIException):
     status_code = 409
-    default_detail = "Inbox cannot be renamed."
+    default_detail = "Inbox cannot be renamed or deleted."
     default_code = "immutable_inbox"
 
 
@@ -273,6 +273,38 @@ def update_list(*, actor_id, list_id, title=UNSET, folder_id=UNSET, position=UNS
         changed_fields.append("position")
     row.save(update_fields=changed_fields)
     return get_list(actor_id=actor_id, list_id=row.id)
+
+
+@transaction.atomic
+def trash_list(*, actor_id, list_id):
+    from dotick.items.models import Item
+
+    row = get_list(actor_id=actor_id, list_id=list_id, for_update=True)
+    if row.is_inbox:
+        raise ImmutableInbox
+    if Item.objects.select_for_update().filter(column__list=row, is_trashed=False).exists():
+        raise ChildResolutionRequired
+    row.is_trashed = True
+    row.trashed_at = timezone.now()
+    row.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+
+
+@transaction.atomic
+def restore_list(*, actor_id, list_id):
+    try:
+        row = (
+            List.objects.select_for_update()
+            .prefetch_related("columns")
+            .get(pk=list_id, owner_id=actor_id, is_trashed=True)
+        )
+    except List.DoesNotExist as error:
+        raise Http404 from error
+    if row.folder_id is not None and row.folder.is_trashed:
+        row.folder = None
+    row.is_trashed = False
+    row.trashed_at = None
+    row.save(update_fields=["folder", "is_trashed", "trashed_at", "updated_at"])
+    return row
 
 
 @transaction.atomic
