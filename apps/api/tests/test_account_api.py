@@ -5,7 +5,13 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.utils import timezone
 from dotick.identity.contact_challenges import issue_contact_challenge
-from dotick.identity.models import AccountContact, ContactVerificationChallenge, UserPreferences
+from dotick.identity.models import (
+    AccountContact,
+    ContactVerificationChallenge,
+    ExternalIdentity,
+    PasskeyCredential,
+    UserPreferences,
+)
 from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
 
@@ -288,6 +294,7 @@ def test_get_and_patch_current_account():
         "display_name": "Before update",
         "profile_picture_url": None,
         "timezone": None,
+        "authentication_methods": {"password": True, "google": False, "passkey": False},
     }
     assert updated.status_code == 200
     assert updated.json()["display_name"] == "After update"
@@ -341,6 +348,7 @@ def test_account_patch_updates_every_mutable_profile_field():
         "display_name": "After profile update",
         "profile_picture_url": "https://cdn.example.test/profile.png",
         "timezone": "Europe/Berlin",
+        "authentication_methods": {"password": True, "google": False, "passkey": False},
     }
     user.refresh_from_db()
     assert user.handle == "after_handle"
@@ -415,3 +423,30 @@ def test_account_patch_validates_mutable_profile_fields(payload):
     assert user.display_name == "Valid name"
     assert user.profile_picture_url is None
     assert not UserPreferences.objects.filter(user=user).exists()
+
+
+def test_account_response_returns_enabled_authentication_methods():
+    user = get_user_model().objects.create_user(
+        email="account-methods@example.test",
+        password=None,
+    )
+    ExternalIdentity.objects.create(
+        user=user,
+        provider=ExternalIdentity.Provider.GOOGLE,
+        subject="account-methods-google-subject",
+    )
+    PasskeyCredential.objects.create(
+        user=user,
+        credential_id=b"account-methods-credential",
+        public_key=b"account-methods-public-key",
+        name="Account methods passkey",
+    )
+
+    response = _authenticated_client(user).get(ACCOUNT_URL)
+
+    assert response.status_code == 200
+    assert response.json()["authentication_methods"] == {
+        "password": False,
+        "google": True,
+        "passkey": True,
+    }

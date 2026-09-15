@@ -1,11 +1,21 @@
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 
-from dotick.identity.models import UserPreferences
+from dotick.identity.models import ExternalIdentity, UserPreferences
 
 
 class AccountHandleConflict(Exception):
     pass
+
+
+def enabled_authentication_methods(user):
+    return {
+        "password": user.has_usable_password(),
+        "google": user.external_identities.filter(
+            provider=ExternalIdentity.Provider.GOOGLE,
+        ).exists(),
+        "passkey": user.passkey_credentials.exists(),
+    }
 
 
 @transaction.atomic

@@ -9,7 +9,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.identity import application
-from dotick.identity.accounts import AccountHandleConflict, update_account
+from dotick.identity.accounts import (
+    AccountHandleConflict,
+    enabled_authentication_methods,
+    update_account,
+)
 from dotick.identity.contacts import (
     ContactConflict,
     ContactDeliveryUnavailable,
@@ -209,13 +213,25 @@ class AccountContactOutput(serializers.ModelSerializer):
 
 class AccountOutput(serializers.ModelSerializer):
     timezone = serializers.SerializerMethodField()
+    authentication_methods = serializers.SerializerMethodField()
 
     class Meta:
         model = get_user_model()
-        fields = ["id", "email", "handle", "display_name", "profile_picture_url", "timezone"]
+        fields = [
+            "id",
+            "email",
+            "handle",
+            "display_name",
+            "profile_picture_url",
+            "timezone",
+            "authentication_methods",
+        ]
 
     def get_timezone(self, user):
         return user.preferences.timezone if hasattr(user, "preferences") else None
+
+    def get_authentication_methods(self, user):
+        return enabled_authentication_methods(user)
 
 
 class InvalidPasskeyCeremony(APIException):
