@@ -307,6 +307,14 @@ def restore_list(*, actor_id, list_id):
     return row
 
 
+def list_trashed_lists(*, actor_id):
+    return (
+        List.objects.filter(owner_id=actor_id, is_trashed=True)
+        .prefetch_related("columns")
+        .order_by("-trashed_at", "-id")
+    )
+
+
 @transaction.atomic
 def bootstrap_account(*, actor_id, timezone):
     user = get_user_model().objects.select_for_update().get(pk=actor_id)

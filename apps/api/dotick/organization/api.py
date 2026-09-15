@@ -233,3 +233,11 @@ class ListRestore(APIView):
             raise serializers.ValidationError({"input": "Unknown fields are not accepted."})
         row = application.restore_list(actor_id=request.user.id, list_id=list_id)
         return Response(_serialize_list(row))
+
+
+class TrashedLists(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rows = application.list_trashed_lists(actor_id=request.user.id)
+        return Response({"results": [_serialize_list(row) for row in rows]})

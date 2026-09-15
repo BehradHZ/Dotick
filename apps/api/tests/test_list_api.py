@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -9,6 +11,7 @@ from rest_framework.test import APIClient
 BOOTSTRAP_URL = "/api/v1/account/bootstrap"
 FOLDERS_URL = "/api/v1/folders"
 LISTS_URL = "/api/v1/lists"
+TRASHED_LISTS_URL = "/api/v1/trash/lists"
 pytestmark = pytest.mark.django_db
 
 
@@ -262,3 +265,30 @@ def test_restoring_a_list_detaches_it_from_a_still_trashed_folder():
 
     assert restored.status_code == 200
     assert restored.json()["folder_id"] is None
+
+
+def test_trashed_list_listing_is_owned_separate_and_newest_first():
+    owner = _user("trashed-list-listing@example.test")
+    other = _user("trashed-list-listing-other@example.test")
+    client = _authenticated_client(owner)
+    older, _ = _create_list(owner=owner, title="Older")
+    newer, _ = _create_list(owner=owner, title="Newer")
+    foreign, _ = _create_list(owner=other, title="Foreign")
+    _create_list(owner=owner, title="Active")
+    older_time = timezone.now() - timedelta(days=1)
+    newer_time = timezone.now()
+    List.objects.filter(pk=older.pk).update(is_trashed=True, trashed_at=older_time)
+    List.objects.filter(pk=newer.pk).update(is_trashed=True, trashed_at=newer_time)
+    List.objects.filter(pk=foreign.pk).update(is_trashed=True, trashed_at=newer_time)
+
+    response = client.get(TRASHED_LISTS_URL)
+
+    assert response.status_code == 200
+    assert [row["id"] for row in response.json()["results"]] == [
+        str(newer.id),
+        str(older.id),
+    ]
+    assert all(row["is_trashed"] is True for row in response.json()["results"])
+    assert all(row["trashed_at"] is not None for row in response.json()["results"])
+    assert all(row["default_column"]["is_default"] is True for row in response.json()["results"])
+    assert APIClient().get(TRASHED_LISTS_URL).status_code == 401
