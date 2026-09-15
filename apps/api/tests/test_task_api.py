@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 
 BOOTSTRAP_URL = "/api/v1/account/bootstrap"
 TASKS_URL = "/api/v1/tasks"
+TRASHED_TASKS_URL = "/api/v1/trash/tasks"
 pytestmark = pytest.mark.django_db
 
 
@@ -605,3 +606,39 @@ def test_task_restore_requires_current_version_and_owner():
     assert client.post(restore_url, {"version": 2, "extra": True}, format="json").status_code == 400
     assert APIClient().post(restore_url, {"version": 2}, format="json").status_code == 401
     assert Item.objects.get(pk=created["id"]).is_trashed is True
+
+
+def test_trashed_task_list_returns_only_owned_trashed_tasks_newest_first():
+    owner = _user("task-trash-list-owner@example.test")
+    other = _user("task-trash-list-other@example.test")
+    client = _authenticated_client(owner)
+    other_client = _authenticated_client(other)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    other_client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+
+    def create(target_client, title, operation_id):
+        return target_client.post(
+            TASKS_URL,
+            {"title": title, "operation_id": operation_id},
+            format="json",
+        ).json()
+
+    first = create(client, "First trashed", "00000000-0000-0000-0000-000000000824")
+    second = create(client, "Second trashed", "00000000-0000-0000-0000-000000000825")
+    active = create(client, "Still active", "00000000-0000-0000-0000-000000000826")
+    foreign = create(other_client, "Foreign", "00000000-0000-0000-0000-000000000827")
+    client.delete(f"{TASKS_URL}/{first['id']}", HTTP_IF_MATCH="1")
+    client.delete(f"{TASKS_URL}/{second['id']}", HTTP_IF_MATCH="1")
+    other_client.delete(f"{TASKS_URL}/{foreign['id']}", HTTP_IF_MATCH="1")
+
+    response = client.get(TRASHED_TASKS_URL)
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert [row["id"] for row in results] == [second["id"], first["id"]]
+    assert active["id"] not in {row["id"] for row in results}
+    assert foreign["id"] not in {row["id"] for row in results}
+    assert all(row["is_trashed"] is True for row in results)
+    assert all(row["trashed_at"] is not None for row in results)
+    assert all(row["version"] == 2 for row in results)
+    assert APIClient().get(TRASHED_TASKS_URL).status_code == 401

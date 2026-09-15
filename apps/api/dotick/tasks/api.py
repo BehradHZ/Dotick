@@ -57,6 +57,11 @@ class TaskOutput(serializers.Serializer):
     updated_at = serializers.DateTimeField()
 
 
+class TrashedTaskOutput(TaskOutput):
+    is_trashed = serializers.BooleanField()
+    trashed_at = serializers.DateTimeField()
+
+
 class Tasks(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -117,3 +122,11 @@ class TaskRestore(APIView):
             **serializer.validated_data,
         )
         return Response(TaskOutput(item).data)
+
+
+class TrashedTasks(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rows = application.list_trashed_tasks(actor_id=request.user.id)
+        return Response({"results": TrashedTaskOutput(rows, many=True).data})

@@ -70,6 +70,18 @@ def list_tasks(*, actor_id):
     )
 
 
+def list_trashed_tasks(*, actor_id):
+    return (
+        Item.objects.select_related("task", "source")
+        .filter(
+            owner_id=actor_id,
+            is_trashed=True,
+            kind=Item.Kind.TASK,
+        )
+        .order_by("-trashed_at", "-id")
+    )
+
+
 def get_task(*, actor_id, task_id):
     try:
         return (
