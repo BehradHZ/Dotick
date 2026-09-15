@@ -24,6 +24,7 @@ class TaskUpdateInput(StrictInput):
     version = serializers.IntegerField(min_value=1)
     title = serializers.CharField(max_length=240, trim_whitespace=True, required=False)
     status = serializers.ChoiceField(choices=Task.Status.values, required=False)
+    column_id = serializers.UUIDField(required=False)
 
     def validate(self, attrs):
         if set(attrs) == {"version"}:

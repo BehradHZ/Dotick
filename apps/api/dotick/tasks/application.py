@@ -87,7 +87,7 @@ def get_task(*, actor_id, task_id):
 
 
 @transaction.atomic
-def update_task(*, actor_id, task_id, version, title=UNSET, status=UNSET):
+def update_task(*, actor_id, task_id, version, title=UNSET, status=UNSET, column_id=UNSET):
     try:
         item = (
             Item.objects.select_for_update(of=("self",))
@@ -106,6 +106,17 @@ def update_task(*, actor_id, task_id, version, title=UNSET, status=UNSET):
     if item.version != version:
         raise VersionConflict(item)
 
+    destination = None
+    if column_id is not UNSET:
+        try:
+            destination = Column.objects.get(
+                pk=column_id,
+                list__owner_id=actor_id,
+                list__is_trashed=False,
+            )
+        except Column.DoesNotExist as error:
+            raise Http404("The destination Column is unavailable.") from error
+
     if status is not UNSET:
         Task.objects.filter(pk=item.pk).update(status=status)
 
@@ -115,6 +126,8 @@ def update_task(*, actor_id, task_id, version, title=UNSET, status=UNSET):
     }
     if title is not UNSET:
         item_changes["title"] = title.strip()
+    if destination is not None:
+        item_changes["column"] = destination
     updated = Item.objects.filter(pk=item.pk, version=version).update(**item_changes)
     if updated != 1:
         item.refresh_from_db()

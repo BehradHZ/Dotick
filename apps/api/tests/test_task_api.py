@@ -374,3 +374,86 @@ def test_task_status_update_supports_only_increment_one_statuses():
     item = Item.objects.select_related("task").get(pk=created["id"])
     assert item.version == 4
     assert item.task.status == "todo"
+
+
+def test_task_move_changes_the_authoritative_column_and_version():
+    user = _user("task-move@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    destination_list, destination = create_list(owner=user, title="Destination")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Move me",
+            "operation_id": "00000000-0000-0000-0000-000000000817",
+        },
+        format="json",
+    ).json()
+
+    response = client.patch(
+        f"{TASKS_URL}/{created['id']}",
+        {"version": 1, "column_id": str(destination.id)},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["column_id"] == str(destination.id)
+    assert response.json()["version"] == 2
+    item = Item.objects.select_related("column__list").get(pk=created["id"])
+    assert item.column_id == destination.id
+    assert item.column.list_id == destination_list.id
+
+
+def test_task_move_rejects_foreign_trashed_and_stale_destinations():
+    owner = _user("task-move-owner@example.test")
+    other = _user("task-move-other@example.test")
+    client = _authenticated_client(owner)
+    workspace = client.put(
+        BOOTSTRAP_URL,
+        {"timezone": "Europe/Berlin"},
+        format="json",
+    ).json()
+    _, foreign_column = create_list(owner=other, title="Foreign")
+    trashed_list, trashed_column = create_list(owner=owner, title="Trashed")
+    trashed_list.is_trashed = True
+    trashed_list.trashed_at = trashed_list.updated_at
+    trashed_list.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+    _, valid_column = create_list(owner=owner, title="Valid")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Stay put",
+            "operation_id": "00000000-0000-0000-0000-000000000818",
+        },
+        format="json",
+    ).json()
+    url = f"{TASKS_URL}/{created['id']}"
+
+    assert (
+        client.patch(
+            url, {"version": 1, "column_id": str(foreign_column.id)}, format="json"
+        ).status_code
+        == 404
+    )
+    assert (
+        client.patch(
+            url, {"version": 1, "column_id": str(trashed_column.id)}, format="json"
+        ).status_code
+        == 404
+    )
+    moved = client.patch(
+        url,
+        {"version": 1, "column_id": str(valid_column.id)},
+        format="json",
+    )
+    stale = client.patch(
+        url,
+        {"version": 1, "column_id": workspace["inbox"]["default_column"]["id"]},
+        format="json",
+    )
+
+    assert moved.status_code == 200
+    assert stale.status_code == 409
+    item = Item.objects.get(pk=created["id"])
+    assert item.column_id == valid_column.id
+    assert item.version == 2
