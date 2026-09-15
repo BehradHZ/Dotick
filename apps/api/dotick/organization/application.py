@@ -1,10 +1,12 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.http import Http404
 
 from dotick.identity.models import UserPreferences
 from dotick.organization.models import Column, Folder, List
 
 DEFAULT_COLUMN_TITLE = "Items"
+UNSET = object()
 
 
 def _normalized_title(title):
@@ -23,6 +25,36 @@ def create_folder(*, owner, title, position=None):
         title=_normalized_title(title),
         position=position,
     )
+
+
+def list_folders(*, actor_id):
+    return Folder.objects.filter(owner_id=actor_id, is_trashed=False).order_by(
+        "position", "created_at", "id"
+    )
+
+
+def get_folder(*, actor_id, folder_id, for_update=False):
+    rows = Folder.objects.filter(owner_id=actor_id, is_trashed=False)
+    if for_update:
+        rows = rows.select_for_update()
+    try:
+        return rows.get(pk=folder_id)
+    except Folder.DoesNotExist as error:
+        raise Http404 from error
+
+
+@transaction.atomic
+def update_folder(*, actor_id, folder_id, title=UNSET, position=UNSET):
+    row = get_folder(actor_id=actor_id, folder_id=folder_id, for_update=True)
+    changed_fields = ["updated_at"]
+    if title is not UNSET:
+        row.title = _normalized_title(title)
+        changed_fields.append("title")
+    if position is not UNSET:
+        row.position = position
+        changed_fields.append("position")
+    row.save(update_fields=changed_fields)
+    return row
 
 
 def _resolve_folder(*, owner, folder):

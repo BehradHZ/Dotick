@@ -1,0 +1,114 @@
+import pytest
+from django.contrib.auth import get_user_model
+from dotick.identity.sessions import create_auth_session
+from dotick.organization.models import Folder
+from rest_framework.test import APIClient
+
+FOLDERS_URL = "/api/v1/folders"
+pytestmark = pytest.mark.django_db
+
+
+def _user(email):
+    return get_user_model().objects.create_user(
+        email=email,
+        password="Only-for-automated-tests-8!",
+    )
+
+
+def _authenticated_client(user):
+    _, pair = create_auth_session(user=user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair.access}")
+    return client
+
+
+def test_folder_create_list_get_and_update_follow_the_public_contract():
+    user = _user("folder-crud@example.test")
+    client = _authenticated_client(user)
+
+    first = client.post(FOLDERS_URL, {"title": "  Work  "}, format="json")
+    second = client.post(FOLDERS_URL, {"title": "Work"}, format="json")
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json() == {
+        "id": str(Folder.objects.get(owner=user, position=0).id),
+        "title": "Work",
+        "position": 0,
+        "is_trashed": False,
+        "trashed_at": None,
+    }
+    assert second.json()["id"] != first.json()["id"]
+    assert second.json()["position"] == 1
+
+    listed = client.get(FOLDERS_URL)
+    retrieved = client.get(f"{FOLDERS_URL}/{first.json()['id']}")
+    updated = client.patch(
+        f"{FOLDERS_URL}/{first.json()['id']}",
+        {"title": "Projects", "position": 7},
+        format="json",
+    )
+
+    assert listed.status_code == 200
+    assert [row["id"] for row in listed.json()["results"]] == [
+        first.json()["id"],
+        second.json()["id"],
+    ]
+    assert retrieved.status_code == 200
+    assert retrieved.json() == first.json()
+    assert updated.status_code == 200
+    assert updated.json()["title"] == "Projects"
+    assert updated.json()["position"] == 7
+
+
+def test_folder_endpoints_reject_invalid_input_and_require_authentication():
+    user = _user("folder-validation@example.test")
+    client = _authenticated_client(user)
+
+    assert APIClient().get(FOLDERS_URL).status_code == 401
+    assert client.post(FOLDERS_URL, {"title": "  "}, format="json").status_code == 400
+    assert (
+        client.post(
+            FOLDERS_URL,
+            {"title": "Valid", "owner_user_id": str(user.id)},
+            format="json",
+        ).status_code
+        == 400
+    )
+
+    folder_id = client.post(FOLDERS_URL, {"title": "Valid"}, format="json").json()["id"]
+    assert client.patch(f"{FOLDERS_URL}/{folder_id}", {}, format="json").status_code == 400
+    assert (
+        client.patch(
+            f"{FOLDERS_URL}/{folder_id}",
+            {"position": -1},
+            format="json",
+        ).status_code
+        == 400
+    )
+
+
+def test_folder_reads_and_writes_are_owner_scoped_and_hide_trashed_rows():
+    owner = _user("folder-owner@example.test")
+    other = _user("folder-other@example.test")
+    folder = Folder.objects.create(owner=owner, title="Private")
+    Folder.objects.create(
+        owner=owner,
+        title="Trashed",
+        is_trashed=True,
+        trashed_at="2026-09-15T00:00:00Z",
+    )
+    client = _authenticated_client(other)
+
+    assert client.get(f"{FOLDERS_URL}/{folder.id}").status_code == 404
+    assert (
+        client.patch(
+            f"{FOLDERS_URL}/{folder.id}",
+            {"title": "Taken"},
+            format="json",
+        ).status_code
+        == 404
+    )
+    assert client.get(FOLDERS_URL).json() == {"results": []}
+    folder.refresh_from_db()
+    assert folder.title == "Private"
