@@ -18,6 +18,12 @@ class ChildResolutionRequired(APIException):
     default_code = "child_resolution_required"
 
 
+class ImmutableInbox(APIException):
+    status_code = 409
+    default_detail = "Inbox cannot be renamed."
+    default_code = "immutable_inbox"
+
+
 def _normalized_title(title):
     normalized = title.strip()
     if not normalized:
@@ -223,6 +229,52 @@ def create_list(*, owner, title, folder=None, position=None):
         folder=folder,
         position=position,
     )
+
+
+def list_lists(*, actor_id):
+    return (
+        List.objects.filter(owner_id=actor_id, is_trashed=False)
+        .prefetch_related("columns")
+        .order_by("-is_inbox", "position", "created_at", "id")
+    )
+
+
+def get_list(*, actor_id, list_id, for_update=False):
+    rows = List.objects.filter(owner_id=actor_id, is_trashed=False).prefetch_related("columns")
+    if for_update:
+        rows = rows.select_for_update()
+    try:
+        return rows.get(pk=list_id)
+    except List.DoesNotExist as error:
+        raise Http404 from error
+
+
+@transaction.atomic
+def update_list(*, actor_id, list_id, title=UNSET, folder_id=UNSET, position=UNSET):
+    row = get_list(actor_id=actor_id, list_id=list_id, for_update=True)
+    if row.is_inbox and title is not UNSET:
+        raise ImmutableInbox
+
+    changed_fields = ["updated_at"]
+    if title is not UNSET:
+        row.title = _normalized_title(title)
+        changed_fields.append("title")
+    if folder_id is not UNSET:
+        row.folder = (
+            None
+            if folder_id is None
+            else get_folder(
+                actor_id=actor_id,
+                folder_id=folder_id,
+                for_update=True,
+            )
+        )
+        changed_fields.append("folder")
+    if position is not UNSET:
+        row.position = position
+        changed_fields.append("position")
+    row.save(update_fields=changed_fields)
+    return get_list(actor_id=actor_id, list_id=row.id)
 
 
 @transaction.atomic

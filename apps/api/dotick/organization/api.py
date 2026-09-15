@@ -70,6 +70,26 @@ class FolderUpdateInput(StrictInput):
         return attrs
 
 
+class ListCreateInput(StrictInput):
+    title = serializers.CharField(max_length=240, trim_whitespace=True)
+    folder_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class ListUpdateInput(StrictInput):
+    title = serializers.CharField(
+        max_length=240,
+        trim_whitespace=True,
+        required=False,
+    )
+    folder_id = serializers.UUIDField(required=False, allow_null=True)
+    position = serializers.IntegerField(min_value=0, required=False)
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError("Provide at least one List change.")
+        return attrs
+
+
 def _serialize_folder(row):
     return {
         "id": row.id,
@@ -77,6 +97,23 @@ def _serialize_folder(row):
         "position": row.position,
         "is_trashed": row.is_trashed,
         "trashed_at": row.trashed_at,
+    }
+
+
+def _serialize_list(row):
+    default_column = next(column for column in row.columns.all() if column.is_default)
+    return {
+        "id": row.id,
+        "title": row.title,
+        "folder_id": row.folder_id,
+        "is_inbox": row.is_inbox,
+        "position": row.position,
+        "is_trashed": row.is_trashed,
+        "trashed_at": row.trashed_at,
+        "default_column": {
+            "id": default_column.id,
+            "is_default": True,
+        },
     }
 
 
@@ -139,3 +176,46 @@ class TrashedFolders(APIView):
     def get(self, request):
         rows = application.list_trashed_folders(actor_id=request.user.id)
         return Response({"results": [_serialize_folder(row) for row in rows]})
+
+
+class Lists(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rows = application.list_lists(actor_id=request.user.id)
+        return Response({"results": [_serialize_list(row) for row in rows]})
+
+    def post(self, request):
+        serializer = ListCreateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        values = dict(serializer.validated_data)
+        folder_id = values.pop("folder_id", None)
+        folder = (
+            None
+            if folder_id is None
+            else application.get_folder(actor_id=request.user.id, folder_id=folder_id)
+        )
+        row, _ = application.create_list(
+            owner=request.user,
+            folder=folder,
+            **values,
+        )
+        return Response(_serialize_list(row), status=201)
+
+
+class ListDetail(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, list_id):
+        row = application.get_list(actor_id=request.user.id, list_id=list_id)
+        return Response(_serialize_list(row))
+
+    def patch(self, request, list_id):
+        serializer = ListUpdateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.update_list(
+            actor_id=request.user.id,
+            list_id=list_id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_list(row))
