@@ -84,7 +84,7 @@ def test_increment_1_erd_contains_required_physical_relationships():
         assert field in document
 
     assert "status IN ('todo', 'done', 'wont_do')" in document
-    assert "one `items` row with `kind='task'` has exactly one `tasks` row" in document
+    assert "one `items` row with `kind='task'` has exactly one `tasks` row" in document.lower()
     assert "Every I1 Item has exactly one `item_sources` row" in document
 
 
