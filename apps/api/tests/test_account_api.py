@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -148,12 +149,13 @@ def test_invalid_contact_code_keeps_contact_pending_and_tracks_attempt():
         kind=AccountContact.Kind.PHONE,
         value="+49123456780",
     )
-    issue_contact_challenge(contact=contact)
+    actual_code = issue_contact_challenge(contact=contact)
+    invalid_code = "000000" if actual_code != "000000" else "000001"
     client = _authenticated_client(user)
 
     response = client.post(
         CONTACT_VERIFY_URL,
-        {"contact_id": str(contact.id), "code": "000000"},
+        {"contact_id": str(contact.id), "code": invalid_code},
         format="json",
     )
 
@@ -267,6 +269,25 @@ def test_phone_contact_remains_pending_when_delivery_is_unavailable():
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "contact_delivery_unavailable"
     contact = AccountContact.objects.get(user=user)
+    assert contact.verified_at is None
+
+
+def test_email_transport_failure_returns_unavailable_and_preserves_pending_contact():
+    user = get_user_model().objects.create_user(
+        email="email-delivery-failure@example.test",
+        password="Only-for-automated-tests-8!",
+    )
+
+    with patch("dotick.identity.contacts.send_mail", side_effect=OSError("transport down")):
+        response = _authenticated_client(user).post(
+            CONTACTS_URL,
+            {"kind": "email", "value": "pending-delivery@example.test"},
+            format="json",
+        )
+
+    assert response.status_code == 503
+    contact = AccountContact.objects.get(user=user)
+    assert contact.value == "pending-delivery@example.test"
     assert contact.verified_at is None
 
 

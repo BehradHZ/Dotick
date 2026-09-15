@@ -25,12 +25,18 @@ class InvalidContactVerification(Exception):
 
 def _deliver_contact_code(*, contact, code):
     if contact.kind == AccountContact.Kind.EMAIL:
-        delivered = send_mail(
-            subject="Verify your Dotick contact",
-            message=f"Your Dotick contact verification code is {code}. It expires in 10 minutes.",
-            from_email=None,
-            recipient_list=[contact.value],
-        )
+        try:
+            delivered = send_mail(
+                subject="Verify your Dotick contact",
+                message=(
+                    f"Your Dotick contact verification code is {code}. "
+                    "It expires in 10 minutes."
+                ),
+                from_email=None,
+                recipient_list=[contact.value],
+            )
+        except Exception as error:
+            raise ContactDeliveryUnavailable from error
         if delivered != 1:
             raise ContactDeliveryUnavailable
         return
