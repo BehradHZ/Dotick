@@ -10,6 +10,8 @@ from dotick.items.models import Item, ItemSource
 from dotick.organization.models import Column
 from dotick.tasks.models import Task
 
+UNSET = object()
+
 
 class IdempotencyConflict(APIException):
     status_code = 409
@@ -85,7 +87,7 @@ def get_task(*, actor_id, task_id):
 
 
 @transaction.atomic
-def update_task_title(*, actor_id, task_id, version, title):
+def update_task(*, actor_id, task_id, version, title=UNSET, status=UNSET):
     try:
         item = (
             Item.objects.select_for_update(of=("self",))
@@ -104,12 +106,16 @@ def update_task_title(*, actor_id, task_id, version, title):
     if item.version != version:
         raise VersionConflict(item)
 
-    now = timezone.now()
-    updated = Item.objects.filter(pk=item.pk, version=version).update(
-        title=title.strip(),
-        version=F("version") + 1,
-        updated_at=now,
-    )
+    if status is not UNSET:
+        Task.objects.filter(pk=item.pk).update(status=status)
+
+    item_changes = {
+        "version": F("version") + 1,
+        "updated_at": timezone.now(),
+    }
+    if title is not UNSET:
+        item_changes["title"] = title.strip()
+    updated = Item.objects.filter(pk=item.pk, version=version).update(**item_changes)
     if updated != 1:
         item.refresh_from_db()
         raise VersionConflict(item)

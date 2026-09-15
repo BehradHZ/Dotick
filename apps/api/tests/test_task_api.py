@@ -334,12 +334,43 @@ def test_task_title_update_rejects_stale_invalid_and_unowned_changes():
     assert stale.json()["error"]["details"]["current"]["version"] == 2
     assert client.patch(url, {"version": 2, "title": "  "}, format="json").status_code == 400
     assert client.patch(url, {"version": 2}, format="json").status_code == 400
-    assert (
-        client.patch(
-            url, {"version": 2, "title": "No", "status": "done"}, format="json"
-        ).status_code
-        == 400
-    )
     assert other_client.patch(url, {"version": 2, "title": "No"}, format="json").status_code == 404
     assert Item.objects.get(pk=created["id"]).title == "First"
     assert Item.objects.get(pk=created["id"]).version == 2
+
+
+def test_task_status_update_supports_only_increment_one_statuses():
+    user = _user("task-status-update@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Status lifecycle",
+            "operation_id": "00000000-0000-0000-0000-000000000816",
+        },
+        format="json",
+    ).json()
+    url = f"{TASKS_URL}/{created['id']}"
+
+    done = client.patch(url, {"version": 1, "status": "done"}, format="json")
+    wont_do = client.patch(url, {"version": 2, "status": "wont_do"}, format="json")
+    todo = client.patch(
+        url,
+        {"version": 3, "status": "todo", "title": "Combined change"},
+        format="json",
+    )
+    invalid = client.patch(url, {"version": 4, "status": "cancelled"}, format="json")
+
+    assert (done.status_code, done.json()["status"], done.json()["version"]) == (200, "done", 2)
+    assert (wont_do.status_code, wont_do.json()["status"], wont_do.json()["version"]) == (
+        200,
+        "wont_do",
+        3,
+    )
+    assert (todo.status_code, todo.json()["status"], todo.json()["version"]) == (200, "todo", 4)
+    assert todo.json()["title"] == "Combined change"
+    assert invalid.status_code == 400
+    item = Item.objects.select_related("task").get(pk=created["id"])
+    assert item.version == 4
+    assert item.task.status == "todo"

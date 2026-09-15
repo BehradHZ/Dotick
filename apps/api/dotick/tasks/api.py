@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.tasks import application
+from dotick.tasks.models import Task
 
 
 class StrictInput(serializers.Serializer):
@@ -19,9 +20,15 @@ class TaskCreateInput(StrictInput):
     column_id = serializers.UUIDField(required=False, allow_null=True)
 
 
-class TaskTitleUpdateInput(StrictInput):
+class TaskUpdateInput(StrictInput):
     version = serializers.IntegerField(min_value=1)
-    title = serializers.CharField(max_length=240, trim_whitespace=True)
+    title = serializers.CharField(max_length=240, trim_whitespace=True, required=False)
+    status = serializers.ChoiceField(choices=Task.Status.values, required=False)
+
+    def validate(self, attrs):
+        if set(attrs) == {"version"}:
+            raise serializers.ValidationError("Provide at least one Task change.")
+        return attrs
 
 
 class ItemSourceOutput(serializers.Serializer):
@@ -68,9 +75,9 @@ class TaskDetail(APIView):
         return Response(TaskOutput(item).data)
 
     def patch(self, request, task_id):
-        serializer = TaskTitleUpdateInput(data=request.data)
+        serializer = TaskUpdateInput(data=request.data)
         serializer.is_valid(raise_exception=True)
-        item = application.update_task_title(
+        item = application.update_task(
             actor_id=request.user.id,
             task_id=task_id,
             **serializer.validated_data,
