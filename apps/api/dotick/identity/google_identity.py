@@ -1,8 +1,11 @@
 from dataclasses import dataclass
+from urllib.error import HTTPError, URLError
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 
 from django.conf import settings
 from google.auth import exceptions as google_exceptions
-from google.auth.transport.requests import Request
+from google.auth import transport as google_transport
 from google.oauth2 import id_token
 
 
@@ -12,6 +15,56 @@ class InvalidGoogleCredential(Exception):
 
 class GoogleProviderUnavailable(Exception):
     pass
+
+
+class _StandardLibraryResponse(google_transport.Response):
+    def __init__(self, *, status, headers, data):
+        self._status = status
+        self._headers = headers
+        self._data = data
+
+    @property
+    def status(self):
+        return self._status
+
+    @property
+    def headers(self):
+        return self._headers
+
+    @property
+    def data(self):
+        return self._data
+
+
+class _StandardLibraryRequest(google_transport.Request):
+    def __call__(self, url, method="GET", body=None, headers=None, timeout=None, **kwargs):
+        del kwargs
+        request = UrlRequest(
+            url=url,
+            data=body,
+            headers=dict(headers or {}),
+            method=method,
+        )
+
+        try:
+            if timeout is None:
+                response = urlopen(request)
+            else:
+                response = urlopen(request, timeout=timeout)
+            with response:
+                return _StandardLibraryResponse(
+                    status=response.status,
+                    headers=response.headers,
+                    data=response.read(),
+                )
+        except HTTPError as error:
+            return _StandardLibraryResponse(
+                status=error.code,
+                headers=error.headers,
+                data=error.read(),
+            )
+        except (OSError, TimeoutError, URLError) as error:
+            raise google_exceptions.TransportError(error) from error
 
 
 @dataclass(frozen=True)
@@ -29,7 +82,7 @@ def verify_google_id_credential(credential):
     try:
         claims = id_token.verify_oauth2_token(
             credential,
-            Request(),
+            _StandardLibraryRequest(),
             audience=settings.GOOGLE_OAUTH_CLIENT_ID,
         )
     except google_exceptions.TransportError as error:
