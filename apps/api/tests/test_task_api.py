@@ -164,3 +164,64 @@ def test_task_create_requires_authentication_and_strict_valid_input():
         ).status_code
         == 400
     )
+
+
+def test_task_list_returns_only_owned_active_tasks_in_active_lists_newest_first():
+    owner = _user("task-list-owner@example.test")
+    other = _user("task-list-other@example.test")
+    client = _authenticated_client(owner)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    other_client = _authenticated_client(other)
+    other_client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+
+    first = client.post(
+        TASKS_URL,
+        {
+            "title": "First",
+            "operation_id": "00000000-0000-0000-0000-000000000808",
+        },
+        format="json",
+    ).json()
+    second = client.post(
+        TASKS_URL,
+        {
+            "title": "Second",
+            "operation_id": "00000000-0000-0000-0000-000000000809",
+        },
+        format="json",
+    ).json()
+    foreign = other_client.post(
+        TASKS_URL,
+        {
+            "title": "Foreign",
+            "operation_id": "00000000-0000-0000-0000-000000000810",
+        },
+        format="json",
+    ).json()
+    hidden_item = Item.objects.get(pk=first["id"])
+    hidden_item.is_trashed = True
+    hidden_item.trashed_at = hidden_item.updated_at
+    hidden_item.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+    hidden_list, hidden_column = create_list(owner=owner, title="Trashed List")
+    hidden = client.post(
+        TASKS_URL,
+        {
+            "title": "Hidden by List",
+            "operation_id": "00000000-0000-0000-0000-000000000811",
+            "column_id": str(hidden_column.id),
+        },
+        format="json",
+    ).json()
+    hidden_list.is_trashed = True
+    hidden_list.trashed_at = hidden_list.updated_at
+    hidden_list.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+
+    response = client.get(TASKS_URL)
+
+    assert response.status_code == 200
+    assert [task["id"] for task in response.json()["results"]] == [second["id"]]
+    returned_ids = {task["id"] for task in response.json()["results"]}
+    assert foreign["id"] not in returned_ids
+    assert hidden["id"] not in returned_ids
+    assert first["id"] not in returned_ids
+    assert APIClient().get(TASKS_URL).status_code == 401

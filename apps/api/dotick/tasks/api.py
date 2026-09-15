@@ -41,6 +41,10 @@ class TaskOutput(serializers.Serializer):
 class Tasks(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        rows = application.list_tasks(actor_id=request.user.id)
+        return Response({"results": TaskOutput(rows, many=True).data})
+
     def post(self, request):
         serializer = TaskCreateInput(data=request.data)
         serializer.is_valid(raise_exception=True)
