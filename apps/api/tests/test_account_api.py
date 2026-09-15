@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.utils import timezone
 from dotick.identity.contact_challenges import issue_contact_challenge
-from dotick.identity.models import AccountContact, ContactVerificationChallenge
+from dotick.identity.models import AccountContact, ContactVerificationChallenge, UserPreferences
 from dotick.identity.sessions import create_auth_session
 from rest_framework.test import APIClient
 
@@ -311,3 +311,107 @@ def test_account_patch_rejects_empty_and_unknown_updates(payload):
     response = _authenticated_client(user).patch(ACCOUNT_URL, payload, format="json")
 
     assert response.status_code == 400
+
+
+def test_account_patch_updates_every_mutable_profile_field():
+    user = get_user_model().objects.create_user(
+        email="mutable-account@example.test",
+        password="Only-for-automated-tests-8!",
+        handle="before_handle",
+        display_name="Before profile update",
+    )
+    client = _authenticated_client(user)
+
+    response = client.patch(
+        ACCOUNT_URL,
+        {
+            "handle": "after_handle",
+            "display_name": "  After profile update  ",
+            "profile_picture_url": "https://cdn.example.test/profile.png",
+            "timezone": "Europe/Berlin",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": str(user.id),
+        "email": user.email,
+        "handle": "after_handle",
+        "display_name": "After profile update",
+        "profile_picture_url": "https://cdn.example.test/profile.png",
+        "timezone": "Europe/Berlin",
+    }
+    user.refresh_from_db()
+    assert user.handle == "after_handle"
+    assert user.display_name == "After profile update"
+    assert user.profile_picture_url == "https://cdn.example.test/profile.png"
+    assert UserPreferences.objects.get(user=user).timezone == "Europe/Berlin"
+
+    cleared = client.patch(
+        ACCOUNT_URL,
+        {"profile_picture_url": None, "timezone": "Asia/Tehran"},
+        format="json",
+    )
+
+    assert cleared.status_code == 200
+    assert cleared.json()["profile_picture_url"] is None
+    assert cleared.json()["timezone"] == "Asia/Tehran"
+
+
+def test_account_patch_rejects_case_insensitive_handle_conflict_atomically():
+    user = get_user_model().objects.create_user(
+        email="handle-requester@example.test",
+        password="Only-for-automated-tests-8!",
+        handle="requester_handle",
+        display_name="Unchanged name",
+    )
+    get_user_model().objects.create_user(
+        email="handle-owner@example.test",
+        password="Only-for-automated-tests-8!",
+        handle="Claimed_Handle",
+    )
+
+    response = _authenticated_client(user).patch(
+        ACCOUNT_URL,
+        {
+            "handle": "claimed_handle",
+            "display_name": "Must roll back",
+            "timezone": "Europe/Berlin",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "account_conflict"
+    user.refresh_from_db()
+    assert user.handle == "requester_handle"
+    assert user.display_name == "Unchanged name"
+    assert not UserPreferences.objects.filter(user=user).exists()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"handle": "not valid"},
+        {"display_name": "   "},
+        {"profile_picture_url": "not-a-url"},
+        {"timezone": "Mars/Olympus_Mons"},
+    ],
+)
+def test_account_patch_validates_mutable_profile_fields(payload):
+    user = get_user_model().objects.create_user(
+        email="profile-validation@example.test",
+        password="Only-for-automated-tests-8!",
+        handle="valid_handle",
+        display_name="Valid name",
+    )
+
+    response = _authenticated_client(user).patch(ACCOUNT_URL, payload, format="json")
+
+    assert response.status_code == 400
+    user.refresh_from_db()
+    assert user.handle == "valid_handle"
+    assert user.display_name == "Valid name"
+    assert user.profile_picture_url is None
+    assert not UserPreferences.objects.filter(user=user).exists()
