@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.identity import application
+from dotick.identity.accounts import AccountHandleConflict, update_account
 from dotick.identity.contacts import (
     ContactConflict,
     ContactDeliveryUnavailable,
@@ -31,7 +32,7 @@ from dotick.identity.sessions import (
     revoke_all_sessions,
     revoke_session,
 )
-from dotick.identity.validators import normalize_contact_value
+from dotick.identity.validators import normalize_contact_value, validate_iana_timezone
 
 
 class StrictSerializer(serializers.Serializer):
@@ -169,6 +170,31 @@ class ContactVerifyInput(StrictSerializer):
     code = serializers.RegexField(r"^[0-9]{6}$", max_length=6)
 
 
+class AccountUpdateInput(StrictSerializer):
+    handle = serializers.RegexField(r"^[A-Za-z0-9_]{3,30}$", max_length=30, required=False)
+    display_name = serializers.CharField(
+        min_length=1,
+        max_length=120,
+        trim_whitespace=True,
+        required=False,
+    )
+    profile_picture_url = serializers.URLField(
+        max_length=2048,
+        allow_null=True,
+        required=False,
+    )
+    timezone = serializers.CharField(
+        max_length=64,
+        validators=[validate_iana_timezone],
+        required=False,
+    )
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError({"input": "At least one field is required."})
+        return attrs
+
+
 class PasskeyOutput(serializers.ModelSerializer):
     class Meta:
         model = PasskeyCredential
@@ -179,6 +205,17 @@ class AccountContactOutput(serializers.ModelSerializer):
     class Meta:
         model = AccountContact
         fields = ["id", "kind", "value", "verified_at"]
+
+
+class AccountOutput(serializers.ModelSerializer):
+    timezone = serializers.SerializerMethodField()
+
+    class Meta:
+        model = get_user_model()
+        fields = ["id", "email", "handle", "display_name", "profile_picture_url", "timezone"]
+
+    def get_timezone(self, user):
+        return user.preferences.timezone if hasattr(user, "preferences") else None
 
 
 class InvalidPasskeyCeremony(APIException):
@@ -197,6 +234,12 @@ class AccountContactConflict(APIException):
     status_code = 409
     default_detail = "Contact is unavailable."
     default_code = "contact_conflict"
+
+
+class AccountUpdateConflict(APIException):
+    status_code = 409
+    default_detail = "Account update conflicts with an existing account."
+    default_code = "account_conflict"
 
 
 class ContactProviderUnavailable(APIException):
@@ -269,6 +312,20 @@ class DeleteAccountContact(AuthenticatedIdentityView):
         contact = get_object_or_404(AccountContact, id=contact_id, user=request.user)
         contact.delete()
         return Response(status=204)
+
+
+class AccountDetail(AuthenticatedIdentityView):
+    def get(self, request):
+        return Response(AccountOutput(request.user).data)
+
+    def patch(self, request):
+        serializer = AccountUpdateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            user = update_account(user=request.user, changes=serializer.validated_data)
+        except AccountHandleConflict as error:
+            raise AccountUpdateConflict from error
+        return Response(AccountOutput(user).data)
 
 
 def require_recent_session(session):

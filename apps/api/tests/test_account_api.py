@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 pytestmark = pytest.mark.django_db
 
 CONTACTS_URL = "/api/v1/account/contacts"
+ACCOUNT_URL = "/api/v1/account"
 PASSWORD_RESET_REQUEST_URL = "/api/v1/auth/password/reset/request"
 CONTACT_VERIFY_URL = "/api/v1/account/contacts/verify"
 
@@ -261,3 +262,52 @@ def test_phone_contact_remains_pending_when_delivery_is_unavailable():
     assert response.json()["error"]["code"] == "contact_delivery_unavailable"
     contact = AccountContact.objects.get(user=user)
     assert contact.verified_at is None
+
+
+def test_get_and_patch_current_account():
+    user = get_user_model().objects.create_user(
+        email="account-detail@example.test",
+        password="Only-for-automated-tests-8!",
+        handle="account_detail",
+        display_name="Before update",
+    )
+    client = _authenticated_client(user)
+
+    initial = client.get(ACCOUNT_URL)
+    updated = client.patch(
+        ACCOUNT_URL,
+        {"display_name": "After update"},
+        format="json",
+    )
+
+    assert initial.status_code == 200
+    assert initial.json() == {
+        "id": str(user.id),
+        "email": user.email,
+        "handle": "account_detail",
+        "display_name": "Before update",
+        "profile_picture_url": None,
+        "timezone": None,
+    }
+    assert updated.status_code == 200
+    assert updated.json()["display_name"] == "After update"
+    user.refresh_from_db()
+    assert user.display_name == "After update"
+
+
+def test_account_detail_requires_an_active_session():
+    response = APIClient().get(ACCOUNT_URL)
+
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("payload", [{}, {"unknown": "value"}])
+def test_account_patch_rejects_empty_and_unknown_updates(payload):
+    user = get_user_model().objects.create_user(
+        email="invalid-account-update@example.test",
+        password="Only-for-automated-tests-8!",
+    )
+
+    response = _authenticated_client(user).patch(ACCOUNT_URL, payload, format="json")
+
+    assert response.status_code == 400
