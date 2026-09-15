@@ -84,6 +84,7 @@ jobs:
         env:
           DOTICK_ENV: production
           DOTICK_FOUNDATION_ENABLED: '0'
+          DJANGO_JWT_SIGNING_KEY: ci-only-jwt-signing-key-for-production-deployment-check-0123456789abcdef
         run: python -m uv run python apps/api/manage.py check --deploy --fail-level WARNING
 
       - name: Frontend component, network and time-vector tests
