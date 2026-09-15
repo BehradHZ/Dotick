@@ -1,6 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from dotick.items.models import Item, ItemSource
 from dotick.organization.application import create_list
 from dotick.tasks.models import Task
@@ -54,3 +54,32 @@ def test_deleting_an_item_cascades_to_its_task_subtype():
     item.delete()
 
     assert not Task.objects.filter(pk=task.pk).exists()
+
+
+def test_task_defaults_to_todo_and_exposes_only_increment_1_statuses():
+    owner = _user("task-status-default@example.test")
+    item = _item(owner)
+
+    task = Task.objects.create(item=item)
+
+    assert task.status == Task.Status.TODO
+    assert {value for value, _ in Task.Status.choices} == {"todo", "done", "wont_do"}
+
+
+@pytest.mark.parametrize("status", [Task.Status.TODO, Task.Status.DONE, Task.Status.WONT_DO])
+def test_task_accepts_each_increment_1_status(status):
+    owner = _user(f"task-status-{status}@example.test")
+    item = _item(owner)
+
+    task = Task.objects.create(item=item, status=status)
+
+    task.refresh_from_db()
+    assert task.status == status
+
+
+def test_task_database_rejects_statuses_outside_increment_1():
+    owner = _user("task-status-invalid@example.test")
+    item = _item(owner)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Task.objects.create(item=item, status="in_progress")
