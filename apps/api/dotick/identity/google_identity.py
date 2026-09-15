@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen
 
@@ -58,12 +58,13 @@ class _StandardLibraryRequest(google_transport.Request):
                     data=response.read(),
                 )
         except HTTPError as error:
-            return _StandardLibraryResponse(
-                status=error.code,
-                headers=error.headers,
-                data=error.read(),
-            )
-        except (OSError, TimeoutError, URLError) as error:
+            with error:
+                return _StandardLibraryResponse(
+                    status=error.code,
+                    headers=error.headers,
+                    data=error.read(),
+                )
+        except OSError as error:
             raise google_exceptions.TransportError(error) from error
 
 
