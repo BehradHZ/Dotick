@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -84,3 +86,16 @@ class TaskDetail(APIView):
             **serializer.validated_data,
         )
         return Response(TaskOutput(item).data)
+
+    def delete(self, request, task_id):
+        value = request.headers.get("If-Match", "").strip()
+        if re.fullmatch(r'(?:[1-9][0-9]*|"[1-9][0-9]*")', value) is None:
+            raise serializers.ValidationError(
+                {"if_match": ["Use the current positive integer version."]}
+            )
+        application.delete_task(
+            actor_id=request.user.id,
+            task_id=task_id,
+            version=int(value.strip('"')),
+        )
+        return Response(status=204)

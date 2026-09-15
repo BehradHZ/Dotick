@@ -136,6 +136,39 @@ def update_task(*, actor_id, task_id, version, title=UNSET, status=UNSET, column
 
 
 @transaction.atomic
+def delete_task(*, actor_id, task_id, version):
+    try:
+        item = (
+            Item.objects.select_for_update(of=("self",))
+            .select_related("task")
+            .filter(
+                owner_id=actor_id,
+                is_trashed=False,
+                kind=Item.Kind.TASK,
+                column__list__is_trashed=False,
+            )
+            .get(pk=task_id)
+        )
+    except Item.DoesNotExist as error:
+        raise Http404 from error
+
+    if item.version != version:
+        raise VersionConflict(item)
+
+    now = timezone.now()
+    updated = Item.objects.filter(pk=item.pk, version=version).update(
+        is_trashed=True,
+        trashed_at=now,
+        trash_origin_column_id=F("column_id"),
+        version=F("version") + 1,
+        updated_at=now,
+    )
+    if updated != 1:
+        item.refresh_from_db()
+        raise VersionConflict(item)
+
+
+@transaction.atomic
 def create_task(*, actor_id, title, operation_id, column_id=None):
     normalized_title = title.strip()
     intent_digest = _creation_intent_digest(title=normalized_title, column_id=column_id)

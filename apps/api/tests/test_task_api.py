@@ -457,3 +457,63 @@ def test_task_move_rejects_foreign_trashed_and_stale_destinations():
     item = Item.objects.get(pk=created["id"])
     assert item.column_id == valid_column.id
     assert item.version == 2
+
+
+def test_task_delete_soft_deletes_the_composed_task_with_its_origin():
+    user = _user("task-delete@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Trash me",
+            "operation_id": "00000000-0000-0000-0000-000000000819",
+        },
+        format="json",
+    ).json()
+    url = f"{TASKS_URL}/{created['id']}"
+
+    response = client.delete(url, HTTP_IF_MATCH='"1"')
+
+    assert response.status_code == 204
+    item = Item.objects.get(pk=created["id"])
+    assert item.is_trashed is True
+    assert item.trashed_at is not None
+    assert str(item.trash_origin_column_id) == created["column_id"]
+    assert item.version == 2
+    assert Task.objects.filter(pk=item.id).exists()
+    assert ItemSource.objects.filter(pk=item.id).exists()
+    assert client.get(url).status_code == 404
+    assert created["id"] not in {row["id"] for row in client.get(TASKS_URL).json()["results"]}
+
+
+def test_task_delete_requires_current_if_match_and_owner():
+    owner = _user("task-delete-owner@example.test")
+    other = _user("task-delete-other@example.test")
+    client = _authenticated_client(owner)
+    other_client = _authenticated_client(other)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    other_client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Protected",
+            "operation_id": "00000000-0000-0000-0000-000000000820",
+        },
+        format="json",
+    ).json()
+    url = f"{TASKS_URL}/{created['id']}"
+
+    assert client.delete(url).status_code == 400
+    assert client.delete(url, HTTP_IF_MATCH="0").status_code == 400
+    assert client.delete(url, HTTP_IF_MATCH='"1').status_code == 400
+    assert other_client.delete(url, HTTP_IF_MATCH="1").status_code == 404
+    assert client.patch(url, {"version": 1, "title": "Changed"}, format="json").status_code == 200
+    stale = client.delete(url, HTTP_IF_MATCH="1")
+
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "version_conflict"
+    assert stale.json()["error"]["details"]["current"]["version"] == 2
+    item = Item.objects.get(pk=created["id"])
+    assert item.is_trashed is False
+    assert item.version == 2
