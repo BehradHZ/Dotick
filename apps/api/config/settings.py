@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "dotick.identity.apps.IdentityConfig",
     "dotick.organization.apps.OrganizationConfig",
     "dotick.items.apps.ItemsConfig",
+    "dotick.tasks.apps.TasksConfig",
     "dotick.foundation.apps.FoundationConfig",
 ]
 
