@@ -10,5 +10,7 @@ urlpatterns = [
     path("lists", api.Lists.as_view()),
     path("lists/<uuid:list_id>", api.ListDetail.as_view()),
     path("lists/<uuid:list_id>/restore", api.ListRestore.as_view()),
+    path("lists/<uuid:list_id>/columns", api.Columns.as_view()),
     path("trash/lists", api.TrashedLists.as_view()),
+    path("columns/<uuid:column_id>", api.ColumnDetail.as_view()),
 ]

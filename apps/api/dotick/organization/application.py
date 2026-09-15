@@ -367,6 +367,48 @@ def list_trashed_lists(*, actor_id):
     )
 
 
+def list_columns(*, actor_id, list_id):
+    row = get_list(actor_id=actor_id, list_id=list_id)
+    return row.columns.order_by("position", "created_at", "id")
+
+
+@transaction.atomic
+def create_column(*, actor_id, list_id, title):
+    row = get_list(actor_id=actor_id, list_id=list_id, for_update=True)
+    return Column.objects.create(
+        list=row,
+        title=_normalized_title(title),
+        position=row.columns.count(),
+    )
+
+
+def get_column(*, actor_id, column_id, for_update=False):
+    rows = Column.objects.filter(
+        list__owner_id=actor_id,
+        list__is_trashed=False,
+    )
+    if for_update:
+        rows = rows.select_for_update()
+    try:
+        return rows.get(pk=column_id)
+    except Column.DoesNotExist as error:
+        raise Http404 from error
+
+
+@transaction.atomic
+def update_column(*, actor_id, column_id, title=UNSET, position=UNSET):
+    row = get_column(actor_id=actor_id, column_id=column_id, for_update=True)
+    changed_fields = ["updated_at"]
+    if title is not UNSET:
+        row.title = _normalized_title(title)
+        changed_fields.append("title")
+    if position is not UNSET:
+        row.position = position
+        changed_fields.append("position")
+    row.save(update_fields=changed_fields)
+    return row
+
+
 @transaction.atomic
 def bootstrap_account(*, actor_id, timezone):
     user = get_user_model().objects.select_for_update().get(pk=actor_id)

@@ -90,6 +90,24 @@ class ListUpdateInput(StrictInput):
         return attrs
 
 
+class ColumnCreateInput(StrictInput):
+    title = serializers.CharField(max_length=240, trim_whitespace=True)
+
+
+class ColumnUpdateInput(StrictInput):
+    title = serializers.CharField(
+        max_length=240,
+        trim_whitespace=True,
+        required=False,
+    )
+    position = serializers.IntegerField(min_value=0, required=False)
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError("Provide at least one Column change.")
+        return attrs
+
+
 def _serialize_folder(row):
     return {
         "id": row.id,
@@ -114,6 +132,16 @@ def _serialize_list(row):
             "id": default_column.id,
             "is_default": True,
         },
+    }
+
+
+def _serialize_column(row):
+    return {
+        "id": row.id,
+        "list_id": row.list_id,
+        "title": row.title,
+        "position": row.position,
+        "is_default": row.is_default,
     }
 
 
@@ -245,3 +273,39 @@ class TrashedLists(APIView):
     def get(self, request):
         rows = application.list_trashed_lists(actor_id=request.user.id)
         return Response({"results": [_serialize_list(row) for row in rows]})
+
+
+class Columns(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, list_id):
+        rows = application.list_columns(actor_id=request.user.id, list_id=list_id)
+        return Response({"results": [_serialize_column(row) for row in rows]})
+
+    def post(self, request, list_id):
+        serializer = ColumnCreateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.create_column(
+            actor_id=request.user.id,
+            list_id=list_id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_column(row), status=201)
+
+
+class ColumnDetail(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, column_id):
+        row = application.get_column(actor_id=request.user.id, column_id=column_id)
+        return Response(_serialize_column(row))
+
+    def patch(self, request, column_id):
+        serializer = ColumnUpdateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.update_column(
+            actor_id=request.user.id,
+            column_id=column_id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_column(row))
