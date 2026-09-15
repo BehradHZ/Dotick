@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "dotick.identity.apps.IdentityConfig",
+    "dotick.organization.apps.OrganizationConfig",
     "dotick.foundation.apps.FoundationConfig",
 ]
 
