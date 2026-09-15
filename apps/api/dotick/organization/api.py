@@ -127,3 +127,11 @@ class FolderRestore(APIView):
             raise serializers.ValidationError({"input": "Unknown fields are not accepted."})
         row = application.restore_folder(actor_id=request.user.id, folder_id=folder_id)
         return Response(_serialize_folder(row))
+
+
+class TrashedFolders(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rows = application.list_trashed_folders(actor_id=request.user.id)
+        return Response({"results": [_serialize_folder(row) for row in rows]})

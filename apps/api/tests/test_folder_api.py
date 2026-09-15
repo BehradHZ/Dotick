@@ -1,10 +1,14 @@
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from dotick.identity.sessions import create_auth_session
 from dotick.organization.models import Folder
 from rest_framework.test import APIClient
 
 FOLDERS_URL = "/api/v1/folders"
+TRASHED_FOLDERS_URL = "/api/v1/trash/folders"
 pytestmark = pytest.mark.django_db
 
 
@@ -179,3 +183,39 @@ def test_folder_trash_and_restore_are_state_and_owner_scoped():
         ).status_code
         == 404
     )
+
+
+def test_trashed_folder_listing_is_owned_separate_and_newest_first():
+    owner = _user("trashed-folder-list@example.test")
+    other = _user("trashed-folder-list-other@example.test")
+    client = _authenticated_client(owner)
+    older = Folder.objects.create(
+        owner=owner,
+        title="Older",
+        is_trashed=True,
+        trashed_at=timezone.now() - timedelta(days=1),
+    )
+    newer = Folder.objects.create(
+        owner=owner,
+        title="Newer",
+        is_trashed=True,
+        trashed_at=timezone.now(),
+    )
+    Folder.objects.create(
+        owner=other,
+        title="Foreign",
+        is_trashed=True,
+        trashed_at=timezone.now(),
+    )
+    Folder.objects.create(owner=owner, title="Active")
+
+    response = client.get(TRASHED_FOLDERS_URL)
+
+    assert response.status_code == 200
+    assert [row["id"] for row in response.json()["results"]] == [
+        str(newer.id),
+        str(older.id),
+    ]
+    assert all(row["is_trashed"] is True for row in response.json()["results"])
+    assert all(row["trashed_at"] is not None for row in response.json()["results"])
+    assert APIClient().get(TRASHED_FOLDERS_URL).status_code == 401

@@ -82,6 +82,12 @@ def restore_folder(*, actor_id, folder_id):
     return row
 
 
+def list_trashed_folders(*, actor_id):
+    return Folder.objects.filter(owner_id=actor_id, is_trashed=True).order_by(
+        "-trashed_at", "-id"
+    )
+
+
 def _resolve_folder(*, owner, folder):
     if folder is None:
         return None
