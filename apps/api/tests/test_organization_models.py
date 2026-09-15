@@ -4,7 +4,6 @@ import pytest
 from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-
 from dotick.organization.models import Column, Folder, List
 
 pytestmark = pytest.mark.django_db

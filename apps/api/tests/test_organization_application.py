@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-
 from dotick.organization.application import (
     DEFAULT_COLUMN_TITLE,
     create_folder,

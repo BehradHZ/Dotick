@@ -3,11 +3,10 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections
-from rest_framework.test import APIClient
-
 from dotick.identity.models import UserPreferences
 from dotick.identity.sessions import create_auth_session
 from dotick.organization.models import Column, List
+from rest_framework.test import APIClient
 
 BOOTSTRAP_URL = "/api/v1/account/bootstrap"
 pytestmark = pytest.mark.django_db
@@ -72,7 +71,9 @@ def test_repeated_bootstrap_is_idempotent():
     assert repeated.json() == first.json()
     assert UserPreferences.objects.filter(user=user).count() == 1
     assert List.objects.filter(owner=user, is_inbox=True).count() == 1
-    assert Column.objects.filter(list__owner=user, list__is_inbox=True, is_default=True).count() == 1
+    assert (
+        Column.objects.filter(list__owner=user, list__is_inbox=True, is_default=True).count() == 1
+    )
 
 
 def test_bootstrap_does_not_overwrite_existing_preferences():
@@ -91,11 +92,14 @@ def test_bootstrap_does_not_overwrite_existing_preferences():
 
 
 def test_bootstrap_requires_authentication_and_valid_timezone():
-    assert APIClient().put(
-        BOOTSTRAP_URL,
-        {"timezone": "Europe/London"},
-        format="json",
-    ).status_code == 401
+    assert (
+        APIClient().put(
+            BOOTSTRAP_URL,
+            {"timezone": "Europe/London"},
+            format="json",
+        ).status_code
+        == 401
+    )
 
     user = _user("invalid-bootstrap@example.test")
     response = _authenticated_client(user).put(
@@ -134,4 +138,6 @@ def test_concurrent_bootstrap_keeps_exactly_one_inbox_and_default_column():
     assert results[0][1] == results[1][1]
     assert UserPreferences.objects.filter(user=user).count() == 1
     assert List.objects.filter(owner=user, is_inbox=True).count() == 1
-    assert Column.objects.filter(list__owner=user, list__is_inbox=True, is_default=True).count() == 1
+    assert (
+        Column.objects.filter(list__owner=user, list__is_inbox=True, is_default=True).count() == 1
+    )
