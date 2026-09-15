@@ -9,6 +9,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.identity import application
+from dotick.identity.contacts import (
+    ContactConflict,
+    ContactDeliveryUnavailable,
+    InvalidContactVerification,
+    request_contact_verification,
+    verify_contact,
+)
 from dotick.identity.models import AccountContact, AuthSession, PasskeyCredential
 from dotick.identity.passkeys import (
     InvalidPasskeyChallenge,
@@ -24,6 +31,7 @@ from dotick.identity.sessions import (
     revoke_all_sessions,
     revoke_session,
 )
+from dotick.identity.validators import normalize_contact_value
 
 
 class StrictSerializer(serializers.Serializer):
@@ -144,6 +152,23 @@ class PasskeyCeremonyInput(StrictSerializer):
     credential = serializers.DictField()
 
 
+class ContactRequestInput(StrictSerializer):
+    kind = serializers.ChoiceField(choices=AccountContact.Kind.choices)
+    value = serializers.CharField(max_length=254, trim_whitespace=True)
+
+    def validate(self, attrs):
+        try:
+            attrs["value"] = normalize_contact_value(attrs["kind"], attrs["value"])
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({"value": error.messages}) from error
+        return attrs
+
+
+class ContactVerifyInput(StrictSerializer):
+    contact_id = serializers.UUIDField()
+    code = serializers.RegexField(r"^[0-9]{6}$", max_length=6)
+
+
 class PasskeyOutput(serializers.ModelSerializer):
     class Meta:
         model = PasskeyCredential
@@ -166,6 +191,24 @@ class PasskeyConflict(APIException):
     status_code = 409
     default_detail = "Passkey credential already exists."
     default_code = "passkey_conflict"
+
+
+class AccountContactConflict(APIException):
+    status_code = 409
+    default_detail = "Contact is unavailable."
+    default_code = "contact_conflict"
+
+
+class ContactProviderUnavailable(APIException):
+    status_code = 503
+    default_detail = "Contact delivery is unavailable."
+    default_code = "contact_delivery_unavailable"
+
+
+class InvalidAccountContactVerification(APIException):
+    status_code = 400
+    default_detail = "Invalid or expired contact verification code."
+    default_code = "invalid_contact_verification"
 
 
 class AuthSessionOutput(serializers.ModelSerializer):
@@ -192,6 +235,40 @@ class AccountContacts(AuthenticatedIdentityView):
     def get(self, request):
         contacts = AccountContact.objects.active().owned_by(request.user).order_by("created_at")
         return Response({"results": AccountContactOutput(contacts, many=True).data})
+
+    def post(self, request):
+        serializer = ContactRequestInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            contact = request_contact_verification(
+                user=request.user,
+                **serializer.validated_data,
+            )
+        except ContactConflict as error:
+            raise AccountContactConflict from error
+        except ContactDeliveryUnavailable as error:
+            raise ContactProviderUnavailable from error
+        return Response({"id": contact.id, "status": "pending"}, status=202)
+
+
+class VerifyAccountContact(AuthenticatedIdentityView):
+    def post(self, request):
+        serializer = ContactVerifyInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            verify_contact(user=request.user, **serializer.validated_data)
+        except InvalidContactVerification as error:
+            raise InvalidAccountContactVerification from error
+        except ContactConflict as error:
+            raise AccountContactConflict from error
+        return Response(status=204)
+
+
+class DeleteAccountContact(AuthenticatedIdentityView):
+    def delete(self, request, contact_id):
+        contact = get_object_or_404(AccountContact, id=contact_id, user=request.user)
+        contact.delete()
+        return Response(status=204)
 
 
 def require_recent_session(session):
