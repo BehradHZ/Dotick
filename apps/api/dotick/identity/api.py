@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.identity import application
-from dotick.identity.models import AuthSession, PasskeyCredential
+from dotick.identity.models import AccountContact, AuthSession, PasskeyCredential
 from dotick.identity.passkeys import (
     InvalidPasskeyChallenge,
     PasskeyCredentialConflict,
@@ -150,6 +150,12 @@ class PasskeyOutput(serializers.ModelSerializer):
         fields = ["id", "name", "device_type", "backed_up", "created_at", "last_used_at"]
 
 
+class AccountContactOutput(serializers.ModelSerializer):
+    class Meta:
+        model = AccountContact
+        fields = ["id", "kind", "value", "verified_at"]
+
+
 class InvalidPasskeyCeremony(APIException):
     status_code = 400
     default_detail = "Passkey ceremony is invalid or expired."
@@ -180,6 +186,15 @@ class PublicIdentityView(APIView):
 
 class AuthenticatedIdentityView(APIView):
     permission_classes = [IsAuthenticated]
+
+
+class AccountContacts(AuthenticatedIdentityView):
+    def get(self, request):
+        contacts = AccountContact.objects.filter(
+            user=request.user,
+            verified_at__isnull=False,
+        ).order_by("created_at")
+        return Response({"results": AccountContactOutput(contacts, many=True).data})
 
 
 def require_recent_session(session):
