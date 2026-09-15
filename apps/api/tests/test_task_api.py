@@ -278,3 +278,68 @@ def test_task_get_hides_tasks_in_trashed_lists():
     owned_list.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
 
     assert client.get(f"{TASKS_URL}/{created['id']}").status_code == 404
+
+
+def test_task_title_update_is_trimmed_and_atomically_increments_version():
+    user = _user("task-title-update@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Before",
+            "operation_id": "00000000-0000-0000-0000-000000000814",
+        },
+        format="json",
+    ).json()
+
+    response = client.patch(
+        f"{TASKS_URL}/{created['id']}",
+        {"version": 1, "title": "  After  "},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "After"
+    assert response.json()["version"] == 2
+    assert response.json()["id"] == created["id"]
+    assert response.json()["created_at"] == created["created_at"]
+    assert response.json()["updated_at"] > created["updated_at"]
+    assert Item.objects.get(pk=created["id"]).version == 2
+
+
+def test_task_title_update_rejects_stale_invalid_and_unowned_changes():
+    owner = _user("task-title-update-owner@example.test")
+    other = _user("task-title-update-other@example.test")
+    client = _authenticated_client(owner)
+    other_client = _authenticated_client(other)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    other_client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Original",
+            "operation_id": "00000000-0000-0000-0000-000000000815",
+        },
+        format="json",
+    ).json()
+    url = f"{TASKS_URL}/{created['id']}"
+    assert client.patch(url, {"version": 1, "title": "First"}, format="json").status_code == 200
+
+    stale = client.patch(url, {"version": 1, "title": "Stale"}, format="json")
+
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "version_conflict"
+    assert stale.json()["error"]["details"]["current"]["title"] == "First"
+    assert stale.json()["error"]["details"]["current"]["version"] == 2
+    assert client.patch(url, {"version": 2, "title": "  "}, format="json").status_code == 400
+    assert client.patch(url, {"version": 2}, format="json").status_code == 400
+    assert (
+        client.patch(
+            url, {"version": 2, "title": "No", "status": "done"}, format="json"
+        ).status_code
+        == 400
+    )
+    assert other_client.patch(url, {"version": 2, "title": "No"}, format="json").status_code == 404
+    assert Item.objects.get(pk=created["id"]).title == "First"
+    assert Item.objects.get(pk=created["id"]).version == 2

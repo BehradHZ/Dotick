@@ -41,10 +41,17 @@ def api_exception_handler(error, context):
             status=500,
         )
 
+    details = response.data
+    if hasattr(error, "current"):
+        details = {
+            "message": response.data["detail"],
+            "current": error.current,
+        }
+
     response.data = {
         "error": {
             "code": _get_error_code(error, response.status_code),
-            "details": response.data,
+            "details": details,
         }
     }
 

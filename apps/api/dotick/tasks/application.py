@@ -1,7 +1,9 @@
 import hashlib
 
 from django.db import IntegrityError, transaction
+from django.db.models import F
 from django.http import Http404
+from django.utils import timezone
 from rest_framework.exceptions import APIException
 
 from dotick.items.models import Item, ItemSource
@@ -13,6 +15,21 @@ class IdempotencyConflict(APIException):
     status_code = 409
     default_detail = "The operation ID was already used for a different Task creation."
     default_code = "idempotency_conflict"
+
+
+class VersionConflict(APIException):
+    status_code = 409
+    default_code = "version_conflict"
+
+    def __init__(self, item):
+        self.current = {
+            "id": str(item.id),
+            "title": item.title,
+            "status": item.task.status,
+            "version": item.version,
+            "column_id": str(item.column_id),
+        }
+        super().__init__("The Task changed after the supplied version.")
 
 
 def _creation_intent_digest(*, title, column_id):
@@ -65,6 +82,38 @@ def get_task(*, actor_id, task_id):
         )
     except Item.DoesNotExist as error:
         raise Http404 from error
+
+
+@transaction.atomic
+def update_task_title(*, actor_id, task_id, version, title):
+    try:
+        item = (
+            Item.objects.select_for_update(of=("self",))
+            .select_related("task", "source")
+            .filter(
+                owner_id=actor_id,
+                is_trashed=False,
+                kind=Item.Kind.TASK,
+                column__list__is_trashed=False,
+            )
+            .get(pk=task_id)
+        )
+    except Item.DoesNotExist as error:
+        raise Http404 from error
+
+    if item.version != version:
+        raise VersionConflict(item)
+
+    now = timezone.now()
+    updated = Item.objects.filter(pk=item.pk, version=version).update(
+        title=title.strip(),
+        version=F("version") + 1,
+        updated_at=now,
+    )
+    if updated != 1:
+        item.refresh_from_db()
+        raise VersionConflict(item)
+    return get_task(actor_id=actor_id, task_id=task_id)
 
 
 @transaction.atomic

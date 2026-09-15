@@ -19,6 +19,11 @@ class TaskCreateInput(StrictInput):
     column_id = serializers.UUIDField(required=False, allow_null=True)
 
 
+class TaskTitleUpdateInput(StrictInput):
+    version = serializers.IntegerField(min_value=1)
+    title = serializers.CharField(max_length=240, trim_whitespace=True)
+
+
 class ItemSourceOutput(serializers.Serializer):
     platform = serializers.CharField()
     external_account_id = serializers.CharField(allow_null=True)
@@ -60,4 +65,14 @@ class TaskDetail(APIView):
 
     def get(self, request, task_id):
         item = application.get_task(actor_id=request.user.id, task_id=task_id)
+        return Response(TaskOutput(item).data)
+
+    def patch(self, request, task_id):
+        serializer = TaskTitleUpdateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        item = application.update_task_title(
+            actor_id=request.user.id,
+            task_id=task_id,
+            **serializer.validated_data,
+        )
         return Response(TaskOutput(item).data)
