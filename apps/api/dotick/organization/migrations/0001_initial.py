@@ -156,9 +156,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 "db_table": "columns",
-                "indexes": [
-                    models.Index(fields=["list", "position"], name="column_list_position")
-                ],
+                "indexes": [models.Index(fields=["list", "position"], name="column_list_position")],
                 "constraints": [
                     models.CheckConstraint(
                         condition=models.Q(("title", ""), _negated=True),

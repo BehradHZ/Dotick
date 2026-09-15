@@ -93,11 +93,13 @@ def test_bootstrap_does_not_overwrite_existing_preferences():
 
 def test_bootstrap_requires_authentication_and_valid_timezone():
     assert (
-        APIClient().put(
+        APIClient()
+        .put(
             BOOTSTRAP_URL,
             {"timezone": "Europe/London"},
             format="json",
-        ).status_code
+        )
+        .status_code
         == 401
     )
 
