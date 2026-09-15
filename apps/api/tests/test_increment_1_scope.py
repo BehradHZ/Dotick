@@ -126,9 +126,7 @@ def test_increment_1_openapi_has_no_later_increment_surface():
     assert not leaked_paths, f"Increment 2+ endpoints leaked into I1: {leaked_paths}"
 
     schemas = contract.get("components", {}).get("schemas", {})
-    leaked_schemas = {
-        name for name in schemas if name.startswith(FORBIDDEN_SCHEMA_PREFIXES)
-    }
+    leaked_schemas = {name for name in schemas if name.startswith(FORBIDDEN_SCHEMA_PREFIXES)}
     assert not leaked_schemas, f"Increment 2+ schemas leaked into I1: {leaked_schemas}"
 
     leaked_properties = set(_property_names(schemas)) & FORBIDDEN_FIELD_NAMES
@@ -155,9 +153,7 @@ def test_increment_1_task_contract_uses_only_basic_task_states():
 
 
 def test_increment_1_django_schema_has_no_later_increment_models_or_fields():
-    dotick_models = [
-        model for model in apps.get_models() if model.__module__.startswith("dotick.")
-    ]
+    dotick_models = [model for model in apps.get_models() if model.__module__.startswith("dotick.")]
 
     leaked_models = {
         model.__name__ for model in dotick_models if model.__name__ in FORBIDDEN_MODEL_NAMES

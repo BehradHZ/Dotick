@@ -543,6 +543,7 @@ class ContactVerificationChallengeTests(TestCase):
         with self.assertRaises(InvalidContactChallenge):
             consume_contact_challenge(contact=self.contact, code=code)
 
+
 class VerificationChallengeTests(TestCase):
     @classmethod
     def setUpTestData(cls):

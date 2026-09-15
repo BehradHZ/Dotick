@@ -221,10 +221,12 @@ def test_successful_password_reset_revokes_all_active_sessions():
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {first_pair.access}")
     assert client.get("/api/v1/auth/sessions").status_code == 401
     assert (
-        APIClient().post(
+        APIClient()
+        .post(
             "/api/v1/auth/token/refresh",
             {"refresh": first_pair.refresh},
             format="json",
-        ).status_code
+        )
+        .status_code
         == 401
     )

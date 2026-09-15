@@ -197,11 +197,15 @@ def test_concurrent_refresh_rotation_accepts_token_once():
         close_old_connections()
         try:
             barrier.wait()
-            return APIClient().post(
-                REFRESH_URL,
-                {"refresh": pair.refresh},
-                format="json",
-            ).status_code
+            return (
+                APIClient()
+                .post(
+                    REFRESH_URL,
+                    {"refresh": pair.refresh},
+                    format="json",
+                )
+                .status_code
+            )
         finally:
             close_old_connections()
 

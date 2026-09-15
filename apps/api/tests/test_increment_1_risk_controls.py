@@ -141,9 +141,7 @@ def test_timezone_baseline_is_utc_with_executable_iana_dst_vectors():
     assert "Europe/Berlin" in zones
     assert "America/New_York" in zones
     assert "Asia/Tehran" in zones
-    assert {23, 25} <= {
-        vector["hours"] for vector in vectors["all_day"] if "hours" in vector
-    }
+    assert {23, 25} <= {vector["hours"] for vector in vectors["all_day"] if "hours" in vector}
     assert any(vector.get("error") == "ambiguous" for vector in vectors["wall_times"])
     assert any(vector.get("error") == "nonexistent" for vector in vectors["wall_times"])
 
@@ -171,13 +169,10 @@ def test_destructive_or_opaque_migrations_require_explicit_safety_review():
     violations = []
     for migration_file in migration_files:
         content = migration_file.read_text(encoding="utf-8")
-        risky_tokens = {
-            token for token in REVIEW_REQUIRED_MIGRATION_TOKENS if token in content
-        }
+        risky_tokens = {token for token in REVIEW_REQUIRED_MIGRATION_TOKENS if token in content}
         if risky_tokens and MIGRATION_REVIEW_MARKER not in content:
             violations.append((migration_file.relative_to(REPO_ROOT), sorted(risky_tokens)))
 
     assert not violations, (
-        "Destructive/opaque migrations require an explicit safety review marker: "
-        f"{violations}"
+        f"Destructive/opaque migrations require an explicit safety review marker: {violations}"
     )

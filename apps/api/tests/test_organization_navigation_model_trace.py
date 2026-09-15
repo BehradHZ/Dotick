@@ -2,11 +2,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MODEL_PATH = (
-    REPO_ROOT
-    / "docs"
-    / "reference"
-    / "analysis"
-    / "folder-list-column-navigation-model.md"
+    REPO_ROOT / "docs" / "reference" / "analysis" / "folder-list-column-navigation-model.md"
 )
 
 

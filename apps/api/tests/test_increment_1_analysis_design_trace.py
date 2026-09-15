@@ -107,8 +107,7 @@ def test_increment_1_erd_does_not_pull_increment_2_plus_fields_into_schema():
         assert field in absent_section
 
     assert (
-        "No scheduling, deadline, priority, dependency, hierarchy, recurrence, or "
-        "reminder columns"
+        "No scheduling, deadline, priority, dependency, hierarchy, recurrence, or reminder columns"
     ) in document
     assert "Group ownership/sharing/roles" in document
     assert "sync clocks, change branches, history/audit tables" in document

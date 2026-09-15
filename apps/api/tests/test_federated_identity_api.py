@@ -263,10 +263,13 @@ def test_authenticated_user_can_explicitly_link_google_identity():
 
     assert response.status_code == 204
     assert get_user_model().objects.count() == 1
-    assert ExternalIdentity.objects.get(
-        provider=ExternalIdentity.Provider.GOOGLE,
-        subject="explicit-link-subject",
-    ).user == user
+    assert (
+        ExternalIdentity.objects.get(
+            provider=ExternalIdentity.Provider.GOOGLE,
+            subject="explicit-link-subject",
+        ).user
+        == user
+    )
 
 
 def test_google_linking_requires_recent_authentication():
@@ -537,11 +540,15 @@ def test_passkey_authentication_verification_updates_counter_and_creates_session
         backed_up=False,
         name="Authentication passkey",
     )
-    options = APIClient().post(
-        PASSKEY_AUTHENTICATION_OPTIONS_URL,
-        {},
-        format="json",
-    ).json()
+    options = (
+        APIClient()
+        .post(
+            PASSKEY_AUTHENTICATION_OPTIONS_URL,
+            {},
+            format="json",
+        )
+        .json()
+    )
     credential = {
         "id": bytes_to_base64url(bytes(passkey.credential_id)),
         "rawId": bytes_to_base64url(bytes(passkey.credential_id)),
