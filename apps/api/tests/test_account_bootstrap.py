@@ -91,6 +91,36 @@ def test_bootstrap_does_not_overwrite_existing_preferences():
     assert UserPreferences.objects.get(user=user).timezone == "Asia/Tehran"
 
 
+def test_bootstrap_repairs_existing_inbox_without_default_column():
+    user = _user("repair-bootstrap@example.test")
+    inbox = List.objects.create(owner=user, title="Inbox", position=0, is_inbox=True)
+    existing_column = Column.objects.create(
+        list=inbox,
+        title="Later",
+        position=1,
+        is_default=False,
+    )
+
+    response = _authenticated_client(user).put(
+        BOOTSTRAP_URL,
+        {"timezone": "Europe/London"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert List.objects.filter(owner=user, is_inbox=True).count() == 1
+    default_columns = Column.objects.filter(list=inbox, is_default=True)
+    assert default_columns.count() == 1
+    default_column = default_columns.get()
+    assert response.json()["inbox"]["id"] == str(inbox.id)
+    assert response.json()["inbox"]["default_column"] == {
+        "id": str(default_column.id),
+        "is_default": True,
+    }
+    assert Column.objects.filter(list=inbox).count() == 2
+    assert Column.objects.filter(pk=existing_column.pk, is_default=False).exists()
+
+
 def test_bootstrap_requires_authentication_and_valid_timezone():
     assert (
         APIClient()
