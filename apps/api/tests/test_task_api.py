@@ -517,3 +517,91 @@ def test_task_delete_requires_current_if_match_and_owner():
     item = Item.objects.get(pk=created["id"])
     assert item.is_trashed is False
     assert item.version == 2
+
+
+def test_task_restore_returns_the_task_to_its_active_origin_column():
+    user = _user("task-restore@example.test")
+    client = _authenticated_client(user)
+    _, column = create_list(owner=user, title="Origin")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Restore me",
+            "operation_id": "00000000-0000-0000-0000-000000000821",
+            "column_id": str(column.id),
+        },
+        format="json",
+    ).json()
+    url = f"{TASKS_URL}/{created['id']}"
+    assert client.delete(url, HTTP_IF_MATCH="1").status_code == 204
+
+    response = client.post(f"{url}/restore", {"version": 2}, format="json")
+
+    assert response.status_code == 200
+    assert response.json()["column_id"] == str(column.id)
+    assert response.json()["version"] == 3
+    item = Item.objects.get(pk=created["id"])
+    assert item.is_trashed is False
+    assert item.trashed_at is None
+    assert item.trash_origin_column_id is None
+    assert client.get(url).status_code == 200
+
+
+def test_task_restore_falls_back_to_inbox_when_the_origin_is_unavailable():
+    user = _user("task-restore-fallback@example.test")
+    client = _authenticated_client(user)
+    workspace = client.put(
+        BOOTSTRAP_URL,
+        {"timezone": "Europe/Berlin"},
+        format="json",
+    ).json()
+    origin_list, origin = create_list(owner=user, title="Unavailable origin")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Fallback",
+            "operation_id": "00000000-0000-0000-0000-000000000822",
+            "column_id": str(origin.id),
+        },
+        format="json",
+    ).json()
+    url = f"{TASKS_URL}/{created['id']}"
+    client.delete(url, HTTP_IF_MATCH="1")
+    origin_list.is_trashed = True
+    origin_list.trashed_at = origin_list.updated_at
+    origin_list.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+
+    response = client.post(f"{url}/restore", {"version": 2}, format="json")
+
+    assert response.status_code == 200
+    assert response.json()["column_id"] == workspace["inbox"]["default_column"]["id"]
+    assert response.json()["version"] == 3
+
+
+def test_task_restore_requires_current_version_and_owner():
+    owner = _user("task-restore-owner@example.test")
+    other = _user("task-restore-other@example.test")
+    client = _authenticated_client(owner)
+    other_client = _authenticated_client(other)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    other_client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Versioned restore",
+            "operation_id": "00000000-0000-0000-0000-000000000823",
+        },
+        format="json",
+    ).json()
+    url = f"{TASKS_URL}/{created['id']}"
+    restore_url = f"{url}/restore"
+    client.delete(url, HTTP_IF_MATCH="1")
+
+    stale = client.post(restore_url, {"version": 1}, format="json")
+
+    assert stale.status_code == 409
+    assert stale.json()["error"]["details"]["current"]["version"] == 2
+    assert other_client.post(restore_url, {"version": 2}, format="json").status_code == 404
+    assert client.post(restore_url, {"version": 2, "extra": True}, format="json").status_code == 400
+    assert APIClient().post(restore_url, {"version": 2}, format="json").status_code == 401
+    assert Item.objects.get(pk=created["id"]).is_trashed is True

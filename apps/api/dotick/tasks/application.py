@@ -169,6 +169,60 @@ def delete_task(*, actor_id, task_id, version):
 
 
 @transaction.atomic
+def restore_task(*, actor_id, task_id, version):
+    try:
+        item = (
+            Item.objects.select_for_update(of=("self",))
+            .select_related("task")
+            .filter(
+                owner_id=actor_id,
+                is_trashed=True,
+                kind=Item.Kind.TASK,
+            )
+            .get(pk=task_id)
+        )
+    except Item.DoesNotExist as error:
+        raise Http404 from error
+
+    if item.version != version:
+        raise VersionConflict(item)
+
+    destination = Column.objects.filter(
+        pk=item.trash_origin_column_id,
+        list__owner_id=actor_id,
+        list__is_trashed=False,
+    ).first()
+    if destination is None:
+        try:
+            destination = Column.objects.get(
+                list__owner_id=actor_id,
+                list__is_inbox=True,
+                list__is_trashed=False,
+                is_default=True,
+            )
+        except Column.DoesNotExist as error:
+            raise Http404("The Inbox default Column is unavailable.") from error
+
+    now = timezone.now()
+    updated = Item.objects.filter(
+        pk=item.pk,
+        version=version,
+        is_trashed=True,
+    ).update(
+        column=destination,
+        is_trashed=False,
+        trashed_at=None,
+        trash_origin_column_id=None,
+        version=F("version") + 1,
+        updated_at=now,
+    )
+    if updated != 1:
+        item.refresh_from_db()
+        raise VersionConflict(item)
+    return get_task(actor_id=actor_id, task_id=task_id)
+
+
+@transaction.atomic
 def create_task(*, actor_id, title, operation_id, column_id=None):
     normalized_title = title.strip()
     intent_digest = _creation_intent_digest(title=normalized_title, column_id=column_id)

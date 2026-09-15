@@ -34,6 +34,10 @@ class TaskUpdateInput(StrictInput):
         return attrs
 
 
+class TaskRestoreInput(StrictInput):
+    version = serializers.IntegerField(min_value=1)
+
+
 class ItemSourceOutput(serializers.Serializer):
     platform = serializers.CharField()
     external_account_id = serializers.CharField(allow_null=True)
@@ -99,3 +103,17 @@ class TaskDetail(APIView):
             version=int(value.strip('"')),
         )
         return Response(status=204)
+
+
+class TaskRestore(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, task_id):
+        serializer = TaskRestoreInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        item = application.restore_task(
+            actor_id=request.user.id,
+            task_id=task_id,
+            **serializer.validated_data,
+        )
+        return Response(TaskOutput(item).data)
