@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from django.contrib.auth import get_user_model
 from dotick.identity.sessions import create_auth_session
@@ -225,3 +227,54 @@ def test_task_list_returns_only_owned_active_tasks_in_active_lists_newest_first(
     assert hidden["id"] not in returned_ids
     assert first["id"] not in returned_ids
     assert APIClient().get(TASKS_URL).status_code == 401
+
+
+def test_task_get_returns_only_an_owned_active_task_in_an_active_list():
+    owner = _user("task-get-owner@example.test")
+    other = _user("task-get-other@example.test")
+    client = _authenticated_client(owner)
+    other_client = _authenticated_client(other)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    other_client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Readable",
+            "operation_id": "00000000-0000-0000-0000-000000000812",
+        },
+        format="json",
+    ).json()
+
+    response = client.get(f"{TASKS_URL}/{created['id']}")
+
+    assert response.status_code == 200
+    assert response.json() == created
+    assert other_client.get(f"{TASKS_URL}/{created['id']}").status_code == 404
+    assert client.get(f"{TASKS_URL}/{uuid4()}").status_code == 404
+    assert APIClient().get(f"{TASKS_URL}/{created['id']}").status_code == 401
+
+    item = Item.objects.get(pk=created["id"])
+    item.is_trashed = True
+    item.trashed_at = item.updated_at
+    item.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+    assert client.get(f"{TASKS_URL}/{created['id']}").status_code == 404
+
+
+def test_task_get_hides_tasks_in_trashed_lists():
+    owner = _user("task-get-trashed-list@example.test")
+    client = _authenticated_client(owner)
+    owned_list, column = create_list(owner=owner, title="Soon trashed")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Hidden",
+            "operation_id": "00000000-0000-0000-0000-000000000813",
+            "column_id": str(column.id),
+        },
+        format="json",
+    ).json()
+    owned_list.is_trashed = True
+    owned_list.trashed_at = owned_list.updated_at
+    owned_list.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+
+    assert client.get(f"{TASKS_URL}/{created['id']}").status_code == 404

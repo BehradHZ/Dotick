@@ -51,6 +51,22 @@ def list_tasks(*, actor_id):
     )
 
 
+def get_task(*, actor_id, task_id):
+    try:
+        return (
+            Item.objects.select_related("task", "source")
+            .filter(
+                owner_id=actor_id,
+                is_trashed=False,
+                kind=Item.Kind.TASK,
+                column__list__is_trashed=False,
+            )
+            .get(pk=task_id)
+        )
+    except Item.DoesNotExist as error:
+        raise Http404 from error
+
+
 @transaction.atomic
 def create_task(*, actor_id, title, operation_id, column_id=None):
     normalized_title = title.strip()

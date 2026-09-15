@@ -53,3 +53,11 @@ class Tasks(APIView):
             **serializer.validated_data,
         )
         return Response(TaskOutput(item).data, status=201 if created else 200)
+
+
+class TaskDetail(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, task_id):
+        item = application.get_task(actor_id=request.user.id, task_id=task_id)
+        return Response(TaskOutput(item).data)
