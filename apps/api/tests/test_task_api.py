@@ -1,0 +1,166 @@
+import pytest
+from django.contrib.auth import get_user_model
+from dotick.identity.sessions import create_auth_session
+from dotick.items.models import Item, ItemSource
+from dotick.organization.application import create_list
+from dotick.tasks.models import Task
+from rest_framework.test import APIClient
+
+BOOTSTRAP_URL = "/api/v1/account/bootstrap"
+TASKS_URL = "/api/v1/tasks"
+pytestmark = pytest.mark.django_db
+
+
+def _user(email):
+    return get_user_model().objects.create_user(
+        email=email,
+        password="Only-for-automated-tests-8!",
+    )
+
+
+def _authenticated_client(user):
+    _, pair = create_auth_session(user=user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair.access}")
+    return client
+
+
+def test_task_create_persists_composed_rows_in_the_inbox():
+    user = _user("task-create@example.test")
+    client = _authenticated_client(user)
+    workspace = client.put(
+        BOOTSTRAP_URL,
+        {"timezone": "Europe/Berlin"},
+        format="json",
+    ).json()
+
+    response = client.post(
+        TASKS_URL,
+        {
+            "title": "  خرید نان  ",
+            "operation_id": "00000000-0000-0000-0000-000000000801",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    item = Item.objects.select_related("task", "source").get(pk=body["id"])
+    assert body == {
+        "id": str(item.id),
+        "title": "خرید نان",
+        "status": "todo",
+        "version": 1,
+        "column_id": workspace["inbox"]["default_column"]["id"],
+        "owner_user_id": str(user.id),
+        "created_by_user_id": str(user.id),
+        "source": {
+            "platform": "manual",
+            "external_account_id": None,
+            "external_id": None,
+        },
+        "created_at": item.created_at.isoformat().replace("+00:00", "Z"),
+        "updated_at": item.updated_at.isoformat().replace("+00:00", "Z"),
+    }
+    assert Task.objects.filter(pk=item.id).count() == 1
+    assert ItemSource.objects.filter(pk=item.id).count() == 1
+
+
+def test_task_create_accepts_only_an_owned_active_destination_column():
+    owner = _user("task-create-owner@example.test")
+    other = _user("task-create-other@example.test")
+    owner_client = _authenticated_client(owner)
+    owned_list, owned_column = create_list(owner=owner, title="Owned")
+    _, foreign_column = create_list(owner=other, title="Foreign")
+
+    created = owner_client.post(
+        TASKS_URL,
+        {
+            "title": "Placed",
+            "operation_id": "00000000-0000-0000-0000-000000000802",
+            "column_id": str(owned_column.id),
+        },
+        format="json",
+    )
+    foreign = owner_client.post(
+        TASKS_URL,
+        {
+            "title": "Rejected",
+            "operation_id": "00000000-0000-0000-0000-000000000803",
+            "column_id": str(foreign_column.id),
+        },
+        format="json",
+    )
+    owned_list.is_trashed = True
+    owned_list.trashed_at = owned_list.updated_at
+    owned_list.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+    trashed = owner_client.post(
+        TASKS_URL,
+        {
+            "title": "Rejected",
+            "operation_id": "00000000-0000-0000-0000-000000000804",
+            "column_id": str(owned_column.id),
+        },
+        format="json",
+    )
+
+    assert created.status_code == 201
+    assert created.json()["column_id"] == str(owned_column.id)
+    assert foreign.status_code == 404
+    assert trashed.status_code == 404
+
+
+def test_task_create_is_idempotent_per_owner_and_rejects_changed_intent():
+    user = _user("task-create-idempotent@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    payload = {
+        "title": "Write proposal",
+        "operation_id": "00000000-0000-0000-0000-000000000805",
+    }
+
+    first = client.post(TASKS_URL, payload, format="json")
+    repeated = client.post(TASKS_URL, payload, format="json")
+    conflicting = client.post(
+        TASKS_URL,
+        {**payload, "title": "Different intent"},
+        format="json",
+    )
+
+    assert first.status_code == 201
+    assert repeated.status_code == 200
+    assert repeated.json() == first.json()
+    assert conflicting.status_code == 409
+    assert conflicting.json()["error"]["code"] == "idempotency_conflict"
+    assert Item.objects.filter(owner=user).count() == 1
+
+
+def test_task_create_requires_authentication_and_strict_valid_input():
+    user = _user("task-create-validation@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+
+    assert APIClient().post(TASKS_URL, {}, format="json").status_code == 401
+    assert (
+        client.post(
+            TASKS_URL,
+            {
+                "title": "  ",
+                "operation_id": "00000000-0000-0000-0000-000000000806",
+            },
+            format="json",
+        ).status_code
+        == 400
+    )
+    assert (
+        client.post(
+            TASKS_URL,
+            {
+                "title": "Valid",
+                "operation_id": "00000000-0000-0000-0000-000000000807",
+                "status": "done",
+            },
+            format="json",
+        ).status_code
+        == 400
+    )
