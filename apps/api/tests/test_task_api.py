@@ -642,3 +642,43 @@ def test_trashed_task_list_returns_only_owned_trashed_tasks_newest_first():
     assert all(row["trashed_at"] is not None for row in results)
     assert all(row["version"] == 2 for row in results)
     assert APIClient().get(TRASHED_TASKS_URL).status_code == 401
+
+
+def test_task_list_can_filter_active_tasks_by_column():
+    owner = _user("task-filter-owner@example.test")
+    other = _user("task-filter-other@example.test")
+    client = _authenticated_client(owner)
+    first_list, first_column = create_list(owner=owner, title="First")
+    _, second_column = create_list(owner=owner, title="Second")
+    _, foreign_column = create_list(owner=other, title="Foreign")
+
+    def create(title, operation_id, column):
+        return client.post(
+            TASKS_URL,
+            {
+                "title": title,
+                "operation_id": operation_id,
+                "column_id": str(column.id),
+            },
+            format="json",
+        ).json()
+
+    first = create("First task", "00000000-0000-0000-0000-000000000828", first_column)
+    second = create("Second task", "00000000-0000-0000-0000-000000000829", second_column)
+
+    filtered = client.get(TASKS_URL, {"column_id": str(first_column.id)})
+    unfiltered = client.get(TASKS_URL)
+    foreign = client.get(TASKS_URL, {"column_id": str(foreign_column.id)})
+    invalid = client.get(TASKS_URL, {"column_id": "not-a-uuid"})
+
+    assert filtered.status_code == 200
+    assert [row["id"] for row in filtered.json()["results"]] == [first["id"]]
+    assert {row["id"] for row in unfiltered.json()["results"]} == {first["id"], second["id"]}
+    assert foreign.status_code == 200
+    assert foreign.json() == {"results": []}
+    assert invalid.status_code == 400
+
+    first_list.is_trashed = True
+    first_list.trashed_at = first_list.updated_at
+    first_list.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+    assert client.get(TASKS_URL, {"column_id": str(first_column.id)}).json() == {"results": []}

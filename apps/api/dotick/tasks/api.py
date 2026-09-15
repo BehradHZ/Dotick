@@ -66,7 +66,14 @@ class Tasks(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        rows = application.list_tasks(actor_id=request.user.id)
+        raw_column_id = request.query_params.get("column_id")
+        column_id = None
+        if raw_column_id is not None:
+            column_id = serializers.UUIDField().run_validation(raw_column_id)
+        rows = application.list_tasks(
+            actor_id=request.user.id,
+            column_id=column_id,
+        )
         return Response({"results": TaskOutput(rows, many=True).data})
 
     def post(self, request):

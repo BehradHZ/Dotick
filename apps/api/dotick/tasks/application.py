@@ -57,17 +57,16 @@ def _resolve_creation_retry(*, actor_id, operation_id, intent_digest):
     return existing, False
 
 
-def list_tasks(*, actor_id):
-    return (
-        Item.objects.select_related("task", "source")
-        .filter(
-            owner_id=actor_id,
-            is_trashed=False,
-            kind=Item.Kind.TASK,
-            column__list__is_trashed=False,
-        )
-        .order_by("-updated_at", "-id")
+def list_tasks(*, actor_id, column_id=None):
+    rows = Item.objects.select_related("task", "source").filter(
+        owner_id=actor_id,
+        is_trashed=False,
+        kind=Item.Kind.TASK,
+        column__list__is_trashed=False,
     )
+    if column_id is not None:
+        rows = rows.filter(column_id=column_id)
+    return rows.order_by("-updated_at", "-id")
 
 
 def list_trashed_tasks(*, actor_id):
