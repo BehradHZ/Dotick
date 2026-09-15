@@ -1,5 +1,7 @@
+from django.contrib.auth import get_user_model
 from django.db import transaction
 
+from dotick.identity.models import UserPreferences
 from dotick.organization.models import Column, Folder, List
 
 DEFAULT_COLUMN_TITLE = "Items"
@@ -65,3 +67,29 @@ def create_list(*, owner, title, folder=None, position=None):
         folder=folder,
         position=position,
     )
+
+
+@transaction.atomic
+def bootstrap_account(*, actor_id, timezone):
+    user = get_user_model().objects.select_for_update().get(pk=actor_id)
+    preferences, _ = UserPreferences.objects.get_or_create(
+        user=user,
+        defaults={"timezone": timezone},
+    )
+
+    inbox = List.objects.filter(owner=user, is_inbox=True).first()
+    if inbox is None:
+        inbox, default_column = create_list_with_default_column(
+            owner=user,
+            title="Inbox",
+            position=0,
+            is_inbox=True,
+        )
+    else:
+        default_column, _ = Column.objects.get_or_create(
+            list=inbox,
+            is_default=True,
+            defaults={"title": DEFAULT_COLUMN_TITLE, "position": 0},
+        )
+
+    return preferences, inbox, default_column
