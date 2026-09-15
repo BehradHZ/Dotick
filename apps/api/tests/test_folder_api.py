@@ -112,3 +112,70 @@ def test_folder_reads_and_writes_are_owner_scoped_and_hide_trashed_rows():
     assert client.get(FOLDERS_URL).json() == {"results": []}
     folder.refresh_from_db()
     assert folder.title == "Private"
+
+
+def test_folder_trash_and_restore_are_recoverable():
+    user = _user("folder-trash@example.test")
+    client = _authenticated_client(user)
+    created = client.post(FOLDERS_URL, {"title": "Recoverable"}, format="json").json()
+
+    deleted = client.delete(f"{FOLDERS_URL}/{created['id']}")
+
+    assert deleted.status_code == 204
+    assert deleted.content == b""
+    assert client.get(f"{FOLDERS_URL}/{created['id']}").status_code == 404
+    assert client.get(FOLDERS_URL).json() == {"results": []}
+    row = Folder.objects.get(pk=created["id"])
+    assert row.is_trashed is True
+    assert row.trashed_at is not None
+
+    restored = client.post(
+        f"{FOLDERS_URL}/{created['id']}/restore",
+        {},
+        format="json",
+    )
+
+    assert restored.status_code == 200
+    assert restored.json()["id"] == created["id"]
+    assert restored.json()["is_trashed"] is False
+    assert restored.json()["trashed_at"] is None
+    assert client.get(f"{FOLDERS_URL}/{created['id']}").status_code == 200
+
+
+def test_folder_trash_and_restore_are_state_and_owner_scoped():
+    owner = _user("folder-trash-owner@example.test")
+    other = _user("folder-trash-other@example.test")
+    folder = Folder.objects.create(owner=owner, title="Private")
+    other_client = _authenticated_client(other)
+
+    assert other_client.delete(f"{FOLDERS_URL}/{folder.id}").status_code == 404
+    assert (
+        other_client.post(
+            f"{FOLDERS_URL}/{folder.id}/restore",
+            {},
+            format="json",
+        ).status_code
+        == 404
+    )
+    folder.refresh_from_db()
+    assert folder.is_trashed is False
+
+    owner_client = _authenticated_client(owner)
+    assert owner_client.delete(f"{FOLDERS_URL}/{folder.id}").status_code == 204
+    assert owner_client.delete(f"{FOLDERS_URL}/{folder.id}").status_code == 404
+    assert (
+        owner_client.post(
+            f"{FOLDERS_URL}/{folder.id}/restore",
+            {"unexpected": True},
+            format="json",
+        ).status_code
+        == 400
+    )
+    assert (
+        other_client.post(
+            f"{FOLDERS_URL}/{folder.id}/restore",
+            {},
+            format="json",
+        ).status_code
+        == 404
+    )

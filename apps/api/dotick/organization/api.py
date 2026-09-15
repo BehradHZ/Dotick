@@ -113,3 +113,17 @@ class FolderDetail(APIView):
             **serializer.validated_data,
         )
         return Response(_serialize_folder(row))
+
+    def delete(self, request, folder_id):
+        application.trash_folder(actor_id=request.user.id, folder_id=folder_id)
+        return Response(status=204)
+
+
+class FolderRestore(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, folder_id):
+        if request.data:
+            raise serializers.ValidationError({"input": "Unknown fields are not accepted."})
+        row = application.restore_folder(actor_id=request.user.id, folder_id=folder_id)
+        return Response(_serialize_folder(row))

@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.http import Http404
+from django.utils import timezone
 
 from dotick.identity.models import UserPreferences
 from dotick.organization.models import Column, Folder, List
@@ -54,6 +55,30 @@ def update_folder(*, actor_id, folder_id, title=UNSET, position=UNSET):
         row.position = position
         changed_fields.append("position")
     row.save(update_fields=changed_fields)
+    return row
+
+
+@transaction.atomic
+def trash_folder(*, actor_id, folder_id):
+    row = get_folder(actor_id=actor_id, folder_id=folder_id, for_update=True)
+    row.is_trashed = True
+    row.trashed_at = timezone.now()
+    row.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+
+
+@transaction.atomic
+def restore_folder(*, actor_id, folder_id):
+    try:
+        row = Folder.objects.select_for_update().get(
+            pk=folder_id,
+            owner_id=actor_id,
+            is_trashed=True,
+        )
+    except Folder.DoesNotExist as error:
+        raise Http404 from error
+    row.is_trashed = False
+    row.trashed_at = None
+    row.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
     return row
 
 
