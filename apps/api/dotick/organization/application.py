@@ -24,6 +24,12 @@ class ImmutableInbox(APIException):
     default_code = "immutable_inbox"
 
 
+class ImmutableDefaultColumn(APIException):
+    status_code = 409
+    default_detail = "The default Column cannot be deleted."
+    default_code = "immutable_default_column"
+
+
 def _normalized_title(title):
     normalized = title.strip()
     if not normalized:
@@ -407,6 +413,52 @@ def update_column(*, actor_id, column_id, title=UNSET, position=UNSET):
         changed_fields.append("position")
     row.save(update_fields=changed_fields)
     return row
+
+
+@transaction.atomic
+def delete_column(*, actor_id, column_id, item_resolution=None):
+    from dotick.items.models import Item
+
+    row = get_column(actor_id=actor_id, column_id=column_id, for_update=True)
+    if row.is_default:
+        raise ImmutableDefaultColumn
+
+    items = Item.objects.select_for_update().filter(
+        owner_id=actor_id,
+        column=row,
+    )
+    active_item_ids = list(items.filter(is_trashed=False).values_list("id", flat=True))
+    trashed_item_ids = list(items.filter(is_trashed=True).values_list("id", flat=True))
+    if active_item_ids and item_resolution not in {"move_to_default", "trash"}:
+        raise ChildResolutionRequired
+
+    default_column = Column.objects.select_for_update().get(
+        list_id=row.list_id,
+        is_default=True,
+    )
+    now = timezone.now()
+    if active_item_ids and item_resolution == "move_to_default":
+        Item.objects.filter(pk__in=active_item_ids).update(
+            column=default_column,
+            version=F("version") + 1,
+            updated_at=now,
+        )
+    elif active_item_ids:
+        Item.objects.filter(pk__in=active_item_ids).update(
+            column=default_column,
+            is_trashed=True,
+            trashed_at=now,
+            trash_origin_column_id=F("column_id"),
+            version=F("version") + 1,
+            updated_at=now,
+        )
+    if trashed_item_ids:
+        Item.objects.filter(pk__in=trashed_item_ids).update(
+            column=default_column,
+            version=F("version") + 1,
+            updated_at=now,
+        )
+    row.delete()
 
 
 @transaction.atomic

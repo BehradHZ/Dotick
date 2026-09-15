@@ -309,3 +309,11 @@ class ColumnDetail(APIView):
             **serializer.validated_data,
         )
         return Response(_serialize_column(row))
+
+    def delete(self, request, column_id):
+        application.delete_column(
+            actor_id=request.user.id,
+            column_id=column_id,
+            item_resolution=request.query_params.get("items"),
+        )
+        return Response(status=204)

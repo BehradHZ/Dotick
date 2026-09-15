@@ -2,6 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from dotick.identity.sessions import create_auth_session
+from dotick.items.models import Item, ItemSource
 from dotick.organization.application import create_list
 from dotick.organization.models import Column, List
 from rest_framework.test import APIClient
@@ -137,3 +138,138 @@ def test_column_reads_and_writes_are_owner_scoped_and_hide_trashed_list_columns(
     private.refresh_from_db()
     assert private.title == "Items"
     assert active_list.is_trashed is False
+
+
+def _item(*, owner, column, title, operation_id):
+    row = Item.objects.create(
+        kind=Item.Kind.TASK,
+        owner=owner,
+        created_by=owner,
+        column=column,
+        title=title,
+        creation_operation_id=operation_id,
+        creation_intent_digest="0" * 64,
+    )
+    ItemSource.objects.create(item=row, platform=ItemSource.Platform.MANUAL)
+    return row
+
+
+def test_empty_nondefault_column_can_be_deleted_but_default_column_cannot():
+    user = _user("column-delete@example.test")
+    client = _authenticated_client(user)
+    row, default_column = create_list(owner=user, title="Project")
+    column = Column.objects.create(list=row, title="Doing", position=1)
+
+    protected = client.delete(f"/api/v1/columns/{default_column.id}")
+    deleted = client.delete(f"/api/v1/columns/{column.id}")
+
+    assert protected.status_code == 409
+    assert protected.json()["error"]["code"] == "immutable_default_column"
+    assert deleted.status_code == 204
+    assert deleted.content == b""
+    assert not Column.objects.filter(pk=column.id).exists()
+    assert client.get(f"/api/v1/columns/{column.id}").status_code == 404
+
+
+def test_column_delete_is_owner_and_active_list_scoped():
+    owner = _user("column-delete-owner@example.test")
+    other = _user("column-delete-other@example.test")
+    owner_list, _ = create_list(owner=owner, title="Private")
+    private = Column.objects.create(list=owner_list, title="Private", position=1)
+    trashed_list, _ = create_list(owner=other, title="Trashed")
+    hidden = Column.objects.create(list=trashed_list, title="Hidden", position=1)
+    List.objects.filter(pk=trashed_list.pk).update(
+        is_trashed=True,
+        trashed_at=timezone.now(),
+    )
+    client = _authenticated_client(other)
+
+    assert client.delete(f"/api/v1/columns/{private.id}").status_code == 404
+    assert client.delete(f"/api/v1/columns/{hidden.id}").status_code == 404
+    assert Column.objects.filter(pk__in=[private.id, hidden.id]).count() == 2
+
+
+def test_column_delete_requires_item_resolution_and_can_move_to_default():
+    user = _user("column-move-items@example.test")
+    client = _authenticated_client(user)
+    row, default_column = create_list(owner=user, title="Project")
+    column = Column.objects.create(list=row, title="Doing", position=1)
+    item = _item(
+        owner=user,
+        column=column,
+        title="Ship",
+        operation_id="00000000-0000-0000-0000-000000000601",
+    )
+
+    missing = client.delete(f"/api/v1/columns/{column.id}")
+    invalid = client.delete(f"/api/v1/columns/{column.id}?items=move_to_inbox")
+
+    assert missing.status_code == 409
+    assert missing.json()["error"]["code"] == "child_resolution_required"
+    assert invalid.status_code == 409
+    assert Column.objects.filter(pk=column.id).exists()
+    item.refresh_from_db()
+    assert item.column_id == column.id
+    assert item.version == 1
+
+    moved = client.delete(f"/api/v1/columns/{column.id}?items=move_to_default")
+
+    assert moved.status_code == 204
+    assert not Column.objects.filter(pk=column.id).exists()
+    item.refresh_from_db()
+    assert item.is_trashed is False
+    assert item.column_id == default_column.id
+    assert item.version == 2
+
+
+def test_column_delete_can_trash_its_items_before_hard_deletion():
+    user = _user("column-trash-items@example.test")
+    client = _authenticated_client(user)
+    row, default_column = create_list(owner=user, title="Project")
+    column = Column.objects.create(list=row, title="Doing", position=1)
+    item = _item(
+        owner=user,
+        column=column,
+        title="Discard",
+        operation_id="00000000-0000-0000-0000-000000000602",
+    )
+
+    deleted = client.delete(f"/api/v1/columns/{column.id}?items=trash")
+
+    assert deleted.status_code == 204
+    assert not Column.objects.filter(pk=column.id).exists()
+    item.refresh_from_db()
+    assert item.is_trashed is True
+    assert item.trashed_at is not None
+    assert item.trash_origin_column_id == column.id
+    assert item.column_id == default_column.id
+    assert item.version == 2
+
+
+def test_column_delete_rehomes_already_trashed_items_without_restoring_them():
+    user = _user("column-trashed-items@example.test")
+    client = _authenticated_client(user)
+    row, default_column = create_list(owner=user, title="Project")
+    column = Column.objects.create(list=row, title="Doing", position=1)
+    item = _item(
+        owner=user,
+        column=column,
+        title="Already trashed",
+        operation_id="00000000-0000-0000-0000-000000000603",
+    )
+    trashed_at = timezone.now()
+    Item.objects.filter(pk=item.pk).update(
+        is_trashed=True,
+        trashed_at=trashed_at,
+        trash_origin_column_id=column.id,
+    )
+
+    deleted = client.delete(f"/api/v1/columns/{column.id}")
+
+    assert deleted.status_code == 204
+    item.refresh_from_db()
+    assert item.is_trashed is True
+    assert item.trashed_at == trashed_at
+    assert item.trash_origin_column_id == column.id
+    assert item.column_id == default_column.id
+    assert item.version == 2
