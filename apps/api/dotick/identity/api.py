@@ -190,10 +190,7 @@ class AuthenticatedIdentityView(APIView):
 
 class AccountContacts(AuthenticatedIdentityView):
     def get(self, request):
-        contacts = AccountContact.objects.filter(
-            user=request.user,
-            verified_at__isnull=False,
-        ).order_by("created_at")
+        contacts = AccountContact.objects.active().owned_by(request.user).order_by("created_at")
         return Response({"results": AccountContactOutput(contacts, many=True).data})
 
 

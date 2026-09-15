@@ -303,6 +303,14 @@ class PasskeyChallenge(models.Model):
         ]
 
 
+class AccountContactQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(verified_at__isnull=False)
+
+    def owned_by(self, user):
+        return self.filter(user=user)
+
+
 class AccountContact(models.Model):
     class Kind(models.TextChoices):
         EMAIL = "email", "Email"
@@ -323,6 +331,8 @@ class AccountContact(models.Model):
     verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = AccountContactQuerySet.as_manager()
 
     def save(self, *args, **kwargs):
         self.value = normalize_contact_value(self.kind, self.value)

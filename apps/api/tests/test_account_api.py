@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.utils import timezone
 from dotick.identity.models import AccountContact
 from dotick.identity.sessions import create_auth_session
@@ -10,6 +11,7 @@ from rest_framework.test import APIClient
 pytestmark = pytest.mark.django_db
 
 CONTACTS_URL = "/api/v1/account/contacts"
+PASSWORD_RESET_REQUEST_URL = "/api/v1/auth/password/reset/request"
 
 
 def _authenticated_client(user):
@@ -60,3 +62,28 @@ def test_active_contact_list_returns_only_verified_owned_contacts():
             }
         ]
     }
+
+
+def test_pending_contact_cannot_drive_password_reset(settings):
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    user = get_user_model().objects.create_user(
+        email="primary-account@example.test",
+        password="Only-for-automated-tests-8!",
+        email_verified_at=timezone.now(),
+        is_active=True,
+    )
+    pending = AccountContact.objects.create(
+        user=user,
+        kind=AccountContact.Kind.EMAIL,
+        value="pending-reset@example.test",
+    )
+
+    response = APIClient().post(
+        PASSWORD_RESET_REQUEST_URL,
+        {"email": pending.value},
+        format="json",
+    )
+
+    assert response.status_code == 202
+    assert mail.outbox == []
+    assert not user.verification_challenges.exists()
