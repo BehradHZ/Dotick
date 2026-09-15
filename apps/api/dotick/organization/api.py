@@ -115,7 +115,11 @@ class FolderDetail(APIView):
         return Response(_serialize_folder(row))
 
     def delete(self, request, folder_id):
-        application.trash_folder(actor_id=request.user.id, folder_id=folder_id)
+        application.trash_folder(
+            actor_id=request.user.id,
+            folder_id=folder_id,
+            item_resolution=request.query_params.get("items"),
+        )
         return Response(status=204)
 
 

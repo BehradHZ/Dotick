@@ -1,13 +1,21 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import F
 from django.http import Http404
 from django.utils import timezone
+from rest_framework.exceptions import APIException
 
 from dotick.identity.models import UserPreferences
 from dotick.organization.models import Column, Folder, List
 
 DEFAULT_COLUMN_TITLE = "Items"
 UNSET = object()
+
+
+class ChildResolutionRequired(APIException):
+    status_code = 409
+    default_detail = "Choose how active descendant Items should be handled."
+    default_code = "child_resolution_required"
 
 
 def _normalized_title(title):
@@ -59,15 +67,66 @@ def update_folder(*, actor_id, folder_id, title=UNSET, position=UNSET):
 
 
 @transaction.atomic
-def trash_folder(*, actor_id, folder_id):
+def trash_folder(*, actor_id, folder_id, item_resolution=None):
+    from dotick.items.models import Item
+
     row = get_folder(actor_id=actor_id, folder_id=folder_id, for_update=True)
+    child_lists = list(
+        List.objects.select_for_update()
+        .filter(owner_id=actor_id, folder=row, is_trashed=False)
+        .order_by("id")
+    )
+    active_items = Item.objects.select_for_update().filter(
+        owner_id=actor_id,
+        column__list__in=child_lists,
+        is_trashed=False,
+    )
+    item_ids = list(active_items.values_list("id", flat=True))
+    if item_ids and item_resolution not in {"move_to_inbox", "trash"}:
+        raise ChildResolutionRequired
+
+    now = timezone.now()
+    if item_ids:
+        try:
+            inbox_column = Column.objects.get(
+                list__owner_id=actor_id,
+                list__is_inbox=True,
+                list__is_trashed=False,
+                is_default=True,
+            )
+        except Column.DoesNotExist as error:
+            raise ChildResolutionRequired from error
+        if item_resolution == "move_to_inbox":
+            Item.objects.filter(pk__in=item_ids).update(
+                column=inbox_column,
+                version=F("version") + 1,
+                updated_at=now,
+            )
+        else:
+            Item.objects.filter(pk__in=item_ids).update(
+                column=inbox_column,
+                is_trashed=True,
+                trashed_at=now,
+                trash_origin_column_id=F("column_id"),
+                version=F("version") + 1,
+                updated_at=now,
+            )
+
+    if child_lists:
+        List.objects.filter(pk__in=[child.pk for child in child_lists]).update(
+            is_trashed=True,
+            trashed_at=now,
+            updated_at=now,
+        )
     row.is_trashed = True
-    row.trashed_at = timezone.now()
+    row.trashed_at = now
     row.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
 
 
 @transaction.atomic
 def restore_folder(*, actor_id, folder_id):
+    from dotick.items.models import Item
+
     try:
         row = Folder.objects.select_for_update().get(
             pk=folder_id,
@@ -76,6 +135,40 @@ def restore_folder(*, actor_id, folder_id):
         )
     except Folder.DoesNotExist as error:
         raise Http404 from error
+    deletion_time = row.trashed_at
+    child_lists = list(
+        List.objects.select_for_update().filter(
+            owner_id=actor_id,
+            folder=row,
+            is_trashed=True,
+            trashed_at=deletion_time,
+        )
+    )
+    origin_column_ids = list(
+        Column.objects.filter(list__in=child_lists).values_list("id", flat=True)
+    )
+    trashed_items = Item.objects.select_for_update().filter(
+        owner_id=actor_id,
+        is_trashed=True,
+        trashed_at=deletion_time,
+        trash_origin_column_id__in=origin_column_ids,
+    )
+    item_ids = list(trashed_items.values_list("id", flat=True))
+    if child_lists:
+        List.objects.filter(pk__in=[child.pk for child in child_lists]).update(
+            is_trashed=False,
+            trashed_at=None,
+            updated_at=timezone.now(),
+        )
+    if item_ids:
+        Item.objects.filter(pk__in=item_ids).update(
+            column_id=F("trash_origin_column_id"),
+            is_trashed=False,
+            trashed_at=None,
+            trash_origin_column_id=None,
+            version=F("version") + 1,
+            updated_at=timezone.now(),
+        )
     row.is_trashed = False
     row.trashed_at = None
     row.save(update_fields=["is_trashed", "trashed_at", "updated_at"])

@@ -4,7 +4,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from dotick.identity.sessions import create_auth_session
-from dotick.organization.models import Folder
+from dotick.items.models import Item, ItemSource
+from dotick.organization.application import create_list
+from dotick.organization.models import Column, Folder, List
 from rest_framework.test import APIClient
 
 FOLDERS_URL = "/api/v1/folders"
@@ -219,3 +221,121 @@ def test_trashed_folder_listing_is_owned_separate_and_newest_first():
     assert all(row["is_trashed"] is True for row in response.json()["results"])
     assert all(row["trashed_at"] is not None for row in response.json()["results"])
     assert APIClient().get(TRASHED_FOLDERS_URL).status_code == 401
+
+
+def _item(*, owner, column, title, operation_id):
+    row = Item.objects.create(
+        kind=Item.Kind.TASK,
+        owner=owner,
+        created_by=owner,
+        column=column,
+        title=title,
+        creation_operation_id=operation_id,
+        creation_intent_digest="0" * 64,
+    )
+    ItemSource.objects.create(item=row, platform=ItemSource.Platform.MANUAL)
+    return row
+
+
+def test_folder_delete_requires_a_descendant_item_resolution_and_can_move_to_inbox():
+    user = _user("folder-move-items@example.test")
+    client = _authenticated_client(user)
+    client.put("/api/v1/account/bootstrap", {"timezone": "Europe/Berlin"}, format="json")
+    inbox_column = Column.objects.get(list__owner=user, list__is_inbox=True, is_default=True)
+    folder = Folder.objects.create(owner=user, title="Project")
+    child_list, child_column = create_list(owner=user, folder=folder, title="Launch")
+    item = _item(
+        owner=user,
+        column=child_column,
+        title="Ship",
+        operation_id="00000000-0000-0000-0000-000000000401",
+    )
+
+    missing = client.delete(f"{FOLDERS_URL}/{folder.id}")
+    invalid = client.delete(f"{FOLDERS_URL}/{folder.id}?items=delete")
+
+    assert missing.status_code == 409
+    assert missing.json()["error"]["code"] == "child_resolution_required"
+    assert invalid.status_code == 409
+    folder.refresh_from_db()
+    child_list.refresh_from_db()
+    item.refresh_from_db()
+    assert folder.is_trashed is False
+    assert child_list.is_trashed is False
+    assert item.column_id == child_column.id
+    assert item.version == 1
+
+    moved = client.delete(f"{FOLDERS_URL}/{folder.id}?items=move_to_inbox")
+
+    assert moved.status_code == 204
+    folder.refresh_from_db()
+    child_list.refresh_from_db()
+    item.refresh_from_db()
+    assert folder.is_trashed is True
+    assert child_list.is_trashed is True
+    assert item.is_trashed is False
+    assert item.column_id == inbox_column.id
+    assert item.version == 2
+
+    restored = client.post(f"{FOLDERS_URL}/{folder.id}/restore", {}, format="json")
+    assert restored.status_code == 200
+    child_list.refresh_from_db()
+    item.refresh_from_db()
+    assert child_list.is_trashed is False
+    assert item.column_id == inbox_column.id
+    assert item.version == 2
+
+
+def test_folder_delete_can_trash_and_restore_its_item_subtree():
+    user = _user("folder-trash-items@example.test")
+    client = _authenticated_client(user)
+    client.put("/api/v1/account/bootstrap", {"timezone": "Europe/Berlin"}, format="json")
+    inbox_column = Column.objects.get(list__owner=user, list__is_inbox=True, is_default=True)
+    folder = Folder.objects.create(owner=user, title="Project")
+    child_list, child_column = create_list(owner=user, folder=folder, title="Launch")
+    item = _item(
+        owner=user,
+        column=child_column,
+        title="Recover me",
+        operation_id="00000000-0000-0000-0000-000000000402",
+    )
+
+    deleted = client.delete(f"{FOLDERS_URL}/{folder.id}?items=trash")
+
+    assert deleted.status_code == 204
+    child_list.refresh_from_db()
+    item.refresh_from_db()
+    assert child_list.is_trashed is True
+    assert item.is_trashed is True
+    assert item.trashed_at is not None
+    assert item.trash_origin_column_id == child_column.id
+    assert item.column_id == inbox_column.id
+    assert item.version == 2
+
+    restored = client.post(f"{FOLDERS_URL}/{folder.id}/restore", {}, format="json")
+
+    assert restored.status_code == 200
+    child_list.refresh_from_db()
+    item.refresh_from_db()
+    assert child_list.is_trashed is False
+    assert item.is_trashed is False
+    assert item.trashed_at is None
+    assert item.trash_origin_column_id is None
+    assert item.column_id == child_column.id
+    assert item.version == 3
+
+
+def test_folder_restore_does_not_revive_children_trashed_by_an_earlier_action():
+    user = _user("folder-restore-scope@example.test")
+    client = _authenticated_client(user)
+    folder = Folder.objects.create(owner=user, title="Project")
+    child_list, _ = create_list(owner=user, folder=folder, title="Already trashed")
+    earlier = timezone.now() - timedelta(days=1)
+    List.objects.filter(pk=child_list.pk).update(is_trashed=True, trashed_at=earlier)
+
+    assert client.delete(f"{FOLDERS_URL}/{folder.id}").status_code == 204
+    assert client.post(f"{FOLDERS_URL}/{folder.id}/restore", {}, format="json").status_code == 200
+
+    child_list.refresh_from_db()
+    assert child_list.is_trashed is True
+    assert child_list.trashed_at == earlier
