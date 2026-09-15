@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from dotick.identity.sessions import create_auth_session
+from dotick.items.models import Item, ItemSource
 from dotick.organization.application import create_list as _create_list
 from dotick.organization.models import Column, Folder, List
 from rest_framework.test import APIClient
@@ -292,3 +293,118 @@ def test_trashed_list_listing_is_owned_separate_and_newest_first():
     assert all(row["trashed_at"] is not None for row in response.json()["results"])
     assert all(row["default_column"]["is_default"] is True for row in response.json()["results"])
     assert APIClient().get(TRASHED_LISTS_URL).status_code == 401
+
+
+def _item(*, owner, column, title, operation_id):
+    row = Item.objects.create(
+        kind=Item.Kind.TASK,
+        owner=owner,
+        created_by=owner,
+        column=column,
+        title=title,
+        creation_operation_id=operation_id,
+        creation_intent_digest="0" * 64,
+    )
+    ItemSource.objects.create(item=row, platform=ItemSource.Platform.MANUAL)
+    return row
+
+
+def test_list_delete_requires_an_item_resolution_and_can_move_to_inbox():
+    user = _user("list-move-items@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    inbox_column = Column.objects.get(list__owner=user, list__is_inbox=True, is_default=True)
+    row, column = _create_list(owner=user, title="Project")
+    item = _item(
+        owner=user,
+        column=column,
+        title="Ship",
+        operation_id="00000000-0000-0000-0000-000000000501",
+    )
+
+    missing = client.delete(f"{LISTS_URL}/{row.id}")
+    invalid = client.delete(f"{LISTS_URL}/{row.id}?items=delete")
+
+    assert missing.status_code == 409
+    assert missing.json()["error"]["code"] == "child_resolution_required"
+    assert invalid.status_code == 409
+    row.refresh_from_db()
+    item.refresh_from_db()
+    assert row.is_trashed is False
+    assert item.column_id == column.id
+    assert item.version == 1
+
+    moved = client.delete(f"{LISTS_URL}/{row.id}?items=move_to_inbox")
+
+    assert moved.status_code == 204
+    row.refresh_from_db()
+    item.refresh_from_db()
+    assert row.is_trashed is True
+    assert item.is_trashed is False
+    assert item.column_id == inbox_column.id
+    assert item.version == 2
+
+    restored = client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json")
+    assert restored.status_code == 200
+    item.refresh_from_db()
+    assert item.column_id == inbox_column.id
+    assert item.version == 2
+
+
+def test_list_delete_can_trash_and_restore_its_items():
+    user = _user("list-trash-items@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    inbox_column = Column.objects.get(list__owner=user, list__is_inbox=True, is_default=True)
+    row, column = _create_list(owner=user, title="Project")
+    item = _item(
+        owner=user,
+        column=column,
+        title="Recover",
+        operation_id="00000000-0000-0000-0000-000000000502",
+    )
+
+    deleted = client.delete(f"{LISTS_URL}/{row.id}?items=trash")
+
+    assert deleted.status_code == 204
+    item.refresh_from_db()
+    assert item.is_trashed is True
+    assert item.trashed_at is not None
+    assert item.trash_origin_column_id == column.id
+    assert item.column_id == inbox_column.id
+    assert item.version == 2
+
+    restored = client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json")
+
+    assert restored.status_code == 200
+    item.refresh_from_db()
+    assert item.is_trashed is False
+    assert item.trashed_at is None
+    assert item.trash_origin_column_id is None
+    assert item.column_id == column.id
+    assert item.version == 3
+
+
+def test_list_restore_does_not_revive_an_item_trashed_before_the_list():
+    user = _user("list-restore-item-scope@example.test")
+    client = _authenticated_client(user)
+    row, column = _create_list(owner=user, title="Project")
+    item = _item(
+        owner=user,
+        column=column,
+        title="Already trashed",
+        operation_id="00000000-0000-0000-0000-000000000503",
+    )
+    earlier = timezone.now() - timedelta(days=1)
+    Item.objects.filter(pk=item.pk).update(
+        is_trashed=True,
+        trashed_at=earlier,
+        trash_origin_column_id=column.id,
+    )
+
+    assert client.delete(f"{LISTS_URL}/{row.id}").status_code == 204
+    assert client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json").status_code == 200
+
+    item.refresh_from_db()
+    assert item.is_trashed is True
+    assert item.trashed_at == earlier

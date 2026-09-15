@@ -221,7 +221,11 @@ class ListDetail(APIView):
         return Response(_serialize_list(row))
 
     def delete(self, request, list_id):
-        application.trash_list(actor_id=request.user.id, list_id=list_id)
+        application.trash_list(
+            actor_id=request.user.id,
+            list_id=list_id,
+            item_resolution=request.query_params.get("items"),
+        )
         return Response(status=204)
 
 

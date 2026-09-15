@@ -276,21 +276,55 @@ def update_list(*, actor_id, list_id, title=UNSET, folder_id=UNSET, position=UNS
 
 
 @transaction.atomic
-def trash_list(*, actor_id, list_id):
+def trash_list(*, actor_id, list_id, item_resolution=None):
     from dotick.items.models import Item
 
     row = get_list(actor_id=actor_id, list_id=list_id, for_update=True)
     if row.is_inbox:
         raise ImmutableInbox
-    if Item.objects.select_for_update().filter(column__list=row, is_trashed=False).exists():
+    active_items = Item.objects.select_for_update().filter(
+        owner_id=actor_id,
+        column__list=row,
+        is_trashed=False,
+    )
+    item_ids = list(active_items.values_list("id", flat=True))
+    if item_ids and item_resolution not in {"move_to_inbox", "trash"}:
         raise ChildResolutionRequired
+    now = timezone.now()
+    if item_ids:
+        try:
+            inbox_column = Column.objects.get(
+                list__owner_id=actor_id,
+                list__is_inbox=True,
+                list__is_trashed=False,
+                is_default=True,
+            )
+        except Column.DoesNotExist as error:
+            raise ChildResolutionRequired from error
+        if item_resolution == "move_to_inbox":
+            Item.objects.filter(pk__in=item_ids).update(
+                column=inbox_column,
+                version=F("version") + 1,
+                updated_at=now,
+            )
+        else:
+            Item.objects.filter(pk__in=item_ids).update(
+                column=inbox_column,
+                is_trashed=True,
+                trashed_at=now,
+                trash_origin_column_id=F("column_id"),
+                version=F("version") + 1,
+                updated_at=now,
+            )
     row.is_trashed = True
-    row.trashed_at = timezone.now()
+    row.trashed_at = now
     row.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
 
 
 @transaction.atomic
 def restore_list(*, actor_id, list_id):
+    from dotick.items.models import Item
+
     try:
         row = (
             List.objects.select_for_update()
@@ -299,11 +333,29 @@ def restore_list(*, actor_id, list_id):
         )
     except List.DoesNotExist as error:
         raise Http404 from error
+    deletion_time = row.trashed_at
+    origin_column_ids = list(row.columns.values_list("id", flat=True))
+    trashed_items = Item.objects.select_for_update().filter(
+        owner_id=actor_id,
+        is_trashed=True,
+        trashed_at=deletion_time,
+        trash_origin_column_id__in=origin_column_ids,
+    )
+    item_ids = list(trashed_items.values_list("id", flat=True))
     if row.folder_id is not None and row.folder.is_trashed:
         row.folder = None
     row.is_trashed = False
     row.trashed_at = None
     row.save(update_fields=["folder", "is_trashed", "trashed_at", "updated_at"])
+    if item_ids:
+        Item.objects.filter(pk__in=item_ids).update(
+            column_id=F("trash_origin_column_id"),
+            is_trashed=False,
+            trashed_at=None,
+            trash_origin_column_id=None,
+            version=F("version") + 1,
+            updated_at=timezone.now(),
+        )
     return row
 
 
