@@ -86,3 +86,13 @@ class ItemSource(models.Model):
 
     class Meta:
         db_table = "item_sources"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["platform", "external_account_id", "external_id"],
+                condition=models.Q(
+                    external_account_id__isnull=False,
+                    external_id__isnull=False,
+                ),
+                name="item_source_complete_external_unique",
+            ),
+        ]
