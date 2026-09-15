@@ -59,9 +59,7 @@ class Migration(migrations.Migration):
                 unique=True,
                 validators=[
                     django.core.validators.RegexValidator(
-                        message=(
-                            "Handle must contain 3 to 30 letters, numbers, or underscores."
-                        ),
+                        message=("Handle must contain 3 to 30 letters, numbers, or underscores."),
                         regex="^[A-Za-z0-9_]{3,30}$",
                     )
                 ],

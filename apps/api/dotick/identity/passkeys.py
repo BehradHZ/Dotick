@@ -199,9 +199,7 @@ def finish_passkey_authentication(*, challenge_id, credential, user_agent=""):
     passkey.device_type = verification.credential_device_type.value
     passkey.backed_up = verification.credential_backed_up
     passkey.last_used_at = now
-    passkey.save(
-        update_fields=["sign_count", "device_type", "backed_up", "last_used_at"]
-    )
+    passkey.save(update_fields=["sign_count", "device_type", "backed_up", "last_used_at"])
     challenge.consumed_at = now
     challenge.save(update_fields=["consumed_at"])
     _, token_pair = create_auth_session(user=passkey.user, user_agent=user_agent)

@@ -83,10 +83,14 @@ def revoke_all_sessions(*, user):
 
 
 def revoke_other_sessions(*, user, current_session):
-    return AuthSession.objects.filter(
-        user=user,
-        revoked_at__isnull=True,
-    ).exclude(pk=current_session.pk).update(revoked_at=timezone.now())
+    return (
+        AuthSession.objects.filter(
+            user=user,
+            revoked_at__isnull=True,
+        )
+        .exclude(pk=current_session.pk)
+        .update(revoked_at=timezone.now())
+    )
 
 
 def require_recent_authentication(*, session):

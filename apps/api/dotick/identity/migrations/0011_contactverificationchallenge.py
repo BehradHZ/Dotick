@@ -8,27 +8,50 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('identity', '0010_accountcontact'),
+        ("identity", "0010_accountcontact"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ContactVerificationChallenge',
+            name="ContactVerificationChallenge",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('code_digest', models.CharField(max_length=64)),
-                ('expires_at', models.DateTimeField()),
-                ('consumed_at', models.DateTimeField(blank=True, null=True)),
-                ('failed_attempts', models.PositiveSmallIntegerField(default=0)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
-                ('contact', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='verification_challenges', to='identity.accountcontact')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
+                ("code_digest", models.CharField(max_length=64)),
+                ("expires_at", models.DateTimeField()),
+                ("consumed_at", models.DateTimeField(blank=True, null=True)),
+                ("failed_attempts", models.PositiveSmallIntegerField(default=0)),
+                (
+                    "created_at",
+                    models.DateTimeField(default=django.utils.timezone.now, editable=False),
+                ),
+                (
+                    "contact",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="verification_challenges",
+                        to="identity.accountcontact",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'identity_contact_verification_challenges',
-                'indexes': [models.Index(fields=['contact', '-created_at'], name='identity_contact_challenge')],
-                'constraints': [models.CheckConstraint(condition=models.Q(('failed_attempts__lte', 5)), name='identity_contact_attempts_lte_5')],
+                "db_table": "identity_contact_verification_challenges",
+                "indexes": [
+                    models.Index(
+                        fields=["contact", "-created_at"], name="identity_contact_challenge"
+                    )
+                ],
+                "constraints": [
+                    models.CheckConstraint(
+                        condition=models.Q(("failed_attempts__lte", 5)),
+                        name="identity_contact_attempts_lte_5",
+                    )
+                ],
             },
         ),
     ]

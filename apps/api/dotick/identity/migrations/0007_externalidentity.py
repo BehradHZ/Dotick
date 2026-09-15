@@ -9,24 +9,49 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('identity', '0006_authsession'),
+        ("identity", "0006_authsession"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ExternalIdentity',
+            name="ExternalIdentity",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('provider', models.CharField(choices=[('google', 'Google')], max_length=32)),
-                ('subject', models.CharField(max_length=255)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='external_identities', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
+                ("provider", models.CharField(choices=[("google", "Google")], max_length=32)),
+                ("subject", models.CharField(max_length=255)),
+                (
+                    "created_at",
+                    models.DateTimeField(default=django.utils.timezone.now, editable=False),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="external_identities",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'identity_external_identities',
-                'constraints': [models.CheckConstraint(condition=models.Q(('provider', 'google')), name='identity_external_provider_google'), models.UniqueConstraint(fields=('provider', 'subject'), name='identity_external_subject_unique'), models.UniqueConstraint(fields=('user', 'provider'), name='identity_external_user_provider_unique')],
+                "db_table": "identity_external_identities",
+                "constraints": [
+                    models.CheckConstraint(
+                        condition=models.Q(("provider", "google")),
+                        name="identity_external_provider_google",
+                    ),
+                    models.UniqueConstraint(
+                        fields=("provider", "subject"), name="identity_external_subject_unique"
+                    ),
+                    models.UniqueConstraint(
+                        fields=("user", "provider"), name="identity_external_user_provider_unique"
+                    ),
+                ],
             },
         ),
     ]

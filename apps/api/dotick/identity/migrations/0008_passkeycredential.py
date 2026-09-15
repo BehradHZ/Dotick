@@ -9,30 +9,46 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('identity', '0007_externalidentity'),
+        ("identity", "0007_externalidentity"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='PasskeyCredential',
+            name="PasskeyCredential",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('credential_id', models.BinaryField(unique=True)),
-                ('public_key', models.BinaryField()),
-                ('sign_count', models.PositiveBigIntegerField(default=0)),
-                ('device_type', models.CharField(max_length=32)),
-                ('backed_up', models.BooleanField(default=False)),
-                ('transports', models.JSONField(blank=True, default=list)),
-                ('name', models.CharField(max_length=120)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
-                ('last_used_at', models.DateTimeField(blank=True, null=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='passkey_credentials', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
+                ("credential_id", models.BinaryField(unique=True)),
+                ("public_key", models.BinaryField()),
+                ("sign_count", models.PositiveBigIntegerField(default=0)),
+                ("device_type", models.CharField(max_length=32)),
+                ("backed_up", models.BooleanField(default=False)),
+                ("transports", models.JSONField(blank=True, default=list)),
+                ("name", models.CharField(max_length=120)),
+                (
+                    "created_at",
+                    models.DateTimeField(default=django.utils.timezone.now, editable=False),
+                ),
+                ("last_used_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="passkey_credentials",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'identity_passkey_credentials',
-                'indexes': [models.Index(fields=['user', '-created_at'], name='identity_passkey_user')],
+                "db_table": "identity_passkey_credentials",
+                "indexes": [
+                    models.Index(fields=["user", "-created_at"], name="identity_passkey_user")
+                ],
             },
         ),
     ]

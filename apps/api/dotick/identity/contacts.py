@@ -29,8 +29,7 @@ def _deliver_contact_code(*, contact, code):
             delivered = send_mail(
                 subject="Verify your Dotick contact",
                 message=(
-                    f"Your Dotick contact verification code is {code}. "
-                    "It expires in 10 minutes."
+                    f"Your Dotick contact verification code is {code}. It expires in 10 minutes."
                 ),
                 from_email=None,
                 recipient_list=[contact.value],

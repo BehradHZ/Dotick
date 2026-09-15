@@ -9,27 +9,60 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('identity', '0009_passkeychallenge'),
+        ("identity", "0009_passkeychallenge"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AccountContact',
+            name="AccountContact",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('kind', models.CharField(choices=[('email', 'Email'), ('phone', 'Phone')], max_length=16)),
-                ('value', models.CharField(max_length=254)),
-                ('verified_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='account_contacts', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
+                (
+                    "kind",
+                    models.CharField(
+                        choices=[("email", "Email"), ("phone", "Phone")], max_length=16
+                    ),
+                ),
+                ("value", models.CharField(max_length=254)),
+                ("verified_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "created_at",
+                    models.DateTimeField(default=django.utils.timezone.now, editable=False),
+                ),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="account_contacts",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'identity_account_contacts',
-                'indexes': [models.Index(fields=['user', 'kind', 'verified_at'], name='identity_contact_user')],
-                'constraints': [models.CheckConstraint(condition=models.Q(('kind__in', ['email', 'phone'])), name='identity_contact_kind_valid'), models.UniqueConstraint(condition=models.Q(('verified_at__isnull', False)), fields=('kind', 'value'), name='identity_verified_contact_unique')],
+                "db_table": "identity_account_contacts",
+                "indexes": [
+                    models.Index(
+                        fields=["user", "kind", "verified_at"], name="identity_contact_user"
+                    )
+                ],
+                "constraints": [
+                    models.CheckConstraint(
+                        condition=models.Q(("kind__in", ["email", "phone"])),
+                        name="identity_contact_kind_valid",
+                    ),
+                    models.UniqueConstraint(
+                        condition=models.Q(("verified_at__isnull", False)),
+                        fields=("kind", "value"),
+                        name="identity_verified_contact_unique",
+                    ),
+                ],
             },
         ),
     ]

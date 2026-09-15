@@ -29,10 +29,7 @@ def update_account(*, user, changes):
 
     handle = user_fields.get("handle")
     if handle is not None and (
-        get_user_model()
-        .objects.filter(handle__iexact=handle)
-        .exclude(pk=locked_user.pk)
-        .exists()
+        get_user_model().objects.filter(handle__iexact=handle).exclude(pk=locked_user.pk).exists()
     ):
         raise AccountHandleConflict
 
