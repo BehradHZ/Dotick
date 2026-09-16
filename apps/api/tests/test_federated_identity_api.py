@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from dotick.identity.google_identity import (
     GoogleIdentityClaims,
+    GoogleProviderUnavailable,
     InvalidGoogleCredential,
     verify_google_id_credential,
 )
@@ -37,6 +38,27 @@ def _authenticated_client(user, *, session_age=timedelta(0)):
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair.access}")
     return client, session
+
+
+def test_google_provider_unavailability_has_a_stable_non_sensitive_code():
+    with patch(
+        "dotick.identity.application.verify_google_id_credential",
+        side_effect=GoogleProviderUnavailable("provider secret must stay hidden"),
+    ):
+        response = APIClient().post(
+            GOOGLE_URL,
+            {"credential": "signed-google-id-credential"},
+            format="json",
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": {
+            "code": "provider_unavailable",
+            "details": {"detail": "External authentication provider is unavailable."},
+        }
+    }
+    assert "provider secret" not in response.content.decode()
 
 
 def test_google_style_account_can_add_password_fallback_after_recent_authentication():

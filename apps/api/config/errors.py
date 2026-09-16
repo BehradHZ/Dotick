@@ -10,8 +10,10 @@ STATUS_ERROR_CODES = {
     404: "not_found",
     405: "method_not_allowed",
     406: "not_acceptable",
+    409: "conflict",
     415: "unsupported_media_type",
     429: "throttled",
+    503: "provider_unavailable",
 }
 
 
@@ -31,7 +33,7 @@ def _get_error_code(error, status_code):
     if hasattr(error, "get_codes"):
         codes = error.get_codes()
 
-        if isinstance(codes, str):
+        if isinstance(codes, str) and codes != "error":
             return codes
 
     return STATUS_ERROR_CODES.get(status_code, "api_error")

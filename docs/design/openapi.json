@@ -1111,8 +1111,10 @@
                   "immutable_inbox",
                   "immutable_default_column",
                   "child_resolution_required",
+                  "conflict",
                   "idempotency_conflict",
                   "version_conflict",
+                  "provider_unavailable",
                   "not_authenticated",
                   "not_found"
                 ]
