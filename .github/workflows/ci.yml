@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
@@ -68,6 +68,8 @@ jobs:
         run: python scripts/check_traceability.py
 
       - name: Migration and schema drift checks
+        env:
+          MIGRATION_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           python -m uv run python apps/api/manage.py makemigrations --check --dry-run
           python -m uv run python apps/api/manage.py migrate --noinput
