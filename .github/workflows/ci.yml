@@ -84,8 +84,10 @@ jobs:
         env:
           DOTICK_ENV: production
           DOTICK_FOUNDATION_ENABLED: '0'
+          DJANGO_CORS_ORIGINS: https://testserver
           DJANGO_CSRF_TRUSTED_ORIGINS: https://testserver
           DJANGO_JWT_SIGNING_KEY: ci-only-jwt-signing-key-for-production-deployment-check-0123456789abcdef
+          WEBAUTHN_ORIGIN: https://testserver
         run: python -m uv run python apps/api/manage.py check --deploy --fail-level WARNING
 
       - name: Frontend component, network and time-vector tests

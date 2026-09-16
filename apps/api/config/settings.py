@@ -38,6 +38,8 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 if not IS_LOCAL and not CSRF_TRUSTED_ORIGINS:
     raise ImproperlyConfigured("DJANGO_CSRF_TRUSTED_ORIGINS is required outside local/test.")
+if not IS_LOCAL and any(not origin.startswith("https://") for origin in CSRF_TRUSTED_ORIGINS):
+    raise ImproperlyConfigured("Production trusted origins must use HTTPS.")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -140,7 +142,10 @@ SIMPLE_JWT = {
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
 WEBAUTHN_RP_ID = os.getenv("WEBAUTHN_RP_ID", "localhost").strip()
 WEBAUTHN_RP_NAME = os.getenv("WEBAUTHN_RP_NAME", "Dotick").strip()
-WEBAUTHN_ORIGIN = os.getenv("WEBAUTHN_ORIGIN", "http://localhost:8081").strip()
+default_webauthn_origin = "http://localhost:8081" if IS_LOCAL else ""
+WEBAUTHN_ORIGIN = os.getenv("WEBAUTHN_ORIGIN", default_webauthn_origin).strip()
+if not IS_LOCAL and not WEBAUTHN_ORIGIN.startswith("https://"):
+    raise ImproperlyConfigured("Production WebAuthn origin must use HTTPS.")
 
 FOUNDATION_ENABLED = IS_LOCAL and os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"
 FOUNDATION_MAX_REQUEST_BODY_BYTES = 16 * 1024
@@ -149,15 +154,20 @@ CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "DJANGO_CORS_ORIGINS",
-        "http://127.0.0.1:8081,http://localhost:8081",
+        "http://127.0.0.1:8081,http://localhost:8081" if IS_LOCAL else "",
     ).split(",")
     if origin.strip()
 ]
+if not IS_LOCAL and not CORS_ALLOWED_ORIGINS:
+    raise ImproperlyConfigured("DJANGO_CORS_ORIGINS is required outside local/test.")
+if not IS_LOCAL and any(not origin.startswith("https://") for origin in CORS_ALLOWED_ORIGINS):
+    raise ImproperlyConfigured("Production CORS origins must use HTTPS.")
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = False
 CORS_ALLOW_HEADERS = (*default_headers, "if-match")
 
 SECURE_SSL_REDIRECT = not IS_LOCAL
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not IS_LOCAL
 CSRF_COOKIE_SECURE = not IS_LOCAL
 SECURE_HSTS_SECONDS = 0 if IS_LOCAL else 31_536_000
