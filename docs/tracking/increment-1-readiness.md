@@ -1,71 +1,90 @@
-# Increment 1 readiness baseline
+# Increment 1 readiness
 
-Date: 2026-09-08. Status: backend and minimal product client implemented and locally verified; whole Increment still in progress. Identity, account/profile/contacts/preferences, Inbox/Folder/List/Column and basic Task APIs are implemented against PostgreSQL. The Expo client covers the initial account-to-Task workflow. Configured external delivery/provider smoke, hosted CI and release gates remain open. This document refines implementation order and acceptance evidence; it does not change product scope.
+> **Original baseline:** 2026-09-08
+> **Reconciled:** 2026-09-16
+> **Status:** implementation and hosted CI are green for the defined I1 product slice; configured external-provider/delivery smoke and formal Increment 1 release/publication remain open.
+
+Identity, account/profile/contacts/preferences, Inbox/Folder/List/Column and Basic Task are implemented against PostgreSQL. The Expo product client covers the initial account-to-Task workflow. The current hosted workflow verifies the branch end to end; this document records the remaining release evidence without changing product scope.
 
 ## Goal and authority
 
-A registered user signs in, sees their Inbox, creates an unscheduled Task, places it in a List/Column, edits it, marks it Done or Won't_Do, and retrieves it after reopening the app. Another account cannot access it.
+A registered user signs in, sees their Inbox, creates an unscheduled Task, places it in a List/Column, edits it, marks it Done or Won't_Do, and retrieves it after reopening/re-authenticating. Another account cannot access it.
 
-Read System Definition §§6.1, 6.2, 6.13 and 8.3–8.6 first, then Decision Register, SRS v2.9, and roadmap §§7.6/8. The prototype supplies visual and interaction examples. Its demo data, toast-only actions and unfinished screens are not persistence or acceptance evidence.
+Read System Definition §§6.1, 6.2, 6.13 and 8.3–8.6 first, then Decision Register, SRS v2.9, and roadmap §§7.6/8. The prototype supplies visual and interaction examples only. Implementation history is reconciled in [development-commit-audit.md](development-commit-audit.md).
 
-## Delivery order within I1
+## Delivered I1 boundary
 
-1. **Verified email identity — implemented locally:** register, send/verify/resend an email code, sign in with password, reset password, JWT session renewal/revocation and sign out. These signed-out email flows are connected in the product client. Django password machinery and Simple JWT provide maintained security primitives. The I0 Basic-auth workbench is no longer the active UI.
-2. **Account bootstrap and first Task — backend implemented locally:** one Inbox/default Column and IANA preference are provisioned atomically and concurrently idempotently. The Task HTTP API persists unscheduled Persian/English titles in PostgreSQL.
-3. **Organization and editing — backend implemented locally:** personal Folder/List/Column CRUD, optional Folder placement, manual order, Task move/title/status, owner isolation, version conflict, retry idempotency and recoverable deletion are covered at the HTTP boundary.
-4. **Complete I1 identity — backend implemented locally:** Google sign-in/explicit linking, optional Passkey enrollment/sign-in, independent password fallback, profile/timezone presentation, verified secondary contacts and session management are executable. Provider simulations do not replace configured integration smoke.
-5. **Integration and release — in progress:** migrations, complete backend OpenAPI/regression gates, Expo component tests, web/Android bundles and desktop/mobile account-to-Task E2E are local-green. Real delivery/provider configuration smoke, hosted CI and release publication remain.
+1. **Verified email identity — implemented and tested:** register, send/verify/resend code, password sign-in, password reset, JWT renewal/revocation and sign out.
+2. **Account and credential adapters — implemented and tested:** mutable profile fields, IANA timezone preference, Google assertion/linking, optional Passkey enrollment/sign-in/list/delete, independent password fallback, verified secondary contacts and session management.
+3. **Account bootstrap — implemented and concurrency-tested:** UserPreferences plus exactly one Inbox and exactly one default Column are provisioned atomically/idempotently. Repeated and concurrent bootstrap requests converge on the same resources.
+4. **Organization — implemented and tested:** personal Folder/List/Column CRUD, nullable Folder placement, manual ordering, immutable Inbox/default Column rules, recoverable Folder/List deletion/restore and explicit child-resolution behavior.
+5. **Basic Task — implemented and tested:** explicit Item/Task/Source composition, stable UUIDs, owner/creator/provenance separation, unscheduled create/read/edit/move, Todo/Done/Won't_Do, optimistic versions, idempotent create and recoverable Trash/restore.
+6. **Product client — implemented for the I1 slice:** signed-out email flows, sign-in/bootstrap, Inbox/List navigation, List/Task creation, Task edit/status/move/Trash/restore, refresh/sign-out, Persian/English titles, web Google/Passkey surfaces and Expo-Go LAN API discovery.
+7. **Executable API contract — implemented:** OpenAPI 3.1 covers the exact published I1 route set and is guarded by schema validation, reviewed canonical hash, route-set equality, stable error-envelope checks and strict input/request-boundary tests.
+8. **Hosted verification — green:** current GitHub Actions run `35057831342` succeeded for audited HEAD `7302ca3b18a79af35058828102bb62e845a56645` before this documentation reconciliation. It covered static checks, traceability, migrations, backend/Golden Time tests, production settings, frontend tests, web export, desktop/mobile E2E, dependency audits, secret scan, container builds and persistence smoke.
 
-Scheduling, Event/Routine implementation, collaboration, full offline reconciliation, branching-history UI and additional views retain their owning increments. Their known invariants constrain this design now.
+Scheduling, Event/Routine implementation, rich hierarchy/descriptions/comments/audit, collaboration, full offline reconciliation/history/undo, AI and later views retain their owning increments.
 
-## Required corrections to older proposals
+## Implementation rules confirmed by code and tests
 
-| Area                | Implementation rule                                                                                                                                                                                                                                        | Authority / evidence        |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| Inbox               | A real, special List, exactly one per user; cannot rename/delete. Create it and its default Column in one transaction.                                                                                                                                     | SD §6.1; SRS-ORG-002/003    |
-| Folder              | Optional in the UI. Prefer a nullable List folder and explicit personal owner; do not require a visible synthetic Folder.                                                                                                                                  | SD §6.1                     |
-| Titles and ordering | Duplicate container titles are valid. Stable UUID identity is independent of title/position. Support manual order; never use a display index as identity.                                                                                                  | SD §6.1; SRS-ITEM-002       |
-| Default Column      | Exactly one per List, maintained transactionally with a partial unique constraint. Hide the technical default name when it is the sole Column.                                                                                                             | SRS-ORG-003/004             |
-| Account             | Existing UUID identity is reusable; the foundation User is not the final profile/contact model. Add unique mutable handle, nonunique display name, optional picture and separately verified contacts. A pending contact must never become discoverable.    | SD §6.13; SRS-AUTH-012..015 |
-| Placement           | Each Task has exactly one Column; its List is derived from that Column. Destination and source are checked against the current authenticated owner inside the write transaction.                                                                           | SD §6.1; SRS-NFR-SEC-003    |
-| Task composition    | Item identity/metadata plus explicit one-to-one Task and Source rows. Task status is not on the shared Item table. Manual provenance never grants ownership.                                                                                               | DR-052; SRS-ITEM-006..009   |
-| Delete              | Item/Folder/List ordinary deletion is recoverable. Column has no independent Trash lifecycle. Column removal needs an explicit choice to move contents to the same List's default Column or delete contents.                                               | SD §§6.1/8.4                |
-| Restore/purge       | Retain deletion time and enough origin metadata for later restore. Restore falls back to Inbox/default Column if old placement is gone. Thirty-day Trash retention and explicit Delete Permanently are canonical; purge preserves required audit evidence. | SD §8.4; roadmap I6         |
+| Area | Current I1 rule | Evidence |
+|---|---|---|
+| Inbox | A real special List; at most one per user at database level; write path bootstraps exactly one; cannot be renamed/deleted. | organization model/application + bootstrap/API tests |
+| Folder | Optional; List may have no Folder. | organization model/API tests |
+| Titles/order | Container UUID is identity; duplicate titles are valid; position is mutable ordering metadata. | model/API tests |
+| Default Column | At most one per List at database level; List creation creates it atomically; bootstrap repairs a missing default. | constraint + transaction/concurrency tests |
+| Technical default name | Internal default title is not exposed as legacy `not_sectioned`; when it is the sole Column the client does not present that technical concept. | bootstrap/client tests |
+| Account | Stable UUID User with mutable unique handle, display name, optional picture reference and IANA timezone preference. | account API/tests |
+| Contacts | Secondary email/phone stays pending until code verification; only verified contacts enter active flows; phone is E.164. | contact models/application/API tests |
+| Placement | Each Task has one Column; destination ownership is checked from authenticated actor scope inside writes. | Task/organization negative tests |
+| Task composition | Shared Item identity/metadata + explicit one-to-one Task and Source; Task status stays on Task. | Item/Task models/migrations/tests |
+| Delete/restore | Item/Folder/List ordinary deletion is recoverable; Column has no independent Trash lifecycle; descendant handling is explicit. | API/application tests |
+| Concurrency/retry | Server-owned positive version rejects stale writes; idempotency prevents duplicated create after retry. | Task HTTP tests |
+| Migration history | Existing numbered migrations are append-only; modifications/deletes/renames fail CI and new schema changes require a new migration. | `scripts/check_migrations.py` + migration-history tests |
 
-The older `data-model.md` tables are proposals, not a migration specification. `domain-model.md` §33 and `reference/class-fields.md` contain historical OPEN wording; current SRS §7 distinguishes design handoffs from closed product decisions. Do not reopen those decisions from the older references.
+## I6 compatibility retained by I1
 
-## I6 compatibility review before migrations/API are locked
+- Persisted entities use stable UUIDs; moving/renaming does not recreate identity.
+- Item mutation version is server-owned and incremented atomically; clients do not provide authoritative timestamps/version values.
+- Stale online edits fail with a stable conflict surface instead of silently overwriting newer state.
+- Retry identity/deduplication exists for I1 creation; future full sync retention policy stays with I6.
+- Trash/restore preserves enough origin metadata for later recovery/history work.
+- I1 versioning is not presented as the complete future History model.
+- Every private operation begins from authenticated owner scope; ordinary staff receives no product-endpoint bypass.
 
-| Concern           | I1 design constraint                                                                                                                                                                                                 | Verification / later handoff                                                                                          |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Stable identity   | UUIDs for persisted entities; never recreate Items on move/rename. No kind-changing API.                                                                                                                             | Create, move, edit and reload preserve ID. I2 adds relation/block IDs.                                                |
-| Revision/order    | Positive server-owned version, incremented atomically with every accepted mutation; UTC server timestamps. Clients supply expected version, never authoritative time/version.                                        | Two writers using the same version cannot silently overwrite each other. I6 adds field-level reconciliation metadata. |
-| Conflict response | Reject stale online edits with a stable conflict error and current authorized state/version; keep the local draft. This is an online concurrency guard, not the future field-level LWW algorithm.                    | Conflict/retry API and UI test. No fabricated device-clock winning write.                                             |
-| Retry/idempotency | Specify retry semantics before enabling automatic mutation retries. Creation needs a stable operation identity or equivalent deduplication; reused identity with different intent must not create a second resource. | Lost-response/retry test. Final operation retention policy belongs with the implemented contract.                     |
-| Tombstone/restore | Preserve identity across Trash/restore. Do not immediately hard-delete operational state on ordinary deletion, and do not use blind container cascades.                                                              | Delete isolation and restore tests; I2 audit and I6 history/purge compatibility.                                      |
-| Branching history | A mutable integer version is not a complete History model. Preserve a path to stable change IDs, parent links and new restore events without destructive rewrites of old branches.                                   | I2 audit design, then I6 branching-history contract. No Undo/history claim from a version field alone.                |
-| Authorization     | Check the current account and ownership on every server operation; never trust stale client permission, supplied owner ID or Source. Do not grant a staff bypass through ordinary endpoints.                         | Cross-user, inactive account, revoked session and forged metadata tests. I7 expands effective permissions.            |
+## Acceptance evidence
 
-## Acceptance plan at public boundaries
+| ID | Observable scenario | Current evidence |
+|---|---|---|
+| I1-AC-01 | Unverified email cannot authenticate/discover; verification error paths fail; successful verification enables password sign-in. | backend HTTP tests + signed-out client tests + hosted CI |
+| I1-AC-02 | Password reset works; JWT sessions renew/revoke; credentials/tokens stay out of normal structured logs. | identity/session tests + logging controls + hosted CI |
+| I1-AC-03 | Repeat/concurrent bootstrap yields exactly one Inbox/default Column; Inbox is immutable; Lists may have no Folder and duplicate titles. | PostgreSQL concurrency/API tests + hosted CI |
+| I1-AC-04 | Title-only Task persists without dates; UUID/owner/creator/manual provenance survive re-authentication. | real client/API/PostgreSQL E2E + hosted CI |
+| I1-AC-05 | Move/edit/status/reopen works; invalid input/forged metadata fail; failed client save retains draft. | Task API + client component/E2E tests |
+| I1-AC-06 | A second account cannot read/write/move/delete or use foreign destinations; staff has no ordinary endpoint bypass. | two-account HTTP matrix |
+| I1-AC-07 | Stale version cannot overwrite newer data; retried create does not duplicate. | PostgreSQL/API conflict and idempotency tests |
+| I1-AC-08 | Ordinary delete leaves active queries, preserves recovery metadata and respects container/Column rules. | API/application/client tests |
+| I1-AC-09 | Google/Passkey/password share one internal account/session model and linking proof is checked. | deterministic provider/WebAuthn tests; **configured real-provider smoke still open** |
+| I1-AC-10 | Desktop/mobile account-to-Task workflow stores Persian/English titles, hides sole technical Column concept and persists across server/app re-entry. | Playwright desktop/mobile against Django + PostgreSQL |
 
-These cases are the roadmap's Stage E plan. Local backend evidence exists for I1-AC-01..09, and minimal product-client evidence now covers I1-AC-04/05/08/10. Configured external-provider and hosted evidence remains required. Each implemented backend behavior was introduced through a failing public-boundary test.
+## Security and contract hardening already delivered
 
-| ID       | Observable scenario                                                                                                                                                                    | Boundary / trace                                                                  |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| I1-AC-01 | Unverified email cannot authenticate as verified or appear in contact discovery; expired/replayed/incorrect verification codes fail; successful verification enables password sign-in. | Identity HTTP API; SRS-AUTH-001/008/012/013                                       |
-| I1-AC-02 | Password reset works through email; credentials/tokens never enter ordinary logs. JWT renewal and session-specific/all-session revocation reject revoked credentials.                  | Identity HTTP API; SD §6.13; SRS-AUTH-002/004; SRS-NFR-SEC-001/002                |
-| I1-AC-03 | Repeat/concurrent bootstrap produces exactly one Inbox/default Column. Inbox rename/delete fails. Lists can appear without a Folder and allow duplicate titles.                        | Organization HTTP API; SD §6.1; SRS-ORG-001..005                                  |
-| I1-AC-04 | Create a Task with only a title, without dates. Read it after reauthentication; UUID, ownership, creator and manual provenance remain intact.                                          | Desktop/mobile client → API → PostgreSQL; SRS-TASK-001/020; SRS-ITEM-002/006..009 |
-| I1-AC-05 | Move a Task, edit title, choose Done/Won't_Do and reopen it. Invalid/empty title and forged server metadata fail. Failed save retains the draft.                                       | Task HTTP API and client; SRS-TASK-001/014; SRS-ITEM-003                          |
-| I1-AC-06 | Another user cannot list/read/edit/move/delete the Task or place their Task in the first user's Column; ordinary staff endpoints remain scoped.                                        | HTTP API with two real accounts; SRS-NFR-SEC-003                                  |
-| I1-AC-07 | A stale version cannot silently replace a newer edit; a retried create after response loss does not duplicate the Task.                                                                | HTTP API with independent clients; SRS-ITEM-005; roadmap §7.6                     |
-| I1-AC-08 | Ordinary delete disappears from active queries, preserves its recovery metadata, and respects container/Column rules.                                                                  | HTTP API and UI; SRS-ITEM-004; SD §8.4                                            |
-| I1-AC-09 | Google-only sign-in works; fallback is offered, not mandatory. Configured password/Passkey works during Google outage; wrong account-linking proof cannot take over an account.        | Provider simulation plus configured integration smoke; SRS-AUTH-003/005..010      |
-| I1-AC-10 | Desktop/mobile account-to-Task workflow stores Persian and English titles, hides the sole technical Column, and retains data across app restart.                                       | Browser E2E; SRS-VIEW-006/010/011; roadmap §8 acceptance                          |
+- explicit host, CORS and CSRF trusted-origin allowlists; wildcard host/origin trust rejected;
+- HTTPS-only non-local trusted/CORS/WebAuthn origins with secure redirect/cookie/HSTS/proxy settings;
+- JSON-only `/api/v1/` write boundary with 16 KiB body cap and stable malformed/unsupported-media errors;
+- stable error code/envelope and unknown-field rejection;
+- CORS permits `If-Match` for versioned mutations without enabling credentials or untrusted origins;
+- identity-sensitive operations carry OpenAPI `x-edge-rate-limit-policy: identity-ceremony` metadata. Thresholds/enforcement are deployment-edge responsibilities, not an in-process limiter claim;
+- OpenAPI document validity, reviewed hash and exact Django route set are CI-guarded;
+- historical migrations are immutable through the append-only CI gate.
 
-## Remaining engineering inputs
+## Remaining gates for formal Increment 1 closure
 
-- Supply deployment-specific email delivery settings, Google client/redirect configuration and WebAuthn relying-party/origin settings for real integration smoke. Automated tests can use local mail capture and provider simulations; those are not evidence of configured external delivery.
-- Supply and smoke-test the phone-contact delivery adapter. Until configured, phone verification correctly reports delivery unavailable; it is not a release-ready external channel.
-- Run hosted CI, configured-provider smoke and release gates, then create the Increment 1 release record. Local client/API/PostgreSQL E2E now covers desktop/mobile I1-AC-04/05/08/10.
-- Finish I0's hosted green CI and release record. The [I0 review](increment-0-foundation-review.md) remains the source for foundation evidence and its limits.
+- Configure and smoke-test real email delivery in the target environment.
+- Configure the real Google OAuth client/redirect environment and smoke the real provider path.
+- Smoke WebAuthn using the target relying-party ID/origins with a real browser/authenticator.
+- Configure and smoke-test the phone-contact delivery adapter.
+- Define/deploy the edge rate-limit implementation matching the declared identity-ceremony policy and verify its thresholds in the target environment.
+- Create the formal Increment 1 release record/publication after the configured-provider/release evidence is green.
+
+Hosted CI itself is **not** an open gate anymore. Increment 0 is already formally closed in repository tracking. No GitHub Release or production deployment is claimed for Increment 1 yet.
