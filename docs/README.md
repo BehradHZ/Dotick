@@ -20,11 +20,24 @@
 - [`development/`](development/) — راه‌اندازی و رویه‌های محیط توسعه
 - [`quality/`](quality/) — راهبرد و شواهد کیفیت و آزمون
 - [`operations/`](operations/) — استقرار، مشاهده‌پذیری، بازیابی و عملیات امنیت
-- [`tracking/`](tracking/) — تاریخچهٔ تغییرات و مرور Incrementها
+- [`tracking/`](tracking/) — تاریخچهٔ تغییرات، audit پیاده‌سازی و مرور Incrementها
 - [`reference/`](reference/) — اسناد مرجع مشتق‌شده یا قدیمی که منبع نهایی تصمیم نیستند
 
 تصمیم‌های تثبیت‌شده و باز در [`decision-register.md`](decision-register.md) ثبت می‌شوند و تصمیم‌های معماری تفصیلی در [`design/adr/`](design/adr/) قرار می‌گیرند.
 
 نام فایل‌ها و پوشه‌ها از قرارداد `lowercase-kebab-case` پیروی می‌کند؛ نام‌های قراردادی مانند `README.md` و `CHANGELOG.md` استثنا هستند.
 
-Current implementation: [I0 verification](tracking/increment-0-foundation-review.md), [I1 backend review](tracking/increment-1-backend-review.md), [I1 client review](tracking/increment-1-client-review.md), [Authentication Design](design/authentication-design.md) and the full backend [OpenAPI contract](design/openapi.json). Remaining provider/release scope stays in the [I1 readiness and acceptance plan](tracking/increment-1-readiness.md).
+## Current implementation evidence
+
+- [Increment 0 verification](tracking/increment-0-foundation-review.md) — formally closed foundation checkpoint.
+- [Increment 1 readiness](tracking/increment-1-readiness.md) — current implemented boundary, acceptance evidence and remaining formal release gates.
+- [Increment 1 backend review](tracking/increment-1-backend-review.md) — historical backend checkpoint plus 2026-09-16 reconciliation.
+- [Increment 1 client review](tracking/increment-1-client-review.md) — minimal product-client checkpoint plus hosted-evidence reconciliation.
+- [Development commit audit](tracking/development-commit-audit.md) — complete post-reset audit boundary covering the 148 implementation commits from the documentation-only baseline through audited HEAD `7302ca3`.
+- [API contract](design/openapi.json) and [API contract rules](design/api-contracts.md) — executable published I1 backend contract.
+- [Security design](design/security-design.md) — current I1 API/origin/identity/migration hardening.
+- [Test strategy](quality/test-strategy.md) — current hosted verification and migration-history policy.
+
+The 2026-09-16 commit-history reconciliation found no implementation change that requires redefining canonical product behavior. System Definition, Decision Register and SRS remain above implementation evidence in authority; implementation/tracking documents were updated instead of turning code accidents into requirements.
+
+Current hosted CI is green for the audited I1 implementation. Formal I1 closure still requires configured target-environment email, Google, real WebAuthn authenticator and phone-delivery smoke, deployment-edge enforcement for declared identity-ceremony rate limits, and the formal Increment 1 release record/publication.
