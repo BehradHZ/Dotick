@@ -17,6 +17,7 @@
       "post": {
         "operationId": "registerAccount",
         "tags": ["Identity"],
+        "x-edge-rate-limit-policy": "identity-ceremony",
         "security": [],
         "requestBody": {
           "required": true,
@@ -39,6 +40,7 @@
       "post": {
         "operationId": "resendEmailVerification",
         "tags": ["Identity"],
+        "x-edge-rate-limit-policy": "identity-ceremony",
         "security": [],
         "requestBody": {
           "required": true,
@@ -61,6 +63,7 @@
       "post": {
         "operationId": "verifyEmail",
         "tags": ["Identity"],
+        "x-edge-rate-limit-policy": "identity-ceremony",
         "security": [],
         "requestBody": {
           "required": true,
@@ -182,6 +185,7 @@
       "post": {
         "operationId": "requestPasswordReset",
         "tags": ["Identity"],
+        "x-edge-rate-limit-policy": "identity-ceremony",
         "security": [],
         "requestBody": {
           "required": true,
@@ -204,6 +208,7 @@
       "post": {
         "operationId": "confirmPasswordReset",
         "tags": ["Identity"],
+        "x-edge-rate-limit-policy": "identity-ceremony",
         "security": [],
         "requestBody": {
           "required": true,
@@ -305,6 +310,7 @@
       "post": {
         "operationId": "beginPasskeyAuthentication",
         "tags": ["Identity"],
+        "x-edge-rate-limit-policy": "identity-ceremony",
         "security": [],
         "requestBody": { "$ref": "#/components/requestBodies/EmptyObject" },
         "responses": {
@@ -317,6 +323,7 @@
       "post": {
         "operationId": "finishPasskeyAuthentication",
         "tags": ["Identity"],
+        "x-edge-rate-limit-policy": "identity-ceremony",
         "security": [],
         "requestBody": { "$ref": "#/components/requestBodies/PasskeyCeremony" },
         "responses": {
@@ -363,6 +370,7 @@
       "post": {
         "operationId": "requestContactVerification",
         "tags": ["Account"],
+        "x-edge-rate-limit-policy": "identity-ceremony",
         "requestBody": { "$ref": "#/components/requestBodies/ContactRequest" },
         "responses": {
           "202": { "$ref": "#/components/responses/PendingContact" },
@@ -376,6 +384,7 @@
       "post": {
         "operationId": "verifyAccountContact",
         "tags": ["Account"],
+        "x-edge-rate-limit-policy": "identity-ceremony",
         "requestBody": { "$ref": "#/components/requestBodies/ContactVerify" },
         "responses": {
           "204": { "description": "Contact verified and activated." },

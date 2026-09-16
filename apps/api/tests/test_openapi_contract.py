@@ -9,7 +9,7 @@ from openapi_spec_validator import validate
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OPENAPI_PATH = REPO_ROOT / "docs" / "design" / "openapi.json"
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
-REVIEWED_CONTRACT_SHA256 = "413160a1a2ed98284d2a30fab7edcd8a5893841dcd94a3d165a355202a9d09da"
+REVIEWED_CONTRACT_SHA256 = "8f54a43a15c623849dbda218dc67bc5cb931c3c517e2d2902f348968295520ab"
 PUBLISHED_INCREMENT_1_PATHS = {
     "/api/v1/account",
     "/api/v1/account/bootstrap",
@@ -49,6 +49,17 @@ PUBLISHED_INCREMENT_1_PATHS = {
     "/api/v1/trash/folders",
     "/api/v1/trash/lists",
     "/api/v1/trash/tasks",
+}
+EDGE_RATE_LIMITED_OPERATIONS = {
+    ("/api/v1/account/contacts", "post"),
+    ("/api/v1/account/contacts/verify", "post"),
+    ("/api/v1/auth/email/resend", "post"),
+    ("/api/v1/auth/email/verify", "post"),
+    ("/api/v1/auth/passkeys/authentication/options", "post"),
+    ("/api/v1/auth/passkeys/authentication/verify", "post"),
+    ("/api/v1/auth/password/reset/confirm", "post"),
+    ("/api/v1/auth/password/reset/request", "post"),
+    ("/api/v1/auth/register", "post"),
 }
 
 
@@ -117,3 +128,11 @@ def test_openapi_is_the_executable_increment_1_contract():
     error = contract["components"]["schemas"]["Error"]
     assert error["required"] == ["error"]
     assert set(error["properties"]["error"]["required"]) == {"code", "details"}
+
+
+def test_identity_ceremonies_declare_their_edge_rate_limit_policy():
+    contract = _load_contract()
+
+    for path, method in EDGE_RATE_LIMITED_OPERATIONS:
+        operation = contract["paths"][path][method]
+        assert operation["x-edge-rate-limit-policy"] == "identity-ceremony"
