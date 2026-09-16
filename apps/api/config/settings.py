@@ -64,6 +64,7 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "config.middleware.RequestIDMiddleware",
     "config.observability.RequestLoggingMiddleware",
+    "config.middleware.JsonRequestBoundaryMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -148,7 +149,7 @@ if not IS_LOCAL and not WEBAUTHN_ORIGIN.startswith("https://"):
     raise ImproperlyConfigured("Production WebAuthn origin must use HTTPS.")
 
 FOUNDATION_ENABLED = IS_LOCAL and os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"
-FOUNDATION_MAX_REQUEST_BODY_BYTES = 16 * 1024
+API_MAX_JSON_BODY_BYTES = 16 * 1024
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
