@@ -22,6 +22,22 @@ DEBUG = IS_LOCAL and os.getenv("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = [
     host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
+if "*" in ALLOWED_HOSTS:
+    raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be an explicit allowlist.")
+if not IS_LOCAL and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS is required outside local/test.")
+
+default_trusted_origins = "http://127.0.0.1:8081,http://localhost:8081" if IS_LOCAL else ""
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "DJANGO_CSRF_TRUSTED_ORIGINS",
+        default_trusted_origins,
+    ).split(",")
+    if origin.strip()
+]
+if not IS_LOCAL and not CSRF_TRUSTED_ORIGINS:
+    raise ImproperlyConfigured("DJANGO_CSRF_TRUSTED_ORIGINS is required outside local/test.")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
