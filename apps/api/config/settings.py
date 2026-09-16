@@ -6,6 +6,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from corsheaders.defaults import default_headers
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -136,7 +137,9 @@ CORS_ALLOWED_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_HEADERS = (*default_headers, "if-match")
 
 SECURE_SSL_REDIRECT = not IS_LOCAL
 SESSION_COOKIE_SECURE = not IS_LOCAL
