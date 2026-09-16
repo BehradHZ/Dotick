@@ -1,9 +1,11 @@
+import hashlib
 import json
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OPENAPI_PATH = REPO_ROOT / "docs" / "design" / "openapi.json"
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
+REVIEWED_CONTRACT_SHA256 = "413160a1a2ed98284d2a30fab7edcd8a5893841dcd94a3d165a355202a9d09da"
 
 
 def _load_contract():
@@ -15,6 +17,18 @@ def _operations(contract):
         for method, operation in path_item.items():
             if method in HTTP_METHODS:
                 yield path, method, operation
+
+
+def test_published_contract_changes_require_a_reviewed_test_update():
+    contract = _load_contract()
+    canonical = json.dumps(
+        contract,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode()
+
+    assert hashlib.sha256(canonical).hexdigest() == REVIEWED_CONTRACT_SHA256
 
 
 def test_openapi_is_the_executable_increment_1_contract():
