@@ -61,7 +61,8 @@ class List(models.Model):
             models.Index(
                 fields=["owner", "folder", "position"],
                 name="list_owner_folder_position",
-            )
+            ),
+            models.Index(fields=["folder", "position"], name="list_folder_position"),
         ]
         constraints = [
             models.CheckConstraint(condition=~models.Q(title=""), name="list_title_nonempty"),
