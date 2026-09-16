@@ -2,16 +2,24 @@
 
 تمام تغییرات مهم و قابل‌مشاهدهٔ پروژه باید در این فایل ثبت شوند.
 
-## Unreleased — Increment 1 backend (2026-09-08)
+## Unreleased — Increment 1 (reconciled 2026-09-16)
 
 - Added verified email registration, resend throttling and password reset using single-use ten-minute codes.
 - Added five-minute access tokens, rotating 30-day refresh tokens, active-session listing and specific/current/all-session revocation.
-- Added unique handles and display names, append-only identity migrations, a validated OpenAPI contract and dedicated production JWT signing key.
-- Added Google-only sign-in and explicit account linking, optional WebAuthn Passkeys, independent password fallback, account/profile/timezone presentation and separately verified secondary contacts.
-- Added atomic account bootstrap, exactly one Inbox/default Column, personal Folder/List/Column CRUD and ordering, explicit recoverable container deletion, and owner-scoped Trash/restore.
-- Added explicit Item/Task composition, stable UUID identity, manual provenance, Task create/read/edit/move/status/Trash/restore, optimistic versions and idempotent creation.
-- Expanded the validated OpenAPI 3.1 contract to every published Increment 1 backend route and added PostgreSQL behavior tests for concurrency, isolation, conflicts and recovery.
-- Product client integration, configured email/Google/WebAuthn/phone delivery smoke and release publication remain pending; the locally verified backend is not the whole Increment 1 release.
+- Added unique mutable handles, display names, profile-picture references, IANA timezone preferences and dedicated production JWT signing-key configuration.
+- Added Google-only sign-in and explicit account linking, optional WebAuthn Passkeys, independent password fallback, recent-auth/user-verification protections and separately verified secondary contacts. Pending contacts remain inactive and undiscoverable; phone contacts use E.164 validation.
+- Added atomic and concurrently idempotent account bootstrap, exactly one Inbox/default Column, personal Folder/List/Column CRUD and ordering, recoverable container deletion/restore, child-resolution rules and query indexes for I1 navigation paths.
+- Added explicit Item/Task/Source composition, stable UUID identity, manual provenance, unscheduled Task create/read/edit/move/status/Trash/restore, optimistic versions, owner-isolated destinations and idempotent creation.
+- Integrated the Expo product client with the I1 API for registration/verification/reset, sign-in/bootstrap, Inbox/List navigation, Task creation/edit/status/move/Trash/restore, Persian/English titles, web Google/Passkey surfaces and LAN API discovery. Tokens intentionally remain session-memory only.
+- Expanded the validated OpenAPI 3.1 contract to the exact published Increment 1 route set. Contract tests validate the document, lock the reviewed canonical hash and fail when Django routes and documented paths diverge.
+- Hardened the API with stable error codes/envelopes, unknown-field rejection, JSON-only versioned request boundaries, a 16 KiB body limit, malformed request rejection and explicit CORS support for `If-Match` without wildcard origins or cross-origin credentials.
+- Hardened production-like settings with explicit host/CSRF/CORS allowlists, HTTPS-only non-local origins, secure redirect/cookie/HSTS/proxy settings and safe request-correlation logging.
+- Declared identity-sensitive operations with OpenAPI `x-edge-rate-limit-policy: identity-ceremony`; actual threshold/enforcement remains a deployment-edge responsibility and release configuration concern.
+- Enforced append-only Django migration history in CI: existing numbered migrations may not be modified, deleted or renamed; schema changes require new migrations. Fresh-database and schema-drift checks remain active.
+- Hosted CI run `35057831342` completed successfully against audited implementation HEAD `7302ca3b18a79af35058828102bb62e845a56645`, covering locked installs, static checks, traceability, migrations, backend/Golden Time tests, production checks, frontend tests, web export, desktop/mobile E2E, dependency audits, secret scan, non-root container builds and persistence smoke.
+- Configured real email delivery, Google credentials, real WebAuthn browser/authenticator smoke, phone delivery-adapter smoke and formal Increment 1 release/publication remain open. Hosted CI and local product-client integration are no longer open engineering gates.
+
+See [the complete post-reset implementation audit](development-commit-audit.md) for the 148-commit reconciliation boundary and documentation-impact rules.
 
 ## Increment 0 foundation — closed (2026-09-09)
 
