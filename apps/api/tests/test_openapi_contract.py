@@ -2,6 +2,8 @@ import hashlib
 import json
 from pathlib import Path
 
+from openapi_spec_validator import validate
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OPENAPI_PATH = REPO_ROOT / "docs" / "design" / "openapi.json"
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
@@ -29,6 +31,10 @@ def test_published_contract_changes_require_a_reviewed_test_update():
     ).encode()
 
     assert hashlib.sha256(canonical).hexdigest() == REVIEWED_CONTRACT_SHA256
+
+
+def test_openapi_document_is_valid_openapi_31():
+    validate(_load_contract())
 
 
 def test_openapi_is_the_executable_increment_1_contract():
