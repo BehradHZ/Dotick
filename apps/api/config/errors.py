@@ -15,6 +15,15 @@ STATUS_ERROR_CODES = {
 }
 
 
+def _error_payload(code, details):
+    return {
+        "error": {
+            "code": code,
+            "details": details,
+        }
+    }
+
+
 def _get_error_code(error, status_code):
     if isinstance(error, ValidationError):
         return "validation_error"
@@ -33,11 +42,7 @@ def api_exception_handler(error, context):
 
     if response is None:
         return Response(
-            {
-                "error": {
-                    "code": "internal_error",
-                }
-            },
+            _error_payload("internal_error", {}),
             status=500,
         )
 
@@ -48,44 +53,30 @@ def api_exception_handler(error, context):
             "current": error.current,
         }
 
-    response.data = {
-        "error": {
-            "code": _get_error_code(error, response.status_code),
-            "details": details,
-        }
-    }
+    response.data = _error_payload(
+        _get_error_code(error, response.status_code),
+        details,
+    )
 
     return response
 
 
 def bad_request(request, exception):
     return JsonResponse(
-        {
-            "error": {
-                "code": "bad_request",
-            }
-        },
+        _error_payload("bad_request", {}),
         status=400,
     )
 
 
 def not_found(request, exception):
     return JsonResponse(
-        {
-            "error": {
-                "code": "not_found",
-            }
-        },
+        _error_payload("not_found", {}),
         status=404,
     )
 
 
 def server_error(request):
     return JsonResponse(
-        {
-            "error": {
-                "code": "internal_error",
-            }
-        },
+        _error_payload("internal_error", {}),
         status=500,
     )

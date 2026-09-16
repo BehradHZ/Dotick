@@ -209,6 +209,7 @@ class FoundationCheckpointAPITests(TestCase):
             {
                 "error": {
                     "code": "internal_error",
+                    "details": {},
                 }
             },
         )

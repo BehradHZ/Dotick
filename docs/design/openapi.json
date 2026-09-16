@@ -1095,7 +1095,7 @@
         "properties": {
           "error": {
             "type": "object",
-            "required": ["code"],
+          "required": ["code", "details"],
             "properties": {
               "code": {
                 "type": "string",
