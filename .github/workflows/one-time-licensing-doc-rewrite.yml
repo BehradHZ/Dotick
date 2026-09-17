@@ -1,0 +1,353 @@
+name: One-time licensing documentation reconciliation
+
+on:
+  push:
+    branches: [test]
+    paths:
+      - .github/workflows/one-time-licensing-doc-rewrite.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: test
+          fetch-depth: 0
+
+      - name: Reconcile open-source and commercial-services documentation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"Expected exactly one match in {path}, found {count}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          # System Definition: distinguish legal permission to self-host from a support entitlement.
+          replace_once(
+              "docs/requirements/system-definition.md",
+              """### Hosting boundary
+
+          Current Scope does **not** include supported self-hosting for arbitrary end Users. Publishing source code or making a development environment runnable does not by itself imply providing a self-hosting package, deployment contract, operational documentation, or access to Dotick-managed secrets/configuration.
+
+          Dotick is not required to deliver Current Scope in a form that allows every User to operate a fully supported production instance on an arbitrary server. Local/development deployment belongs to the Engineering/Deployment workflow and is not a product capability.""",
+              """### Open-source, hosting, and support boundary
+
+          Dotick is intended to be distributed under an OSI-approved open-source license. Subject to that license, Users and organizations may use, modify, redistribute, and self-host the software, including for commercial purposes. The exact approved license text is a Legal/Business selection and must be finalized before a public release is represented as open source.
+
+          Open-source rights do not create a product-level support or deployment entitlement. Current Scope does **not** include guaranteed supported self-hosting, managed installation, operational assistance, SLA, or production deployment for arbitrary end Users. Dotick may offer professional deployment, configuration, migration, maintenance, support, managed hosting, training, or SLA-backed services separately, including as paid services, without restricting the open-source rights granted by the software license.
+
+          Dotick-managed secrets, credentials, infrastructure, hosted-service data, and service-specific configuration are not part of the source-code licensing commitment unless explicitly published. Local/development deployment belongs to the Engineering/Deployment workflow; a third-party production deployment remains that operator's responsibility unless covered by a separate support or services agreement.""",
+          )
+
+          replace_once(
+              "docs/requirements/system-definition.md",
+              "- supported self-hosting and production deployment for arbitrary end Users;",
+              "- guaranteed support, SLA, or professional production deployment for arbitrary third-party self-hosted instances; self-hosting itself remains permitted by the selected open-source license;",
+          )
+          replace_once(
+              "docs/requirements/system-definition.md",
+              "Capabilities that are not within Current Scope are not necessarily `Future Commitments`. Capabilities such as a public social network, supported self-hosting, direct User typed-text AI input, a general-purpose public API, full UI localization, and additional TOTP/SMS 2FA are not part of the currently planned product direction and may enter Future Scope only through a new canonical decision.",
+              "Capabilities that are not within Current Scope are not necessarily `Future Commitments`. Capabilities such as a public social network, a bundled free support/SLA offering for arbitrary self-hosted production instances, direct User typed-text AI input, a general-purpose public API, full UI localization, and additional TOTP/SMS 2FA are not part of the currently planned product direction and may enter Future Scope only through a new canonical decision. Permission to self-host under the selected open-source license is not a Future capability; it is a licensing right and does not imply free operational support.",
+          )
+          replace_once(
+              "docs/requirements/system-definition.md",
+              "Future commercialization is likely, but the monetization model is not yet a finalized product decision. Pricing, subscriptions, licensing, billing, or payment flows must not be treated as Future commitments or architectural constraints until a separate Business/Product decision establishes them.",
+              "Dotick's commercial-services direction is established: source-code use remains governed by an OSI-approved open-source license, while professional deployment, configuration, migration, managed hosting, support, maintenance, training, and SLA-backed services may be offered separately for a fee. Exact pricing, packaging, subscriptions, billing/payment flows, service levels, and the specific OSI-approved license have not yet been finalized and must not be assumed as product requirements until separately decided.",
+          )
+          replace_once(
+              "docs/requirements/system-definition.md",
+              "Full UI localization, additional TOTP/SMS 2FA, supported self-hosting, a public social network, direct User typed-text AI input, and a public developer API are not currently Planned Future Capabilities. Their absence from Current Scope must not be implicitly interpreted as a promise that they will be added in future versions.",
+              "Full UI localization, additional TOTP/SMS 2FA, a bundled free support/SLA product for arbitrary self-hosted production instances, a public social network, direct User typed-text AI input, and a public developer API are not currently Planned Future Capabilities. Self-hosting permission itself is governed by the open-source license and must not be confused with a promise of free deployment or operational support.",
+          )
+
+          # Decision Register: close the business-model principle while leaving pricing and exact license open.
+          replace_once(
+              "docs/decision-register.md",
+              "- Current Scope does not include a supported production self-hosting product for arbitrary end users. Source availability or developer-local execution does not create that product commitment.",
+              "- Self-hosting is permitted according to Dotick's selected OSI-approved open-source license, including commercial use where that license permits it. Current Scope does not include guaranteed free production support, managed deployment, SLA, or operational assistance for arbitrary self-hosted instances; those may be offered separately as professional services.",
+          )
+          replace_once(
+              "docs/decision-register.md",
+              "- supported self-hosting / production deployment by arbitrary end users;",
+              "- guaranteed support, SLA, or professional production deployment for arbitrary self-hosted instances as a Current-Scope product entitlement; self-hosting permission itself is governed by the open-source license;",
+          )
+          replace_once(
+              "docs/decision-register.md",
+              "Billing, subscription and payment behavior are outside Current Scope. Describing them simply as Future Scope could imply that Dotick has already committed to a specific commercial model even though pricing, licensing, packaging and monetization have not been decided.",
+              "Billing, subscription and payment behavior remain outside Current Scope. The earlier baseline intentionally left the commercial model open. The project has now selected one business principle without introducing billing into product behavior: Dotick will use an OSI-approved open-source software license, while professional deployment, configuration, migration, managed hosting, support, maintenance, training and SLA-backed services may be sold separately. Exact pricing, packaging, subscription mechanics, service levels and the specific open-source license remain separate decisions.",
+          )
+          replace_once(
+              "docs/decision-register.md",
+              """- Dotick may become a commercial product in the future.
+          - The monetization model is currently undecided.
+          - Subscription, billing, payment, license enforcement, pricing tiers and related commercial transaction flows are not Current-Scope requirements and are not Planned Future Capabilities until a separate Business/Product decision selects a model.
+          - Current architecture must not assume a specific monetization mechanism as a product invariant.""",
+              """- Dotick's source code is intended to be distributed under an OSI-approved open-source license. The selected license must permit use according to standard open-source freedoms, including commercial use; access to the software must not be conditioned on purchasing a support or deployment contract.
+          - Dotick may separately charge for professional deployment, configuration, migration, managed hosting, support, maintenance, training, customization and SLA-backed services. Payment purchases a service commitment, not permission to exercise rights already granted by the open-source software license.
+          - The exact OSI-approved license, pricing, packaging, subscription model, billing/payment flows and service levels remain undecided until separately finalized.
+          - Current architecture must not add license-enforcement or commercial-user entitlement gates merely to distinguish business users from personal users. Future paid hosted features or subscriptions, if introduced, require their own product and business decisions.""",
+          )
+          replace_once(
+              "docs/decision-register.md",
+              "Commercial strategy can evolve without rewriting core productivity semantics. If billing or licensing becomes real scope, its account, entitlement, payment-provider and failure semantics require their own canonical decisions.",
+              "Commercial-service packaging can evolve without rewriting core productivity semantics. Open-source software use itself must not depend on a paid commercial entitlement. If Dotick later introduces paid hosted features, subscriptions, billing, or service entitlements, their account, payment-provider, authorization and failure semantics require their own canonical decisions.",
+          )
+
+          # SRS: formalize the distinction as a constraint without adding a billing feature.
+          replace_once("docs/requirements/srs.md", "**Version:** 2.9", "**Version:** 3.0")
+          replace_once("docs/requirements/srs.md", "**Baseline date:** 2026-08-26", "**Baseline date:** 2026-09-17")
+          replace_once(
+              "docs/requirements/srs.md",
+              "| 2.9 | 2026-08-26 | Traceability Reconciliation Baseline | افزودن requirement صریح برای confirmation دامنه‌ی inherited sharing، اصلاح Daily Ring completion semantics و Routine reference coverage، و همگام‌سازی source references با Decision Register/engineering baseline جاری. |",
+              "| 2.9 | 2026-08-26 | Traceability Reconciliation Baseline | افزودن requirement صریح برای confirmation دامنه‌ی inherited sharing، اصلاح Daily Ring completion semantics و Routine reference coverage، و همگام‌سازی source references با Decision Register/engineering baseline جاری. |\n| 3.0 | 2026-09-17 | Open-Source & Services Boundary Baseline | تثبیت open-source بودن کد به‌عنوان جهت licensing، تفکیک حق self-host از entitlement پشتیبانی، و ثبت امکان فروش deployment/support/SLA بدون محدودکردن استفاده‌ی تجاری از کد. |",
+          )
+          replace_once(
+              "docs/requirements/srs.md",
+              "| SRS-CON-004 | Current Scope نباید supported self-hosting برای arbitrary end user را به‌عنوان product capability الزام کند؛ source availability یا development/local execution به‌تنهایی self-host deployment contract ایجاد نمی‌کند. | Architecture + Deployment Inspection |",
+              "| SRS-CON-004 | Current Scope نباید free/guaranteed support، SLA، managed deployment یا production assistance برای arbitrary self-hosted instance را به‌عنوان product entitlement الزام کند. self-hosting طبق open-source license مجاز است و professional deployment/support می‌تواند به‌صورت service جداگانه و پولی ارائه شود، بدون اینکه حق استفاده از کد به خرید آن service وابسته شود. | Architecture + Deployment Inspection |",
+          )
+          replace_once(
+              "docs/requirements/srs.md",
+              "- supported self-hosting برای arbitrary end user و production deployment contract شخص ثالث.",
+              "- free/guaranteed support، SLA یا professional production deployment برای arbitrary self-hosted instance به‌عنوان entitlement محصول؛ خود self-hosting طبق open-source license مجاز است و service حرفه‌ای می‌تواند جداگانه ارائه شود.",
+          )
+
+          # Business analysis: adopt the model, leave exact pricing/package/license selection open.
+          replace_once(
+              "docs/BUSINESS.md",
+              "قیمت‌گذاری، مدل درآمد، licensing، packaging تجاری و SLA در این نسخه نهایی نشده‌اند و باید در مراحل بعدی Business Track تکمیل شوند.",
+              "اصل مدل licensing و درآمد خدماتی تثبیت شده است: Dotick باید تحت یک OSI-approved open-source license منتشر شود و استفاده از کد، از جمله استفاده‌ی تجاری، به خرید قرارداد پشتیبانی وابسته نباشد. در مقابل، deployment حرفه‌ای، configuration، migration، managed hosting، maintenance، support، training و SLA می‌توانند خدمات پولی باشند. انتخاب دقیق license، قیمت‌گذاری، packaging، subscription و جزئیات SLA هنوز نهایی نشده‌اند.",
+          )
+          replace_once(
+              "docs/BUSINESS.md",
+              """# 6. Packaging, Pricing & Commercial Model
+
+          در وضعیت فعلی، packaging، pricing، licensing و مدل درآمدی Dotick نهایی نشده‌اند. هیچ نتیجه‌ای از تحلیل رقبا در این سند نباید به‌صورت ضمنی به یک مدل قیمت‌گذاری تبدیل شود.
+
+          مواردی که در مرحله‌ی بعد باید بررسی شوند:
+
+          - Personal / Free tier
+          - Subscription model
+          - Per-user vs per-organization pricing
+          - Enterprise contract
+          - Feature packaging
+          - Support and SLA model""",
+              """# 6. Packaging, Pricing & Commercial Model
+
+          ## 6.1 Confirmed model direction
+
+          Dotick adopts an **open-source software + optional paid professional services** model.
+
+          - The Dotick source code is intended to be released under an OSI-approved open-source license.
+          - The software license must not require a company or commercial user to pay merely because the software is used commercially.
+          - Users and organizations may self-host according to the selected open-source license.
+          - Professional deployment, environment setup, migration, configuration, customization, managed hosting, maintenance, support, training and SLA-backed operations may be sold separately.
+          - A services contract purchases professional effort, operational responsibility or service guarantees; it does not purchase permission to use rights already granted by the open-source license.
+          - Dotick may also operate an official hosted service in the future. Whether that service has Free, Pro, Teams or Enterprise packaging is a separate pricing/product decision.
+
+          ## 6.2 Business-to-business path
+
+          A company may choose to deploy Dotick itself without purchasing a commercial software-use license, provided it complies with the selected open-source license. The commercial opportunity is therefore based on reducing the company's operational burden and risk through paid deployment, configuration, migration, customization, managed hosting, maintenance, support and SLA commitments.
+
+          This keeps the project genuinely open source while preserving several possible B2B revenue paths, including one-off deployment projects, recurring support/maintenance contracts, managed hosting, customization and future enterprise services.
+
+          ## 6.3 Still undecided
+
+          The following details remain open and require separate Business/Legal decisions:
+
+          - the specific OSI-approved license;
+          - Personal / Free hosted-service tier policy;
+          - subscription model, if any;
+          - per-user vs per-organization pricing;
+          - Enterprise service contracts;
+          - hosted feature packaging;
+          - support tiers, response times and SLA terms;
+          - customization pricing;
+          - trademark/brand-use policy.
+
+          No future pricing decision may retroactively turn the open-source software license into a commercial-use fee requirement for versions already released under that license.""",
+          )
+
+          # Deployment document: self-hosting is allowed; support is not an automatic entitlement.
+          replace_once(
+              "docs/operations/release-deployment.md",
+              "> **Primary target:** reproducible developer-local and CI execution; no supported end-user self-hosting product",
+              "> **Primary target:** reproducible developer-local and CI execution; self-hosting is permitted by the selected open-source license, while guaranteed production deployment/support is a separate professional-service boundary",
+          )
+          release = Path("docs/operations/release-deployment.md")
+          release_text = release.read_text(encoding="utf-8")
+          marker = "\nSee [environment setup](../development/environment-setup.md), [security design](../design/security-design.md), [Increment 1 readiness](../tracking/increment-1-readiness.md), and [the full post-reset commit audit](../tracking/development-commit-audit.md).\n"
+          if release_text.count(marker) != 1:
+              raise RuntimeError("release-deployment reference marker not found exactly once")
+          section = """
+          ## 14. Open-source self-hosting and professional services boundary
+
+          The deployment artifacts in this repository may be used for self-hosting according to the project's selected OSI-approved open-source license once that license is finalized. This permission is distinct from an operational support commitment.
+
+          The project does not guarantee free installation assistance, production architecture review, migrations, incident response, upgrades, monitoring, backup operation, security hardening, SLA, or troubleshooting for arbitrary third-party environments. Any of those may be offered separately as paid professional services or managed hosting.
+
+          A paid services agreement changes the service obligations between the parties; it does not remove or narrow rights already granted by the open-source software license. Dotick-managed credentials, private infrastructure, production data and unpublished service configuration remain outside the source-code distribution unless explicitly released.
+          """
+          release.write_text(release_text.replace(marker, "\n" + section.strip() + "\n\n" + marker.lstrip(), 1), encoding="utf-8")
+
+          # Root README: make the licensing direction visible without pretending the exact license has already been selected.
+          readme = Path("README.md")
+          readme_text = readme.read_text(encoding="utf-8")
+          readme_marker = "\nEach increment adds only its own implementation scope, updates traceability, and runs the applicable tests and build gates.\n"
+          if readme_text.count(readme_marker) != 1:
+              raise RuntimeError("README insertion marker not found exactly once")
+          readme_section = """
+          ## Open-source and professional services
+
+          Dotick's confirmed licensing direction is genuine open source: the project will use an OSI-approved software license that allows use according to standard open-source freedoms, including commercial use. Self-hosting is permitted under that license and is not reserved for paying customers.
+
+          Professional deployment, configuration, migration, customization, managed hosting, maintenance, support, training and SLA-backed operations may be offered separately as paid services. Payment is for the professional service or operational commitment, not for permission to use the open-source code.
+
+          The specific OSI-approved license has not yet been selected. Until a project-wide root `LICENSE` is added, repository visibility alone must not be treated as the final legal license grant. See [the licensing and commercial-services policy](docs/licensing-and-commercial-services.md).
+          """
+          readme.write_text(readme_text.replace(readme_marker, readme_marker + "\n" + readme_section.strip() + "\n", 1), encoding="utf-8")
+
+          # Documentation index.
+          docs_readme = Path("docs/README.md")
+          docs_text = docs_readme.read_text(encoding="utf-8")
+          docs_text = docs_text.replace(
+              "7. [`planning/increment-roadmap.md`](planning/increment-roadmap.md)",
+              "7. [`planning/increment-roadmap.md`](planning/increment-roadmap.md)\n8. [`licensing-and-commercial-services.md`](licensing-and-commercial-services.md) — licensing/business policy; not a source of product behavior",
+              1,
+          )
+          docs_text = docs_text.replace(
+              "- [`reference/`](reference/) — اسناد مرجع مشتق‌شده یا قدیمی که منبع نهایی تصمیم نیستند",
+              "- [`reference/`](reference/) — اسناد مرجع مشتق‌شده یا قدیمی که منبع نهایی تصمیم نیستند\n- [`licensing-and-commercial-services.md`](licensing-and-commercial-services.md) — سیاست open-source، self-hosting و مرز خدمات حرفه‌ای/پولی",
+              1,
+          )
+          docs_readme.write_text(docs_text, encoding="utf-8")
+
+          # Dedicated licensing/business policy.
+          Path("docs/licensing-and-commercial-services.md").write_text("""# Dotick — Open-Source Licensing & Commercial Services Policy
+
+> **Status:** Confirmed Business/Legal Direction  
+> **Decision date:** 2026-09-17  
+> **Behavioral authority:** This document does not redefine Dotick product/domain behavior. Product behavior remains governed by the System Definition, Decision Register, and Formal SRS. This document defines the licensing and services boundary around the software.
+
+---
+
+## 1. Core policy
+
+Dotick will be distributed under an **OSI-approved open-source software license**.
+
+The project's business model must not depend on charging users or organizations merely for permission to exercise rights granted by that open-source license. In particular, commercial use cannot be converted into a mandatory paid software-use license while the corresponding release remains available under its open-source license.
+
+The exact OSI-approved license has **not yet been selected**. That selection is a separate Legal/Business decision and must be completed before a public release is represented as finally licensed open-source software.
+
+Until a project-wide root `LICENSE` file is added, the fact that the GitHub repository is public or source-visible must not be interpreted as the final legal grant for Dotick-authored code.
+
+---
+
+## 2. Open-source use and self-hosting
+
+Once the project-wide license is finalized, users and organizations may exercise the rights provided by that license, including use, modification, redistribution, self-hosting, and commercial use to the extent required by the selected OSI-approved license.
+
+Self-hosting is therefore a **permitted use**, not a paid-only feature.
+
+Dotick does not require a user to buy support, deployment, hosting, or another commercial agreement solely to obtain permission to run the open-source software.
+
+---
+
+## 3. Professional services may be paid
+
+Open-source licensing does not require the Dotick project to provide professional services for free.
+
+Dotick may charge for services including:
+
+- production deployment and installation;
+- environment and infrastructure configuration;
+- data migration and import assistance;
+- customization and integration work;
+- managed hosting;
+- upgrades and maintenance;
+- security/operations assistance;
+- troubleshooting and support;
+- training and onboarding;
+- response-time commitments and SLA-backed operations.
+
+A customer paying for these services is buying professional effort, operational responsibility, expertise, convenience, or contractual guarantees. The customer is **not** buying permission that is already granted by the open-source software license.
+
+---
+
+## 4. Unsupported self-hosting boundary
+
+Permission to self-host does not imply that every environment is officially supported.
+
+The project may publish development or deployment artifacts without guaranteeing one-click production deployment, compatibility with every infrastructure provider, free migration assistance, incident response, security review, backup operation, upgrade assistance, or an SLA.
+
+A third-party production instance is operated at that party's responsibility unless a separate support, deployment, managed-hosting, or services agreement explicitly assigns responsibilities to Dotick.
+
+---
+
+## 5. Official hosted service
+
+Dotick may operate an official hosted service in addition to the open-source software.
+
+The hosted service may later use Free, Pro, Teams, Enterprise, usage-based, or other packaging. Those choices are independent from the right to self-host the open-source software and require separate Business/Product decisions.
+
+Hosted-service fees may cover infrastructure, storage, managed updates, integrations, operations, support, convenience, or additional hosted-service commitments. A hosted-service pricing decision must not be described as a restriction on exercising the rights of already released open-source code.
+
+---
+
+## 6. Company and B2B use
+
+A company may use or self-host Dotick under the selected open-source license without being forced to purchase a separate commercial software-use license merely because it is a company.
+
+The intended B2B commercial path is service-based. A company may choose to pay Dotick for deployment, configuration, migration, managed hosting, maintenance, customization, support, training, SLA commitments, or other professional services because those reduce operational cost, risk, or internal effort.
+
+This policy leaves open the possibility of future enterprise-oriented product capabilities or hosted offerings, but those features and their pricing must be defined separately and must not contradict the open-source license applied to released code.
+
+---
+
+## 7. Brand, infrastructure, secrets, and third-party components
+
+An open-source software license applies to the covered source code. It does not automatically grant rights to Dotick trademarks, logos, domain names, or other brand assets beyond what the selected license and applicable law provide. A separate trademark/brand policy may be adopted later.
+
+Dotick-managed credentials, production secrets, private infrastructure, private operational configuration, customer data, and hosted-service accounts are not automatically part of the open-source distribution.
+
+Third-party dependencies and assets remain governed by their own licenses. Their inclusion in the repository does not make their license the project-wide Dotick license.
+
+The existing `apps/client/LICENSE` file originates from the client/template ecosystem and must not be treated as the project-wide Dotick license. The final project-wide license must be placed at the repository root and documented explicitly.
+
+---
+
+## 8. Decisions still open
+
+The following remain to be finalized:
+
+- the specific OSI-approved license (for example, permissive vs copyleft family);
+- contributor licensing/CLA policy, if external contributions are accepted;
+- trademark/brand-use policy;
+- hosted-service packaging and pricing;
+- professional-service pricing and contract structure;
+- support tiers and SLA terms;
+- whether any future separately developed components use a different licensing model, subject to clear repository and documentation boundaries.
+
+When selecting the exact software license, the project should evaluate at least patent terms, treatment of modifications and network-hosted derivatives, compatibility with dependencies, contributor management, company adoption friction, and long-term relicensing needs.
+""", encoding="utf-8")
+
+      - name: Commit reconciled documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-time-licensing-doc-rewrite.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md docs .github/workflows/one-time-licensing-doc-rewrite.yml
+          git diff --cached --check
+          git commit -m "docs: adopt open-source paid-services model"
+          git push origin HEAD:test
