@@ -9,7 +9,7 @@ from openapi_spec_validator import validate
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OPENAPI_PATH = REPO_ROOT / "docs" / "design" / "openapi.json"
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
-REVIEWED_CONTRACT_SHA256 = "ee5503bdd3c9808200aaf30cfb15e48c4417067edf1628ad850717a8bfb2a2c0"
+REVIEWED_CONTRACT_SHA256 = "4dbf9d52081fc1e592be9168e66d50659021858e578ba41a18ceaf3b9d9c911e"
 PUBLISHED_INCREMENT_1_PATHS = {
     "/api/v1/account",
     "/api/v1/account/bootstrap",

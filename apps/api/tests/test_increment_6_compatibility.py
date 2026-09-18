@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OPENAPI_PATH = REPO_ROOT / "docs" / "design" / "openapi.json"
 
@@ -133,27 +131,33 @@ def test_i1_does_not_pretend_optimistic_version_is_branching_history():
         assert not (set(properties) & forbidden_history_fields)
 
 
-def test_revocable_session_surface_is_explicit_and_authenticated():
+def test_revocable_session_surface_is_authenticated():
     contract = _load_openapi()
     paths = contract["paths"]
     bearer = [{"bearerAuth": []}]
+    global_security = contract["security"]
 
-    assert paths["/api/v1/auth/logout"]["post"]["security"] == bearer
-    assert paths["/api/v1/auth/sessions"]["get"]["security"] == bearer
-    assert paths["/api/v1/auth/sessions"]["delete"]["security"] == bearer
-    assert paths["/api/v1/auth/sessions/{session_id}"]["delete"]["security"] == bearer
+    assert paths["/api/v1/auth/logout"]["post"].get("security", global_security) == bearer
+    assert paths["/api/v1/auth/sessions"]["get"].get("security", global_security) == bearer
+    assert paths["/api/v1/auth/sessions"]["delete"].get("security", global_security) == bearer
+    assert (
+        paths["/api/v1/auth/sessions/{session_id}"]["delete"].get("security", global_security)
+        == bearer
+    )
+    assert "401" in paths["/api/v1/auth/logout"]["post"]["responses"]
+    assert "401" in paths["/api/v1/auth/sessions"]["get"]["responses"]
+    assert "401" in paths["/api/v1/auth/sessions"]["delete"]["responses"]
+    assert "401" in paths["/api/v1/auth/sessions/{session_id}"]["delete"]["responses"]
     assert "401" in paths["/api/v1/auth/token/refresh"]["post"]["responses"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "I6 review blocker: OpenAPI has no global bearer security, so many private I1 "
-        "operations are currently described as unauthenticated."
-    ),
-)
 def test_private_i1_operations_inherit_bearer_authentication():
     contract = _load_openapi()
+    assert contract["components"]["securitySchemes"]["bearerAuth"] == {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+    }
     global_security = contract.get("security")
     assert global_security == [{"bearerAuth": []}]
 
@@ -165,6 +169,12 @@ def test_private_i1_operations_inherit_bearer_authentication():
                 assert operation.get("security") == []
             else:
                 assert operation.get("security", global_security) == [{"bearerAuth": []}]
+                assert "401" in operation["responses"]
+
+    assert "403" in contract["paths"]["/api/v1/auth/password"]["put"]["responses"]
+    assert "403" in contract["paths"]["/api/v1/auth/google/link"]["post"]["responses"]
+    assert "403" in contract["paths"]["/api/v1/auth/passkeys/registration/options"]["post"]["responses"]
+    assert "403" in contract["paths"]["/api/v1/auth/passkeys/registration/verify"]["post"]["responses"]
 
 
 def test_organization_resources_are_versioned_and_idempotent_before_implementation():
