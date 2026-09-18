@@ -88,6 +88,8 @@ export type TaskUpdate = {
 export type FolderItemResolution = 'move_to_inbox' | 'trash';
 export type ListItemResolution = 'move_to_inbox' | 'trash';
 export type ColumnItemResolution = 'move_to_default' | 'trash';
+export type SessionInvalidationReason = 'sign_out' | 'refresh_revoked';
+export type PrivateStateCleaner = (reason: SessionInvalidationReason) => void;
 
 const foundationBaseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:8000';
 
@@ -96,6 +98,7 @@ function defaultErrorMessage(status: number, code?: string) {
   if (code === 'idempotency_conflict') {
     return 'This operation ID was already used for a different request.';
   }
+  if (code === 'reauthentication_required') return 'Your session ended. Sign in again.';
   if (status === 401) return 'Check your email and password.';
   if (status === 403) return 'This action is not currently permitted.';
   if (status === 404) return 'The requested item is no longer available.';
@@ -113,6 +116,17 @@ export class ApiError extends Error {
     super(message ?? defaultErrorMessage(status, code));
     this.name = 'ApiError';
   }
+}
+
+export class ReauthenticationRequiredError extends ApiError {
+  constructor(details?: unknown) {
+    super(401, undefined, 'reauthentication_required', details);
+    this.name = 'ReauthenticationRequiredError';
+  }
+}
+
+export function requiresReauthentication(error: unknown) {
+  return error instanceof ReauthenticationRequiredError;
 }
 
 function trimUrl(url: string) {
@@ -249,29 +263,113 @@ function resolutionPath(path: string, resolution?: string) {
 }
 
 function sessionFromTokens(baseUrl: string, tokens: Tokens) {
-  let access = tokens.access;
-  let refresh = tokens.refresh;
+  let access: string | null = tokens.access;
+  let refresh: string | null = tokens.refresh;
+  let active = true;
+  let invalidationReason: SessionInvalidationReason | null = null;
+  let refreshInFlight: Promise<void> | null = null;
+  const privateStateCleaners = new Set<PrivateStateCleaner>();
+
+  function invalidate(reason: SessionInvalidationReason) {
+    const shouldNotify = active;
+    access = null;
+    refresh = null;
+    active = false;
+    invalidationReason = reason;
+    if (shouldNotify) {
+      for (const cleaner of privateStateCleaners) cleaner(reason);
+    }
+  }
+
+  function reauthenticationRequired(error?: ApiError) {
+    invalidate('refresh_revoked');
+    return new ReauthenticationRequiredError(error?.details);
+  }
+
+  function currentAccessToken() {
+    if (!active || access === null || refresh === null) {
+      throw new ReauthenticationRequiredError();
+    }
+    return access;
+  }
+
+  async function refreshSession() {
+    if (refreshInFlight) return refreshInFlight;
+    const currentRefresh = refresh;
+    if (!active || currentRefresh === null) throw reauthenticationRequired();
+
+    refreshInFlight = (async () => {
+      try {
+        const next = await rawRequest<{ access: string; refresh: string }>(
+          baseUrl,
+          '/api/v1/auth/token/refresh',
+          { method: 'POST', body: JSON.stringify({ refresh: currentRefresh }) },
+        );
+        if (!active) throw new ReauthenticationRequiredError();
+        access = next.access;
+        refresh = next.refresh;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          throw reauthenticationRequired(error);
+        }
+        throw error;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+
+    return refreshInFlight;
+  }
+
+  async function authorizedRequest<T>(path: string, init: RequestInit = {}) {
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${currentAccessToken()}`);
+    return rawRequest<T>(baseUrl, path, { ...init, headers });
+  }
 
   async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
-    const headers = new Headers(init.headers);
-    headers.set('Authorization', `Bearer ${access}`);
     try {
-      return await rawRequest<T>(baseUrl, path, { ...init, headers });
+      return await authorizedRequest<T>(path, init);
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 401 || !retry) throw error;
-      const next = await rawRequest<{ access: string; refresh: string }>(
-        baseUrl,
-        '/api/v1/auth/token/refresh',
-        { method: 'POST', body: JSON.stringify({ refresh }) },
-      );
-      access = next.access;
-      refresh = next.refresh;
-      return request<T>(path, init, false);
+      await refreshSession();
+      try {
+        return await authorizedRequest<T>(path, init);
+      } catch (retryError) {
+        if (retryError instanceof ApiError && retryError.status === 401) {
+          throw reauthenticationRequired(retryError);
+        }
+        throw retryError;
+      }
     }
+  }
+
+  function onPrivateStateClear(cleaner: PrivateStateCleaner) {
+    privateStateCleaners.add(cleaner);
+    if (!active && invalidationReason !== null) cleaner(invalidationReason);
+    return () => privateStateCleaners.delete(cleaner);
+  }
+
+  async function signOut() {
+    let failure: unknown;
+    try {
+      if (active) {
+        await request<void>('/api/v1/auth/logout', { method: 'POST' });
+      }
+    } catch (error) {
+      if (!(error instanceof ReauthenticationRequiredError)) failure = error;
+    } finally {
+      invalidate('sign_out');
+    }
+    if (failure !== undefined) throw failure;
   }
 
   return {
     user: tokens.user,
+    get isAuthenticated() {
+      return active && access !== null && refresh !== null;
+    },
+    onPrivateStateClear,
     bootstrap: (timezone: string) =>
       request<Bootstrap>('/api/v1/account/bootstrap', {
         method: 'PUT',
@@ -365,7 +463,8 @@ function sessionFromTokens(baseUrl: string, tokens: Tokens) {
         method: 'POST',
         body: JSON.stringify({ version }),
       }),
-    logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }, false),
+    signOut,
+    logout: signOut,
   };
 }
 
@@ -389,9 +488,7 @@ export type ApiSession = Awaited<ReturnType<typeof signIn>>;
 
 export function foundationApi(credentials: Credentials) {
   const bytes = new TextEncoder().encode(`${credentials.email}:${credentials.password}`);
-  const encoded = btoa(
-    Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''),
-  );
+  const encoded = btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''));
   const authorization = `Basic ${encoded}`;
 
   async function request<T>(path: string, text?: string): Promise<T> {

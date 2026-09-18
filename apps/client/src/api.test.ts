@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import {
   ApiError,
   defaultApiUrl,
+  ReauthenticationRequiredError,
   signIn,
   type ColumnRecord,
   type FolderRecord,
@@ -50,7 +51,16 @@ function tokens(access = 'access-one', refresh = 'refresh-one') {
   return { access, refresh, user };
 }
 
+function storageText(storage: Storage) {
+  return Array.from({ length: storage.length }, (_, index) => {
+    const key = storage.key(index) ?? '';
+    return `${key}:${storage.getItem(key) ?? ''}`;
+  }).join('\n');
+}
+
 afterEach(() => {
+  window.localStorage.clear();
+  window.sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
@@ -58,6 +68,26 @@ afterEach(() => {
 test('discovers and normalizes a configured API URL', () => {
   vi.stubEnv('EXPO_PUBLIC_API_URL', ' https://api.example.test/// ');
   expect(defaultApiUrl()).toBe(baseUrl);
+});
+
+test('acquires email/password tokens without persisting credentials or tokens', async () => {
+  const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    expect(new Headers(init?.headers).get('Authorization')).toBeNull();
+    expect(JSON.parse(String(init?.body))).toEqual({
+      email: user.email,
+      password: 'correct horse battery staple',
+    });
+    return json(tokens());
+  });
+  vi.stubGlobal('fetch', fetch);
+
+  const session = await signIn(baseUrl, user.email, 'correct horse battery staple');
+
+  expect(session.isAuthenticated).toBe(true);
+  expect(storageText(window.localStorage)).not.toContain('access-one');
+  expect(storageText(window.localStorage)).not.toContain('refresh-one');
+  expect(storageText(window.sessionStorage)).not.toContain('access-one');
+  expect(storageText(window.sessionStorage)).not.toContain('refresh-one');
 });
 
 test('refreshes a private bearer session once after an expired access token', async () => {
@@ -86,7 +116,98 @@ test('refreshes a private bearer session once after an expired access token', as
   const session = await signIn(baseUrl, user.email, 'password');
   await expect(session.folders()).resolves.toEqual({ results: [folder] });
   expect(authorizations).toEqual(['Bearer access-one', 'Bearer access-two']);
+  expect(storageText(window.localStorage)).not.toContain('refresh-two');
+  expect(storageText(window.sessionStorage)).not.toContain('refresh-two');
 });
+
+test('does not enter a refresh loop when the retried request is still unauthorized', async () => {
+  let refreshAttempts = 0;
+  let folderAttempts = 0;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/auth/token')) return json(tokens());
+    if (url.endsWith('/api/v1/auth/token/refresh')) {
+      refreshAttempts += 1;
+      return json({ access: 'access-two', refresh: 'refresh-two' });
+    }
+    if (url.endsWith('/api/v1/folders')) {
+      folderAttempts += 1;
+      return json({ error: { code: 'token_not_valid', details: 'Rejected.' } }, 401);
+    }
+    throw new Error(`Unhandled request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+
+  const session = await signIn(baseUrl, user.email, 'password');
+  await expect(session.folders()).rejects.toBeInstanceOf(ReauthenticationRequiredError);
+  expect(refreshAttempts).toBe(1);
+  expect(folderAttempts).toBe(2);
+  expect(session.isAuthenticated).toBe(false);
+});
+
+test('requires reauthentication when the refresh session has been revoked', async () => {
+  let refreshAttempts = 0;
+  let folderAttempts = 0;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/auth/token')) return json(tokens());
+    if (url.endsWith('/api/v1/folders')) {
+      folderAttempts += 1;
+      return json({ error: { code: 'token_not_valid', details: 'Expired.' } }, 401);
+    }
+    if (url.endsWith('/api/v1/auth/token/refresh')) {
+      refreshAttempts += 1;
+      return json({ error: { code: 'token_not_valid', details: 'Session revoked.' } }, 401);
+    }
+    throw new Error(`Unhandled request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+
+  const session = await signIn(baseUrl, user.email, 'password');
+  const error = await session.folders().catch((failure: unknown) => failure);
+  expect(error).toBeInstanceOf(ReauthenticationRequiredError);
+  expect(error).toMatchObject({ status: 401, code: 'reauthentication_required' });
+  expect(session.isAuthenticated).toBe(false);
+
+  await expect(session.folders()).rejects.toBeInstanceOf(ReauthenticationRequiredError);
+  expect(refreshAttempts).toBe(1);
+  expect(folderAttempts).toBe(1);
+});
+
+test(
+  'refreshes once when necessary so sign-out can revoke the current server session',
+  async () => {
+    let logoutAttempts = 0;
+    let refreshAttempts = 0;
+    const authorizations: Array<string | null> = [];
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/v1/auth/token')) return json(tokens());
+      if (url.endsWith('/api/v1/auth/token/refresh')) {
+        refreshAttempts += 1;
+        return json({ access: 'access-two', refresh: 'refresh-two' });
+      }
+      if (url.endsWith('/api/v1/auth/logout')) {
+        logoutAttempts += 1;
+        authorizations.push(new Headers(init?.headers).get('Authorization'));
+        return logoutAttempts === 1
+          ? json({ error: { code: 'token_not_valid', details: 'Expired.' } }, 401)
+          : new Response(null, { status: 204 });
+      }
+      throw new Error(`Unhandled request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const session = await signIn(baseUrl, user.email, 'password');
+    await session.signOut();
+
+    expect(logoutAttempts).toBe(2);
+    expect(refreshAttempts).toBe(1);
+    expect(authorizations).toEqual(['Bearer access-one', 'Bearer access-two']);
+    expect(session.isAuthenticated).toBe(false);
+    await expect(session.tasks()).rejects.toBeInstanceOf(ReauthenticationRequiredError);
+  },
+);
 
 test('preserves stable API error code and details from the current envelope', async () => {
   vi.stubGlobal(
