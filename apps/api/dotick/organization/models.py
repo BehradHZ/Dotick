@@ -16,6 +16,7 @@ class Folder(models.Model):
     position = models.PositiveIntegerField(default=0)
     is_trashed = models.BooleanField(default=False)
     trashed_at = models.DateTimeField(null=True, blank=True)
+    version = models.PositiveBigIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -24,6 +25,10 @@ class Folder(models.Model):
         indexes = [models.Index(fields=["owner", "position"], name="folder_owner_position")]
         constraints = [
             models.CheckConstraint(condition=~models.Q(title=""), name="folder_title_nonempty"),
+            models.CheckConstraint(
+                condition=models.Q(version__gte=1),
+                name="folder_version_positive",
+            ),
             models.CheckConstraint(
                 condition=models.Q(is_trashed=False, trashed_at__isnull=True)
                 | models.Q(is_trashed=True, trashed_at__isnull=False),
@@ -52,6 +57,7 @@ class List(models.Model):
     is_inbox = models.BooleanField(default=False)
     is_trashed = models.BooleanField(default=False)
     trashed_at = models.DateTimeField(null=True, blank=True)
+    version = models.PositiveBigIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -66,6 +72,10 @@ class List(models.Model):
         ]
         constraints = [
             models.CheckConstraint(condition=~models.Q(title=""), name="list_title_nonempty"),
+            models.CheckConstraint(
+                condition=models.Q(version__gte=1),
+                name="list_version_positive",
+            ),
             models.CheckConstraint(
                 condition=models.Q(is_trashed=False, trashed_at__isnull=True)
                 | models.Q(is_trashed=True, trashed_at__isnull=False),
@@ -85,6 +95,7 @@ class Column(models.Model):
     title = models.CharField(max_length=240)
     position = models.PositiveIntegerField(default=0)
     is_default = models.BooleanField(default=False)
+    version = models.PositiveBigIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -93,6 +104,10 @@ class Column(models.Model):
         indexes = [models.Index(fields=["list", "position"], name="column_list_position")]
         constraints = [
             models.CheckConstraint(condition=~models.Q(title=""), name="column_title_nonempty"),
+            models.CheckConstraint(
+                condition=models.Q(version__gte=1),
+                name="column_version_positive",
+            ),
             models.UniqueConstraint(
                 fields=["list"],
                 condition=models.Q(is_default=True),

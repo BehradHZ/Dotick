@@ -26,6 +26,7 @@ def test_folder_list_and_column_have_increment_one_persistence_shape():
     assert folder.owner == user
     assert folder.is_trashed is False
     assert folder.trashed_at is None
+    assert folder.version == 1
     assert folder.created_at is not None and folder.updated_at is not None
 
     assert isinstance(row.id, uuid.UUID)
@@ -34,12 +35,29 @@ def test_folder_list_and_column_have_increment_one_persistence_shape():
     assert row.is_inbox is False
     assert row.is_trashed is False
     assert row.trashed_at is None
+    assert row.version == 1
     assert row.created_at is not None and row.updated_at is not None
 
     assert isinstance(column.id, uuid.UUID)
     assert column.list == row
     assert column.is_default is True
+    assert column.version == 1
     assert column.created_at is not None and column.updated_at is not None
+
+
+def test_organization_versions_must_remain_positive():
+    user = _user("positive-organization-version@example.test")
+    folder = Folder.objects.create(owner=user, title="Work")
+    row = List.objects.create(owner=user, folder=folder, title="Backend")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Folder.objects.create(owner=user, title="Invalid Folder", version=0)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        List.objects.create(owner=user, title="Invalid List", version=0)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Column.objects.create(list=row, title="Invalid Column", version=0)
 
 
 def test_folder_is_optional_for_lists():
