@@ -243,6 +243,13 @@ def test_folder_trash_rejects_stale_version_without_mutation():
     assert row.is_trashed is False
     assert row.version == updated["version"] == 2
 
+    current = _trash_folder(client, created["id"], row.version)
+
+    assert current.status_code == 204
+    row.refresh_from_db()
+    assert row.is_trashed is True
+    assert row.version == 3
+
 
 def test_folder_restore_rejects_stale_version_without_mutation():
     user = _user("folder-stale-restore@example.test")
@@ -258,6 +265,14 @@ def test_folder_restore_rejects_stale_version_without_mutation():
     row = Folder.objects.get(pk=created["id"])
     assert row.is_trashed is True
     assert row.version == 2
+
+    current = _restore_folder(client, created["id"], row.version)
+
+    assert current.status_code == 200
+    assert current.json()["version"] == 3
+    row.refresh_from_db()
+    assert row.is_trashed is False
+    assert row.version == 3
 
 
 def test_folder_trash_and_restore_are_state_and_owner_scoped():

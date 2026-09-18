@@ -309,6 +309,33 @@ def test_list_trash_and_restore_require_versions_and_increment_them():
     assert restored.json()["trashed_at"] is None
 
 
+def test_list_trash_rejects_stale_version_then_accepts_current_version():
+    user = _user("list-stale-trash@example.test")
+    client = _authenticated_client(user)
+    created = _create_public_list(client, "Project").json()
+    updated = client.patch(
+        f"{LISTS_URL}/{created['id']}",
+        {"version": 1, "title": "Current"},
+        format="json",
+    ).json()
+
+    stale = _trash_list(client, created["id"], 1)
+
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "version_conflict"
+    assert stale.json()["error"]["details"]["current"]["version"] == 2
+    row = List.objects.get(pk=created["id"])
+    assert row.is_trashed is False
+    assert row.version == updated["version"] == 2
+
+    current = _trash_list(client, created["id"], row.version)
+
+    assert current.status_code == 204
+    row.refresh_from_db()
+    assert row.is_trashed is True
+    assert row.version == 3
+
+
 def test_list_trash_and_restore_protect_ownership_and_state():
     owner = _user("list-trash-owner@example.test")
     other = _user("list-trash-other@example.test")

@@ -228,6 +228,11 @@ def test_column_delete_rejects_stale_version_without_deleting():
     column.refresh_from_db()
     assert column.version == 2
 
+    current = _delete_column(client, column.id, column.version)
+
+    assert current.status_code == 204
+    assert not Column.objects.filter(pk=column.id).exists()
+
 
 def test_column_delete_is_owner_and_active_list_scoped():
     owner = _user("column-delete-owner@example.test")
