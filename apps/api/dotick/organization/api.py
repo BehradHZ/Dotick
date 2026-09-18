@@ -84,6 +84,7 @@ class ListCreateInput(StrictInput):
 
 
 class ListUpdateInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
     title = serializers.CharField(
         max_length=240,
         trim_whitespace=True,
@@ -93,9 +94,13 @@ class ListUpdateInput(StrictInput):
     position = serializers.IntegerField(min_value=0, required=False)
 
     def validate(self, attrs):
-        if not attrs:
+        if set(attrs) == {"version"}:
             raise serializers.ValidationError("Provide at least one List change.")
         return attrs
+
+
+class ListRestoreInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
 
 
 class ColumnCreateInput(StrictInput):
@@ -142,6 +147,7 @@ def _serialize_list(row):
         "folder_id": row.folder_id,
         "is_inbox": row.is_inbox,
         "position": row.position,
+        "version": row.version,
         "is_trashed": row.is_trashed,
         "trashed_at": row.trashed_at,
         "default_column": {
@@ -273,6 +279,7 @@ class ListDetail(APIView):
         application.trash_list(
             actor_id=request.user.id,
             list_id=list_id,
+            version=_parse_if_match_version(request),
             item_resolution=request.query_params.get("items"),
         )
         return Response(status=204)
@@ -282,9 +289,13 @@ class ListRestore(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, list_id):
-        if request.data:
-            raise serializers.ValidationError({"input": "Unknown fields are not accepted."})
-        row = application.restore_list(actor_id=request.user.id, list_id=list_id)
+        serializer = ListRestoreInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.restore_list(
+            actor_id=request.user.id,
+            list_id=list_id,
+            **serializer.validated_data,
+        )
         return Response(_serialize_list(row))
 
 

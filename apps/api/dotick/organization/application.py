@@ -281,17 +281,30 @@ def get_list(*, actor_id, list_id, for_update=False):
 
 
 @transaction.atomic
-def update_list(*, actor_id, list_id, title=UNSET, folder_id=UNSET, position=UNSET):
-    row = get_list(actor_id=actor_id, list_id=list_id, for_update=True)
+def update_list(
+    *,
+    actor_id,
+    list_id,
+    version,
+    title=UNSET,
+    folder_id=UNSET,
+    position=UNSET,
+):
+    row = lock_owned_versioned_resource(
+        model=List,
+        actor_id=actor_id,
+        resource_id=list_id,
+        expected_version=version,
+        scope_filters={"is_trashed": False},
+    )
     if row.is_inbox and title is not UNSET:
         raise ImmutableInbox
 
-    changed_fields = ["updated_at"]
+    updates = {}
     if title is not UNSET:
-        row.title = _normalized_title(title)
-        changed_fields.append("title")
+        updates["title"] = _normalized_title(title)
     if folder_id is not UNSET:
-        row.folder = (
+        updates["folder"] = (
             None
             if folder_id is None
             else get_folder(
@@ -300,19 +313,27 @@ def update_list(*, actor_id, list_id, title=UNSET, folder_id=UNSET, position=UNS
                 for_update=True,
             )
         )
-        changed_fields.append("folder")
     if position is not UNSET:
-        row.position = position
-        changed_fields.append("position")
-    row.save(update_fields=changed_fields)
-    return get_list(actor_id=actor_id, list_id=row.id)
+        updates["position"] = position
+    return increment_locked_version(
+        row=row,
+        actor_id=actor_id,
+        expected_version=version,
+        updates=updates,
+    )
 
 
 @transaction.atomic
-def trash_list(*, actor_id, list_id, item_resolution=None):
+def trash_list(*, actor_id, list_id, version, item_resolution=None):
     from dotick.items.models import Item
 
-    row = get_list(actor_id=actor_id, list_id=list_id, for_update=True)
+    row = lock_owned_versioned_resource(
+        model=List,
+        actor_id=actor_id,
+        resource_id=list_id,
+        expected_version=version,
+        scope_filters={"is_trashed": False},
+    )
     if row.is_inbox:
         raise ImmutableInbox
     active_items = Item.objects.select_for_update().filter(
@@ -349,25 +370,27 @@ def trash_list(*, actor_id, list_id, item_resolution=None):
                 version=F("version") + 1,
                 updated_at=now,
             )
-    row.is_trashed = True
-    row.trashed_at = now
-    row.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+    increment_locked_version(
+        row=row,
+        actor_id=actor_id,
+        expected_version=version,
+        updates={"is_trashed": True, "trashed_at": now},
+    )
 
 
 @transaction.atomic
-def restore_list(*, actor_id, list_id):
+def restore_list(*, actor_id, list_id, version):
     from dotick.items.models import Item
 
-    try:
-        row = (
-            List.objects.select_for_update()
-            .prefetch_related("columns")
-            .get(pk=list_id, owner_id=actor_id, is_trashed=True)
-        )
-    except List.DoesNotExist as error:
-        raise Http404 from error
+    row = lock_owned_versioned_resource(
+        model=List,
+        actor_id=actor_id,
+        resource_id=list_id,
+        expected_version=version,
+        scope_filters={"is_trashed": True},
+    )
     deletion_time = row.trashed_at
-    origin_column_ids = list(row.columns.values_list("id", flat=True))
+    origin_column_ids = list(Column.objects.filter(list=row).values_list("id", flat=True))
     trashed_items = Item.objects.select_for_update().filter(
         owner_id=actor_id,
         is_trashed=True,
@@ -375,11 +398,10 @@ def restore_list(*, actor_id, list_id):
         trash_origin_column_id__in=origin_column_ids,
     )
     item_ids = list(trashed_items.values_list("id", flat=True))
+    updates = {"is_trashed": False, "trashed_at": None}
     if row.folder_id is not None and row.folder.is_trashed:
-        row.folder = None
-    row.is_trashed = False
-    row.trashed_at = None
-    row.save(update_fields=["folder", "is_trashed", "trashed_at", "updated_at"])
+        updates["folder"] = None
+    now = timezone.now()
     if item_ids:
         Item.objects.filter(pk__in=item_ids).update(
             column_id=F("trash_origin_column_id"),
@@ -387,9 +409,14 @@ def restore_list(*, actor_id, list_id):
             trashed_at=None,
             trash_origin_column_id=None,
             version=F("version") + 1,
-            updated_at=timezone.now(),
+            updated_at=now,
         )
-    return row
+    return increment_locked_version(
+        row=row,
+        actor_id=actor_id,
+        expected_version=version,
+        updates=updates,
+    )
 
 
 def list_trashed_lists(*, actor_id):

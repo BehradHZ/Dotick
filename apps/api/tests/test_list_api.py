@@ -30,6 +30,21 @@ def _authenticated_client(user):
     return client
 
 
+def _trash_list(client, list_id, version, *, items=None):
+    url = f"{LISTS_URL}/{list_id}"
+    if items is not None:
+        url += f"?items={items}"
+    return client.delete(url, HTTP_IF_MATCH=str(version))
+
+
+def _restore_list(client, list_id, version):
+    return client.post(
+        f"{LISTS_URL}/{list_id}/restore",
+        {"version": version},
+        format="json",
+    )
+
+
 def test_list_create_list_get_and_update_follow_the_public_contract():
     user = _user("list-crud@example.test")
     client = _authenticated_client(user)
@@ -55,6 +70,7 @@ def test_list_create_list_get_and_update_follow_the_public_contract():
     assert first.json()["folder_id"] == first_folder["id"]
     assert duplicate.json()["folder_id"] is None
     assert first.json()["position"] == 1
+    assert first.json()["version"] == 1
     assert first.json()["is_inbox"] is False
     assert first.json()["is_trashed"] is False
     assert first.json()["trashed_at"] is None
@@ -65,12 +81,17 @@ def test_list_create_list_get_and_update_follow_the_public_contract():
     retrieved = client.get(f"{LISTS_URL}/{first.json()['id']}")
     updated = client.patch(
         f"{LISTS_URL}/{first.json()['id']}",
-        {"title": "Projects", "folder_id": second_folder["id"], "position": 9},
+        {
+            "version": 1,
+            "title": "Projects",
+            "folder_id": second_folder["id"],
+            "position": 9,
+        },
         format="json",
     )
     folderless = client.patch(
         f"{LISTS_URL}/{first.json()['id']}",
-        {"folder_id": None},
+        {"version": 2, "folder_id": None},
         format="json",
     )
 
@@ -86,8 +107,41 @@ def test_list_create_list_get_and_update_follow_the_public_contract():
     assert updated.json()["title"] == "Projects"
     assert updated.json()["folder_id"] == second_folder["id"]
     assert updated.json()["position"] == 9
+    assert updated.json()["version"] == 2
     assert folderless.status_code == 200
     assert folderless.json()["folder_id"] is None
+    assert folderless.json()["version"] == 3
+
+
+def test_list_update_requires_version_and_rejects_stale_writes():
+    user = _user("list-version-update@example.test")
+    client = _authenticated_client(user)
+    created = client.post(LISTS_URL, {"title": "Original"}, format="json").json()
+
+    missing = client.patch(
+        f"{LISTS_URL}/{created['id']}",
+        {"title": "Missing version"},
+        format="json",
+    )
+    first = client.patch(
+        f"{LISTS_URL}/{created['id']}",
+        {"version": 1, "title": "Current"},
+        format="json",
+    )
+    stale = client.patch(
+        f"{LISTS_URL}/{created['id']}",
+        {"version": 1, "title": "Stale overwrite"},
+        format="json",
+    )
+
+    assert missing.status_code == 400
+    assert first.status_code == 200
+    assert first.json()["version"] == 2
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "version_conflict"
+    row = List.objects.get(pk=created["id"])
+    assert row.title == "Current"
+    assert row.version == 2
 
 
 def test_list_input_and_folder_references_are_validated():
@@ -134,7 +188,15 @@ def test_list_input_and_folder_references_are_validated():
     assert (
         client.patch(
             f"{LISTS_URL}/{created['id']}",
-            {"position": -1},
+            {"version": 1},
+            format="json",
+        ).status_code
+        == 400
+    )
+    assert (
+        client.patch(
+            f"{LISTS_URL}/{created['id']}",
+            {"version": 1, "position": -1},
             format="json",
         ).status_code
         == 400
@@ -159,18 +221,21 @@ def test_list_reads_and_writes_are_owner_scoped_and_hide_trashed_rows():
     assert (
         client.patch(
             f"{LISTS_URL}/{private.id}",
-            {"title": "Taken"},
+            {"version": 1, "title": "Taken"},
             format="json",
         ).status_code
         == 404
     )
+    assert _trash_list(client, private.id, 1).status_code == 404
+    assert _restore_list(client, private.id, 1).status_code == 404
     assert client.get(f"{LISTS_URL}/{trashed.id}").status_code == 404
     assert client.get(LISTS_URL).json() == {"results": []}
     private.refresh_from_db()
     assert private.title == "Private"
+    assert private.version == 1
 
 
-def test_inbox_cannot_be_renamed():
+def test_inbox_cannot_be_renamed_or_trashed():
     user = _user("immutable-inbox@example.test")
     client = _authenticated_client(user)
     inbox = client.put(
@@ -178,19 +243,26 @@ def test_inbox_cannot_be_renamed():
         {"timezone": "Europe/Berlin"},
         format="json",
     ).json()["inbox"]
+    row = List.objects.get(pk=inbox["id"])
 
-    response = client.patch(
+    renamed = client.patch(
         f"{LISTS_URL}/{inbox['id']}",
-        {"title": "Renamed"},
+        {"version": row.version, "title": "Renamed"},
         format="json",
     )
+    deleted = _trash_list(client, inbox["id"], row.version)
 
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "immutable_inbox"
-    assert List.objects.get(pk=inbox["id"]).title == "Inbox"
+    assert renamed.status_code == 409
+    assert renamed.json()["error"]["code"] == "immutable_inbox"
+    assert deleted.status_code == 409
+    assert deleted.json()["error"]["code"] == "immutable_inbox"
+    row.refresh_from_db()
+    assert row.title == "Inbox"
+    assert row.version == 1
+    assert row.is_trashed is False
 
 
-def test_list_trash_and_restore_are_recoverable():
+def test_list_trash_and_restore_require_versions_and_increment_them():
     user = _user("list-trash@example.test")
     client = _authenticated_client(user)
     folder = client.post(FOLDERS_URL, {"title": "Projects"}, format="json").json()
@@ -200,55 +272,50 @@ def test_list_trash_and_restore_are_recoverable():
         format="json",
     ).json()
 
-    deleted = client.delete(f"{LISTS_URL}/{created['id']}")
-
+    assert client.delete(f"{LISTS_URL}/{created['id']}").status_code == 400
+    deleted = _trash_list(client, created["id"], 1)
     assert deleted.status_code == 204
-    assert deleted.content == b""
-    assert client.get(f"{LISTS_URL}/{created['id']}").status_code == 404
-    assert client.get(LISTS_URL).json() == {"results": []}
     row = List.objects.get(pk=created["id"])
     assert row.is_trashed is True
     assert row.trashed_at is not None
+    assert row.version == 2
 
-    restored = client.post(f"{LISTS_URL}/{created['id']}/restore", {}, format="json")
+    missing_restore = client.post(f"{LISTS_URL}/{created['id']}/restore", {}, format="json")
+    stale_restore = _restore_list(client, created["id"], 1)
+    restored = _restore_list(client, created["id"], 2)
 
+    assert missing_restore.status_code == 400
+    assert stale_restore.status_code == 409
+    assert stale_restore.json()["error"]["code"] == "version_conflict"
     assert restored.status_code == 200
     assert restored.json()["id"] == created["id"]
     assert restored.json()["folder_id"] == folder["id"]
+    assert restored.json()["version"] == 3
     assert restored.json()["is_trashed"] is False
     assert restored.json()["trashed_at"] is None
-    assert client.get(f"{LISTS_URL}/{created['id']}").status_code == 200
 
 
-def test_list_trash_and_restore_protect_inbox_ownership_and_state():
+def test_list_trash_and_restore_protect_ownership_and_state():
     owner = _user("list-trash-owner@example.test")
     other = _user("list-trash-other@example.test")
     owner_client = _authenticated_client(owner)
     other_client = _authenticated_client(other)
-    inbox = owner_client.put(
-        BOOTSTRAP_URL,
-        {"timezone": "Europe/Berlin"},
-        format="json",
-    ).json()["inbox"]
     row, _ = _create_list(owner=owner, title="Private")
 
-    inbox_delete = owner_client.delete(f"{LISTS_URL}/{inbox['id']}")
-    assert inbox_delete.status_code == 409
-    assert inbox_delete.json()["error"]["code"] == "immutable_inbox"
-    assert other_client.delete(f"{LISTS_URL}/{row.id}").status_code == 404
-    assert other_client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json").status_code == 404
+    assert _trash_list(other_client, row.id, 1).status_code == 404
+    assert _restore_list(other_client, row.id, 1).status_code == 404
 
-    assert owner_client.delete(f"{LISTS_URL}/{row.id}").status_code == 204
-    assert owner_client.delete(f"{LISTS_URL}/{row.id}").status_code == 404
+    assert _trash_list(owner_client, row.id, 1).status_code == 204
+    assert _trash_list(owner_client, row.id, 2).status_code == 404
     assert (
         owner_client.post(
             f"{LISTS_URL}/{row.id}/restore",
-            {"unexpected": True},
+            {"version": 2, "unexpected": True},
             format="json",
         ).status_code
         == 400
     )
-    assert other_client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json").status_code == 404
+    assert _restore_list(other_client, row.id, 2).status_code == 404
 
 
 def test_restoring_a_list_detaches_it_from_a_still_trashed_folder():
@@ -257,15 +324,17 @@ def test_restoring_a_list_detaches_it_from_a_still_trashed_folder():
     folder = Folder.objects.create(owner=user, title="Trashed parent")
     row, _ = _create_list(owner=user, folder=folder, title="Child")
 
-    assert client.delete(f"{LISTS_URL}/{row.id}").status_code == 204
-    folder.is_trashed = True
-    folder.trashed_at = timezone.now()
-    folder.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+    assert _trash_list(client, row.id, 1).status_code == 204
+    Folder.objects.filter(pk=folder.pk).update(
+        is_trashed=True,
+        trashed_at=timezone.now(),
+    )
 
-    restored = client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json")
+    restored = _restore_list(client, row.id, 2)
 
     assert restored.status_code == 200
     assert restored.json()["folder_id"] is None
+    assert restored.json()["version"] == 3
 
 
 def test_trashed_list_listing_is_owned_separate_and_newest_first():
@@ -289,6 +358,7 @@ def test_trashed_list_listing_is_owned_separate_and_newest_first():
         str(newer.id),
         str(older.id),
     ]
+    assert all(row["version"] == 1 for row in response.json()["results"])
     assert all(row["is_trashed"] is True for row in response.json()["results"])
     assert all(row["trashed_at"] is not None for row in response.json()["results"])
     assert all(row["default_column"]["is_default"] is True for row in response.json()["results"])
@@ -309,7 +379,7 @@ def _item(*, owner, column, title, operation_id):
     return row
 
 
-def test_list_delete_requires_an_item_resolution_and_can_move_to_inbox():
+def test_list_delete_requires_item_resolution_after_version_precondition():
     user = _user("list-move-items@example.test")
     client = _authenticated_client(user)
     client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
@@ -322,36 +392,41 @@ def test_list_delete_requires_an_item_resolution_and_can_move_to_inbox():
         operation_id="00000000-0000-0000-0000-000000000501",
     )
 
-    missing = client.delete(f"{LISTS_URL}/{row.id}")
-    invalid = client.delete(f"{LISTS_URL}/{row.id}?items=delete")
+    missing_version = client.delete(f"{LISTS_URL}/{row.id}")
+    missing_resolution = _trash_list(client, row.id, 1)
+    invalid_resolution = _trash_list(client, row.id, 1, items="delete")
 
-    assert missing.status_code == 409
-    assert missing.json()["error"]["code"] == "child_resolution_required"
-    assert invalid.status_code == 409
+    assert missing_version.status_code == 400
+    assert missing_resolution.status_code == 409
+    assert missing_resolution.json()["error"]["code"] == "child_resolution_required"
+    assert invalid_resolution.status_code == 409
     row.refresh_from_db()
     item.refresh_from_db()
     assert row.is_trashed is False
+    assert row.version == 1
     assert item.column_id == column.id
     assert item.version == 1
 
-    moved = client.delete(f"{LISTS_URL}/{row.id}?items=move_to_inbox")
+    moved = _trash_list(client, row.id, 1, items="move_to_inbox")
 
     assert moved.status_code == 204
     row.refresh_from_db()
     item.refresh_from_db()
     assert row.is_trashed is True
+    assert row.version == 2
     assert item.is_trashed is False
     assert item.column_id == inbox_column.id
     assert item.version == 2
 
-    restored = client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json")
+    restored = _restore_list(client, row.id, 2)
     assert restored.status_code == 200
     item.refresh_from_db()
+    assert restored.json()["version"] == 3
     assert item.column_id == inbox_column.id
     assert item.version == 2
 
 
-def test_list_delete_can_trash_and_restore_its_items():
+def test_list_delete_can_trash_and_restore_its_items_with_task_versions():
     user = _user("list-trash-items@example.test")
     client = _authenticated_client(user)
     client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
@@ -364,20 +439,23 @@ def test_list_delete_can_trash_and_restore_its_items():
         operation_id="00000000-0000-0000-0000-000000000502",
     )
 
-    deleted = client.delete(f"{LISTS_URL}/{row.id}?items=trash")
+    deleted = _trash_list(client, row.id, 1, items="trash")
 
     assert deleted.status_code == 204
+    row.refresh_from_db()
     item.refresh_from_db()
+    assert row.version == 2
     assert item.is_trashed is True
     assert item.trashed_at is not None
     assert item.trash_origin_column_id == column.id
     assert item.column_id == inbox_column.id
     assert item.version == 2
 
-    restored = client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json")
+    restored = _restore_list(client, row.id, 2)
 
     assert restored.status_code == 200
     item.refresh_from_db()
+    assert restored.json()["version"] == 3
     assert item.is_trashed is False
     assert item.trashed_at is None
     assert item.trash_origin_column_id is None
@@ -402,8 +480,8 @@ def test_list_restore_does_not_revive_an_item_trashed_before_the_list():
         trash_origin_column_id=column.id,
     )
 
-    assert client.delete(f"{LISTS_URL}/{row.id}").status_code == 204
-    assert client.post(f"{LISTS_URL}/{row.id}/restore", {}, format="json").status_code == 200
+    assert _trash_list(client, row.id, 1).status_code == 204
+    assert _restore_list(client, row.id, 2).status_code == 200
 
     item.refresh_from_db()
     assert item.is_trashed is True
