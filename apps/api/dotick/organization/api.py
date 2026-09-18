@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dotick.identity.validators import validate_iana_timezone
-from dotick.organization import application
+from dotick.organization import application, idempotency
 from dotick.organization.concurrency import EXPECTED_VERSION_ERROR, validate_expected_version
 
 
@@ -81,7 +81,9 @@ class FolderRestoreInput(StrictInput):
 
 class ListCreateInput(StrictInput):
     title = serializers.CharField(max_length=240, trim_whitespace=True)
+    operation_id = serializers.UUIDField()
     folder_id = serializers.UUIDField(required=False, allow_null=True)
+    position = serializers.IntegerField(min_value=0, required=False)
 
 
 class ListUpdateInput(StrictInput):
@@ -246,19 +248,11 @@ class Lists(APIView):
     def post(self, request):
         serializer = ListCreateInput(data=request.data)
         serializer.is_valid(raise_exception=True)
-        values = dict(serializer.validated_data)
-        folder_id = values.pop("folder_id", None)
-        folder = (
-            None
-            if folder_id is None
-            else application.get_folder(actor_id=request.user.id, folder_id=folder_id)
+        row, _, created = idempotency.create_list(
+            actor_id=request.user.id,
+            **serializer.validated_data,
         )
-        row, _ = application.create_list(
-            owner=request.user,
-            folder=folder,
-            **values,
-        )
-        return Response(_serialize_list(row), status=201)
+        return Response(_serialize_list(row), status=201 if created else 200)
 
 
 class ListDetail(APIView):

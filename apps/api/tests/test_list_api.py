@@ -39,6 +39,11 @@ def _create_folder(client, title):
     )
 
 
+def _create_public_list(client, title, **extra):
+    payload = {"title": title, "operation_id": str(uuid.uuid4()), **extra}
+    return client.post(LISTS_URL, payload, format="json")
+
+
 def _trash_list(client, list_id, version, *, items=None):
     url = f"{LISTS_URL}/{list_id}"
     if items is not None:
@@ -65,12 +70,12 @@ def test_list_create_list_get_and_update_follow_the_public_contract():
     first_folder = _create_folder(client, "First").json()
     second_folder = _create_folder(client, "Second").json()
 
-    first = client.post(
-        LISTS_URL,
-        {"title": "  Personal  ", "folder_id": first_folder["id"]},
-        format="json",
+    first = _create_public_list(
+        client,
+        "  Personal  ",
+        folder_id=first_folder["id"],
     )
-    duplicate = client.post(LISTS_URL, {"title": "Personal"}, format="json")
+    duplicate = _create_public_list(client, "Personal")
 
     assert first.status_code == 201
     assert duplicate.status_code == 201
@@ -125,7 +130,7 @@ def test_list_create_list_get_and_update_follow_the_public_contract():
 def test_list_update_requires_version_and_rejects_stale_writes():
     user = _user("list-version-update@example.test")
     client = _authenticated_client(user)
-    created = client.post(LISTS_URL, {"title": "Original"}, format="json").json()
+    created = _create_public_list(client, "Original").json()
 
     missing = client.patch(
         f"{LISTS_URL}/{created['id']}",
@@ -166,33 +171,33 @@ def test_list_input_and_folder_references_are_validated():
     )
 
     assert APIClient().get(LISTS_URL).status_code == 401
-    assert client.post(LISTS_URL, {"title": "  "}, format="json").status_code == 400
+    assert _create_public_list(client, "  ").status_code == 400
     assert (
-        client.post(
-            LISTS_URL,
-            {"title": "Valid", "owner_user_id": str(owner.id)},
-            format="json",
+        _create_public_list(
+            client,
+            "Valid",
+            owner_user_id=str(owner.id),
         ).status_code
         == 400
     )
     assert (
-        client.post(
-            LISTS_URL,
-            {"title": "Foreign", "folder_id": str(foreign_folder.id)},
-            format="json",
+        _create_public_list(
+            client,
+            "Foreign",
+            folder_id=str(foreign_folder.id),
         ).status_code
         == 404
     )
     assert (
-        client.post(
-            LISTS_URL,
-            {"title": "Trashed", "folder_id": str(trashed_folder.id)},
-            format="json",
+        _create_public_list(
+            client,
+            "Trashed",
+            folder_id=str(trashed_folder.id),
         ).status_code
         == 404
     )
 
-    created = client.post(LISTS_URL, {"title": "Valid"}, format="json").json()
+    created = _create_public_list(client, "Valid").json()
     assert client.patch(f"{LISTS_URL}/{created['id']}", {}, format="json").status_code == 400
     assert (
         client.patch(
@@ -275,10 +280,10 @@ def test_list_trash_and_restore_require_versions_and_increment_them():
     user = _user("list-trash@example.test")
     client = _authenticated_client(user)
     folder = _create_folder(client, "Projects").json()
-    created = client.post(
-        LISTS_URL,
-        {"title": "Recoverable", "folder_id": folder["id"]},
-        format="json",
+    created = _create_public_list(
+        client,
+        "Recoverable",
+        folder_id=folder["id"],
     ).json()
 
     assert client.delete(f"{LISTS_URL}/{created['id']}").status_code == 400
