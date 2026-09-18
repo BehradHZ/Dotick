@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 
 import pytest
@@ -30,6 +31,14 @@ def _authenticated_client(user):
     return client
 
 
+def _create_folder(client, title):
+    return client.post(
+        FOLDERS_URL,
+        {"title": title, "operation_id": str(uuid.uuid4())},
+        format="json",
+    )
+
+
 def _trash_list(client, list_id, version, *, items=None):
     url = f"{LISTS_URL}/{list_id}"
     if items is not None:
@@ -53,8 +62,8 @@ def test_list_create_list_get_and_update_follow_the_public_contract():
         {"timezone": "Europe/Berlin"},
         format="json",
     ).json()["inbox"]
-    first_folder = client.post(FOLDERS_URL, {"title": "First"}, format="json").json()
-    second_folder = client.post(FOLDERS_URL, {"title": "Second"}, format="json").json()
+    first_folder = _create_folder(client, "First").json()
+    second_folder = _create_folder(client, "Second").json()
 
     first = client.post(
         LISTS_URL,
@@ -265,7 +274,7 @@ def test_inbox_cannot_be_renamed_or_trashed():
 def test_list_trash_and_restore_require_versions_and_increment_them():
     user = _user("list-trash@example.test")
     client = _authenticated_client(user)
-    folder = client.post(FOLDERS_URL, {"title": "Projects"}, format="json").json()
+    folder = _create_folder(client, "Projects").json()
     created = client.post(
         LISTS_URL,
         {"title": "Recoverable", "folder_id": folder["id"]},

@@ -1,5 +1,8 @@
+import hashlib
+import json
+
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.http import Http404
 from django.utils import timezone
@@ -10,7 +13,7 @@ from dotick.organization.concurrency import (
     increment_locked_version,
     lock_owned_versioned_resource,
 )
-from dotick.organization.models import Column, Folder, List
+from dotick.organization.models import Column, Folder, List, OrganizationCreateOperation
 
 DEFAULT_COLUMN_TITLE = "Items"
 UNSET = object()
@@ -34,11 +37,45 @@ class ImmutableDefaultColumn(APIException):
     default_code = "immutable_default_column"
 
 
+class IdempotencyConflict(APIException):
+    status_code = 409
+    default_detail = "The operation ID was already used for a different Folder creation."
+    default_code = "idempotency_conflict"
+
+
 def _normalized_title(title):
     normalized = title.strip()
     if not normalized:
         raise ValueError("Title must not be empty.")
     return normalized
+
+
+def _folder_creation_intent_digest(*, title):
+    payload = json.dumps(
+        {"title": title},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _get_folder_creation_operation(*, actor_id, operation_id):
+    return OrganizationCreateOperation.objects.filter(
+        owner_id=actor_id,
+        resource_type=OrganizationCreateOperation.ResourceType.FOLDER,
+        operation_id=operation_id,
+    ).first()
+
+
+def _resolve_folder_creation_retry(*, actor_id, operation, intent_digest):
+    if operation.intent_digest != intent_digest:
+        raise IdempotencyConflict
+    try:
+        row = Folder.objects.get(pk=operation.resource_id, owner_id=actor_id)
+    except Folder.DoesNotExist as error:
+        raise Http404 from error
+    return row, False
 
 
 @transaction.atomic
@@ -50,6 +87,55 @@ def create_folder(*, owner, title, position=None):
         title=_normalized_title(title),
         position=position,
     )
+
+
+@transaction.atomic
+def create_folder_idempotent(*, actor_id, title, operation_id):
+    normalized_title = _normalized_title(title)
+    intent_digest = _folder_creation_intent_digest(title=normalized_title)
+    existing = _get_folder_creation_operation(
+        actor_id=actor_id,
+        operation_id=operation_id,
+    )
+    if existing is not None:
+        return _resolve_folder_creation_retry(
+            actor_id=actor_id,
+            operation=existing,
+            intent_digest=intent_digest,
+        )
+
+    try:
+        with transaction.atomic():
+            position = Folder.objects.filter(
+                owner_id=actor_id,
+                is_trashed=False,
+            ).count()
+            row = Folder.objects.create(
+                owner_id=actor_id,
+                title=normalized_title,
+                position=position,
+            )
+            OrganizationCreateOperation.objects.create(
+                owner_id=actor_id,
+                resource_type=OrganizationCreateOperation.ResourceType.FOLDER,
+                operation_id=operation_id,
+                intent_digest=intent_digest,
+                resource_id=row.id,
+            )
+    except IntegrityError:
+        existing = _get_folder_creation_operation(
+            actor_id=actor_id,
+            operation_id=operation_id,
+        )
+        if existing is None:
+            raise
+        return _resolve_folder_creation_retry(
+            actor_id=actor_id,
+            operation=existing,
+            intent_digest=intent_digest,
+        )
+
+    return row, True
 
 
 def list_folders(*, actor_id):

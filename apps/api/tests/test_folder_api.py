@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 
 import pytest
@@ -28,6 +29,11 @@ def _authenticated_client(user):
     return client
 
 
+def _create_folder(client, title, **extra):
+    payload = {"title": title, "operation_id": str(uuid.uuid4()), **extra}
+    return client.post(FOLDERS_URL, payload, format="json")
+
+
 def _trash_folder(client, folder_id, version, *, items=None):
     url = f"{FOLDERS_URL}/{folder_id}"
     if items is not None:
@@ -47,8 +53,8 @@ def test_folder_create_list_get_and_update_follow_the_public_contract():
     user = _user("folder-crud@example.test")
     client = _authenticated_client(user)
 
-    first = client.post(FOLDERS_URL, {"title": "  Work  "}, format="json")
-    second = client.post(FOLDERS_URL, {"title": "Work"}, format="json")
+    first = _create_folder(client, "  Work  ")
+    second = _create_folder(client, "Work")
 
     assert first.status_code == 201
     assert second.status_code == 201
@@ -90,17 +96,10 @@ def test_folder_update_requires_version_and_rejects_invalid_input():
     client = _authenticated_client(user)
 
     assert APIClient().get(FOLDERS_URL).status_code == 401
-    assert client.post(FOLDERS_URL, {"title": "  "}, format="json").status_code == 400
-    assert (
-        client.post(
-            FOLDERS_URL,
-            {"title": "Valid", "owner_user_id": str(user.id)},
-            format="json",
-        ).status_code
-        == 400
-    )
+    assert _create_folder(client, "  ").status_code == 400
+    assert _create_folder(client, "Valid", owner_user_id=str(user.id)).status_code == 400
 
-    folder_id = client.post(FOLDERS_URL, {"title": "Valid"}, format="json").json()["id"]
+    folder_id = _create_folder(client, "Valid").json()["id"]
     assert client.patch(f"{FOLDERS_URL}/{folder_id}", {}, format="json").status_code == 400
     assert (
         client.patch(
@@ -131,7 +130,7 @@ def test_folder_update_requires_version_and_rejects_invalid_input():
 def test_folder_update_rejects_stale_version_without_overwrite():
     user = _user("folder-stale-update@example.test")
     client = _authenticated_client(user)
-    created = client.post(FOLDERS_URL, {"title": "Original"}, format="json").json()
+    created = _create_folder(client, "Original").json()
 
     first_update = client.patch(
         f"{FOLDERS_URL}/{created['id']}",
@@ -190,7 +189,7 @@ def test_folder_reads_and_writes_are_owner_scoped_and_hide_trashed_rows():
 def test_folder_trash_and_restore_require_versions_and_increment_them():
     user = _user("folder-trash@example.test")
     client = _authenticated_client(user)
-    created = client.post(FOLDERS_URL, {"title": "Recoverable"}, format="json").json()
+    created = _create_folder(client, "Recoverable").json()
 
     missing_precondition = client.delete(f"{FOLDERS_URL}/{created['id']}")
     assert missing_precondition.status_code == 400
@@ -228,7 +227,7 @@ def test_folder_trash_and_restore_require_versions_and_increment_them():
 def test_folder_trash_rejects_stale_version_without_mutation():
     user = _user("folder-stale-trash@example.test")
     client = _authenticated_client(user)
-    created = client.post(FOLDERS_URL, {"title": "Project"}, format="json").json()
+    created = _create_folder(client, "Project").json()
     updated = client.patch(
         f"{FOLDERS_URL}/{created['id']}",
         {"version": 1, "title": "Current"},
@@ -248,7 +247,7 @@ def test_folder_trash_rejects_stale_version_without_mutation():
 def test_folder_restore_rejects_stale_version_without_mutation():
     user = _user("folder-stale-restore@example.test")
     client = _authenticated_client(user)
-    created = client.post(FOLDERS_URL, {"title": "Project"}, format="json").json()
+    created = _create_folder(client, "Project").json()
     assert _trash_folder(client, created["id"], 1).status_code == 204
 
     stale = _restore_folder(client, created["id"], 1)

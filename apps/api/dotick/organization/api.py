@@ -57,6 +57,7 @@ class StrictInput(serializers.Serializer):
 
 class FolderCreateInput(StrictInput):
     title = serializers.CharField(max_length=240, trim_whitespace=True)
+    operation_id = serializers.UUIDField()
 
 
 class FolderUpdateInput(StrictInput):
@@ -179,11 +180,11 @@ class Folders(APIView):
     def post(self, request):
         serializer = FolderCreateInput(data=request.data)
         serializer.is_valid(raise_exception=True)
-        row = application.create_folder(
-            owner=request.user,
+        row, created = application.create_folder_idempotent(
+            actor_id=request.user.id,
             **serializer.validated_data,
         )
-        return Response(_serialize_folder(row), status=201)
+        return Response(_serialize_folder(row), status=201 if created else 200)
 
 
 class FolderDetail(APIView):
