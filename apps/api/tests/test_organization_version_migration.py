@@ -1,15 +1,17 @@
+import uuid
+
 import pytest
 from django.contrib.auth import get_user_model
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
 OLD_MIGRATION = ("organization", "0002_list_folder_position")
-NEW_MIGRATION = ("organization", "0003_folder_list_column_version")
+NEW_MIGRATION = ("organization", "0004_organization_create_operation")
 
 
-def test_existing_organization_rows_receive_version_one():
+def test_organization_schema_migrates_existing_rows_and_preserves_uniqueness():
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
 
@@ -34,9 +36,53 @@ def test_existing_organization_rows_receive_version_one():
         Folder = new_apps.get_model("organization", "Folder")
         List = new_apps.get_model("organization", "List")
         Column = new_apps.get_model("organization", "Column")
+        OrganizationCreateOperation = new_apps.get_model(
+            "organization",
+            "OrganizationCreateOperation",
+        )
 
         assert Folder.objects.get(pk=folder.id).version == 1
         assert List.objects.get(pk=row.id).version == 1
         assert Column.objects.get(pk=column.id).version == 1
+
+        List.objects.create(owner_id=user.id, title="Inbox", is_inbox=True)
+        with pytest.raises(IntegrityError), transaction.atomic():
+            List.objects.create(owner_id=user.id, title="Second Inbox", is_inbox=True)
+
+        with pytest.raises(IntegrityError), transaction.atomic():
+            Column.objects.create(list_id=row.id, title="Second Default", is_default=True)
+
+        operation_id = uuid.uuid4()
+        OrganizationCreateOperation.objects.create(
+            owner_id=user.id,
+            resource_type="folder",
+            operation_id=operation_id,
+            intent_digest="a" * 64,
+            resource_id=folder.id,
+        )
+        with pytest.raises(IntegrityError), transaction.atomic():
+            OrganizationCreateOperation.objects.create(
+                owner_id=user.id,
+                resource_type="folder",
+                operation_id=operation_id,
+                intent_digest="b" * 64,
+                resource_id=folder.id,
+            )
+        with pytest.raises(IntegrityError), transaction.atomic():
+            OrganizationCreateOperation.objects.create(
+                owner_id=user.id,
+                resource_type="unsupported",
+                operation_id=uuid.uuid4(),
+                intent_digest="a" * 64,
+                resource_id=folder.id,
+            )
+        with pytest.raises(IntegrityError), transaction.atomic():
+            OrganizationCreateOperation.objects.create(
+                owner_id=user.id,
+                resource_type="folder",
+                operation_id=uuid.uuid4(),
+                intent_digest="",
+                resource_id=folder.id,
+            )
     finally:
         MigrationExecutor(connection).migrate(leaf_nodes)
