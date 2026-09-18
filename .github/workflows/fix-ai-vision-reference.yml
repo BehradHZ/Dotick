@@ -1,0 +1,41 @@
+name: Fix AI vision decision reference
+
+on:
+  push:
+    branches: [test]
+    paths:
+      - .github/workflows/fix-ai-vision-reference.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: test
+          fetch-depth: 0
+      - name: Add decision reference without trailing whitespace
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('docs/requirements/future-ai-agent-experience.md')
+          s = p.read_text(encoding='utf-8')
+          needle = '> **Scope:** Future capability; **not** a Personal V1 implementation requirement  \n'
+          line = '> **Decision references:** DR-145, DR-146\n'
+          if line not in s:
+              if needle not in s:
+                  raise SystemExit('scope anchor not found')
+              s = s.replace(needle, needle + line, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-ai-vision-reference.yml
+          git add docs/requirements/future-ai-agent-experience.md
+          git commit -m "docs(ai): link future vision to canonical decisions"
+          git push origin HEAD:test
