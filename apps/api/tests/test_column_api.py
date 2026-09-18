@@ -25,6 +25,13 @@ def _authenticated_client(user):
     return client
 
 
+def _delete_column(client, column_id, version, *, items=None):
+    url = f"/api/v1/columns/{column_id}"
+    if items is not None:
+        url += f"?items={items}"
+    return client.delete(url, HTTP_IF_MATCH=str(version))
+
+
 def test_column_create_list_get_and_update_follow_the_public_contract():
     user = _user("column-crud@example.test")
     client = _authenticated_client(user)
@@ -42,16 +49,18 @@ def test_column_create_list_get_and_update_follow_the_public_contract():
         "list_id": str(row.id),
         "title": "Doing",
         "position": 1,
+        "version": 1,
         "is_default": False,
     }
     assert duplicate.json()["title"] == "Doing"
     assert duplicate.json()["position"] == 2
+    assert duplicate.json()["version"] == 1
 
     listed = client.get(columns_url)
     retrieved = client.get(f"/api/v1/columns/{first.json()['id']}")
     updated = client.patch(
         f"/api/v1/columns/{first.json()['id']}",
-        {"title": "Done", "position": 7},
+        {"version": 1, "title": "Done", "position": 7},
         format="json",
     )
 
@@ -66,6 +75,28 @@ def test_column_create_list_get_and_update_follow_the_public_contract():
     assert updated.status_code == 200
     assert updated.json()["title"] == "Done"
     assert updated.json()["position"] == 7
+    assert updated.json()["version"] == 2
+
+
+def test_column_update_requires_version_and_rejects_stale_write():
+    user = _user("column-version-update@example.test")
+    client = _authenticated_client(user)
+    row, _ = create_list(owner=user, title="Project")
+    column = Column.objects.create(list=row, title="Doing", position=1)
+    url = f"/api/v1/columns/{column.id}"
+
+    missing = client.patch(url, {"title": "Missing"}, format="json")
+    first = client.patch(url, {"version": 1, "title": "Current"}, format="json")
+    stale = client.patch(url, {"version": 1, "title": "Stale"}, format="json")
+
+    assert missing.status_code == 400
+    assert first.status_code == 200
+    assert first.json()["version"] == 2
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "version_conflict"
+    column.refresh_from_db()
+    assert column.title == "Current"
+    assert column.version == 2
 
 
 def test_column_input_and_parent_list_are_validated():
@@ -107,7 +138,15 @@ def test_column_input_and_parent_list_are_validated():
     assert (
         client.patch(
             f"/api/v1/columns/{column_id}",
-            {"position": -1},
+            {"version": 1},
+            format="json",
+        ).status_code
+        == 400
+    )
+    assert (
+        client.patch(
+            f"/api/v1/columns/{column_id}",
+            {"version": 1, "position": -1},
             format="json",
         ).status_code
         == 400
@@ -129,14 +168,17 @@ def test_column_reads_and_writes_are_owner_scoped_and_hide_trashed_list_columns(
     assert (
         client.patch(
             f"/api/v1/columns/{private.id}",
-            {"title": "Taken"},
+            {"version": 1, "title": "Taken"},
             format="json",
         ).status_code
         == 404
     )
+    assert _delete_column(client, private.id, 1).status_code == 404
     assert client.get(f"/api/v1/columns/{hidden.id}").status_code == 404
+    assert _delete_column(client, hidden.id, 1).status_code == 404
     private.refresh_from_db()
     assert private.title == "Items"
+    assert private.version == 1
     assert active_list.is_trashed is False
 
 
@@ -154,14 +196,15 @@ def _item(*, owner, column, title, operation_id):
     return row
 
 
-def test_empty_nondefault_column_can_be_deleted_but_default_column_cannot():
+def test_empty_nondefault_column_requires_version_and_default_column_stays_immutable():
     user = _user("column-delete@example.test")
     client = _authenticated_client(user)
     row, default_column = create_list(owner=user, title="Project")
     column = Column.objects.create(list=row, title="Doing", position=1)
 
-    protected = client.delete(f"/api/v1/columns/{default_column.id}")
-    deleted = client.delete(f"/api/v1/columns/{column.id}")
+    assert client.delete(f"/api/v1/columns/{column.id}").status_code == 400
+    protected = _delete_column(client, default_column.id, 1)
+    deleted = _delete_column(client, column.id, 1)
 
     assert protected.status_code == 409
     assert protected.json()["error"]["code"] == "immutable_default_column"
@@ -169,6 +212,21 @@ def test_empty_nondefault_column_can_be_deleted_but_default_column_cannot():
     assert deleted.content == b""
     assert not Column.objects.filter(pk=column.id).exists()
     assert client.get(f"/api/v1/columns/{column.id}").status_code == 404
+
+
+def test_column_delete_rejects_stale_version_without_deleting():
+    user = _user("column-stale-delete@example.test")
+    client = _authenticated_client(user)
+    row, _ = create_list(owner=user, title="Project")
+    column = Column.objects.create(list=row, title="Doing", position=1)
+    Column.objects.filter(pk=column.pk).update(version=2)
+
+    response = _delete_column(client, column.id, 1)
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "version_conflict"
+    column.refresh_from_db()
+    assert column.version == 2
 
 
 def test_column_delete_is_owner_and_active_list_scoped():
@@ -184,8 +242,8 @@ def test_column_delete_is_owner_and_active_list_scoped():
     )
     client = _authenticated_client(other)
 
-    assert client.delete(f"/api/v1/columns/{private.id}").status_code == 404
-    assert client.delete(f"/api/v1/columns/{hidden.id}").status_code == 404
+    assert _delete_column(client, private.id, 1).status_code == 404
+    assert _delete_column(client, hidden.id, 1).status_code == 404
     assert Column.objects.filter(pk__in=[private.id, hidden.id]).count() == 2
 
 
@@ -201,18 +259,20 @@ def test_column_delete_requires_item_resolution_and_can_move_to_default():
         operation_id="00000000-0000-0000-0000-000000000601",
     )
 
-    missing = client.delete(f"/api/v1/columns/{column.id}")
-    invalid = client.delete(f"/api/v1/columns/{column.id}?items=move_to_inbox")
+    missing_version = client.delete(f"/api/v1/columns/{column.id}")
+    missing_resolution = _delete_column(client, column.id, 1)
+    invalid_resolution = _delete_column(client, column.id, 1, items="move_to_inbox")
 
-    assert missing.status_code == 409
-    assert missing.json()["error"]["code"] == "child_resolution_required"
-    assert invalid.status_code == 409
+    assert missing_version.status_code == 400
+    assert missing_resolution.status_code == 409
+    assert missing_resolution.json()["error"]["code"] == "child_resolution_required"
+    assert invalid_resolution.status_code == 409
     assert Column.objects.filter(pk=column.id).exists()
     item.refresh_from_db()
     assert item.column_id == column.id
     assert item.version == 1
 
-    moved = client.delete(f"/api/v1/columns/{column.id}?items=move_to_default")
+    moved = _delete_column(client, column.id, 1, items="move_to_default")
 
     assert moved.status_code == 204
     assert not Column.objects.filter(pk=column.id).exists()
@@ -234,7 +294,7 @@ def test_column_delete_can_trash_its_items_before_hard_deletion():
         operation_id="00000000-0000-0000-0000-000000000602",
     )
 
-    deleted = client.delete(f"/api/v1/columns/{column.id}?items=trash")
+    deleted = _delete_column(client, column.id, 1, items="trash")
 
     assert deleted.status_code == 204
     assert not Column.objects.filter(pk=column.id).exists()
@@ -264,7 +324,7 @@ def test_column_delete_rehomes_already_trashed_items_without_restoring_them():
         trash_origin_column_id=column.id,
     )
 
-    deleted = client.delete(f"/api/v1/columns/{column.id}")
+    deleted = _delete_column(client, column.id, 1)
 
     assert deleted.status_code == 204
     item.refresh_from_db()

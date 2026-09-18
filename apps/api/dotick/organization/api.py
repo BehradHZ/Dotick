@@ -108,6 +108,7 @@ class ColumnCreateInput(StrictInput):
 
 
 class ColumnUpdateInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
     title = serializers.CharField(
         max_length=240,
         trim_whitespace=True,
@@ -116,7 +117,7 @@ class ColumnUpdateInput(StrictInput):
     position = serializers.IntegerField(min_value=0, required=False)
 
     def validate(self, attrs):
-        if not attrs:
+        if set(attrs) == {"version"}:
             raise serializers.ValidationError("Provide at least one Column change.")
         return attrs
 
@@ -163,6 +164,7 @@ def _serialize_column(row):
         "list_id": row.list_id,
         "title": row.title,
         "position": row.position,
+        "version": row.version,
         "is_default": row.is_default,
     }
 
@@ -346,6 +348,7 @@ class ColumnDetail(APIView):
         application.delete_column(
             actor_id=request.user.id,
             column_id=column_id,
+            version=_parse_if_match_version(request),
             item_resolution=request.query_params.get("items"),
         )
         return Response(status=204)

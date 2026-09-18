@@ -456,24 +456,38 @@ def get_column(*, actor_id, column_id, for_update=False):
 
 
 @transaction.atomic
-def update_column(*, actor_id, column_id, title=UNSET, position=UNSET):
-    row = get_column(actor_id=actor_id, column_id=column_id, for_update=True)
-    changed_fields = ["updated_at"]
+def update_column(*, actor_id, column_id, version, title=UNSET, position=UNSET):
+    row = lock_owned_versioned_resource(
+        model=Column,
+        actor_id=actor_id,
+        resource_id=column_id,
+        expected_version=version,
+        scope_filters={"list__is_trashed": False},
+    )
+    updates = {}
     if title is not UNSET:
-        row.title = _normalized_title(title)
-        changed_fields.append("title")
+        updates["title"] = _normalized_title(title)
     if position is not UNSET:
-        row.position = position
-        changed_fields.append("position")
-    row.save(update_fields=changed_fields)
-    return row
+        updates["position"] = position
+    return increment_locked_version(
+        row=row,
+        actor_id=actor_id,
+        expected_version=version,
+        updates=updates,
+    )
 
 
 @transaction.atomic
-def delete_column(*, actor_id, column_id, item_resolution=None):
+def delete_column(*, actor_id, column_id, version, item_resolution=None):
     from dotick.items.models import Item
 
-    row = get_column(actor_id=actor_id, column_id=column_id, for_update=True)
+    row = lock_owned_versioned_resource(
+        model=Column,
+        actor_id=actor_id,
+        resource_id=column_id,
+        expected_version=version,
+        scope_filters={"list__is_trashed": False},
+    )
     if row.is_default:
         raise ImmutableDefaultColumn
 
