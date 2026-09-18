@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,11 +11,45 @@ import {
   View,
 } from 'react-native';
 
-import { ApiError, type ApiSession, defaultApiUrl, identityApi, signIn } from './api';
+import {
+  ApiError,
+  type ApiSession,
+  defaultApiUrl,
+  identityApi,
+  PasskeyCancelledError,
+  passkeyAuthenticationAvailable,
+  PasskeyUnavailableError,
+  signIn,
+  signInWithGoogleCredential,
+  signInWithPasskey,
+} from './api';
 
 type Mode = 'sign-in' | 'register' | 'verify' | 'reset-request' | 'reset-confirm';
-
 type FieldProps = TextInputProps & { label: string; accessibilityLabel: string };
+
+type GoogleIdentity = {
+  accounts: {
+    id: {
+      initialize(input: {
+        client_id: string;
+        callback(response: { credential: string }): void;
+      }): void;
+      prompt(
+        callback: (notification: {
+          isNotDisplayed(): boolean;
+          isSkippedMoment(): boolean;
+          isDismissedMoment(): boolean;
+        }) => void,
+      ): void;
+    };
+  };
+};
+
+declare global {
+  interface Window {
+    google?: GoogleIdentity;
+  }
+}
 
 function Field({ label, accessibilityLabel, style, ...props }: FieldProps) {
   return (
@@ -34,11 +69,13 @@ function Button({
   onPress,
   disabled = false,
   link = false,
+  secondary = false,
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
   link?: boolean;
+  secondary?: boolean;
 }) {
   return (
     <Pressable
@@ -47,7 +84,11 @@ function Button({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[link ? styles.link : styles.button, disabled && styles.disabled]}
+      style={[
+        link ? styles.link : styles.button,
+        secondary && !link && styles.secondaryButton,
+        disabled && styles.disabled,
+      ]}
     >
       <Text style={link ? styles.linkText : styles.buttonText}>{title}</Text>
     </Pressable>
@@ -55,14 +96,91 @@ function Button({
 }
 
 function safeErrorMessage(error: unknown) {
+  if (error instanceof PasskeyCancelledError || error instanceof PasskeyUnavailableError) {
+    return error.message;
+  }
   if (error instanceof ApiError) {
     if (error.status === 401) return 'Check your email and password.';
+    if (error.status === 503) return 'This sign-in method is temporarily unavailable.';
     return error.message;
   }
   if (error instanceof Error && error.message.startsWith('Connection interrupted')) {
     return error.message;
   }
+  if (error instanceof Error && error.message.startsWith('Google sign-in')) return error.message;
   return 'Could not complete the request. Please try again.';
+}
+
+async function loadGoogleIdentity() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    throw new Error('Google sign-in is unavailable on this device.');
+  }
+  if (window.google) return window.google;
+
+  await new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-dotick-google]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener(
+        'error',
+        () => reject(new Error('Google sign-in could not load.')),
+        { once: true },
+      );
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.dataset.dotickGoogle = 'true';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Google sign-in could not load.'));
+    document.head.appendChild(script);
+  });
+
+  if (!window.google) throw new Error('Google sign-in could not load.');
+  return window.google;
+}
+
+async function googleCredential(clientId: string) {
+  if (Platform.OS !== 'web') throw new Error('Google sign-in is unavailable on this device.');
+  if (!clientId) throw new Error('Google sign-in is not configured.');
+  const google = await loadGoogleIdentity();
+
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    const finish = (work: () => void) => {
+      if (settled) return;
+      settled = true;
+      work();
+    };
+    const timeout = window.setTimeout(
+      () => finish(() => reject(new Error('Google sign-in timed out.'))),
+      60_000,
+    );
+
+    google.accounts.id.initialize({
+      client_id: clientId,
+      callback: ({ credential }) => {
+        finish(() => {
+          window.clearTimeout(timeout);
+          resolve(credential);
+        });
+      },
+    });
+    google.accounts.id.prompt((notification) => {
+      if (
+        notification.isNotDisplayed() ||
+        notification.isSkippedMoment() ||
+        notification.isDismissedMoment()
+      ) {
+        finish(() => {
+          window.clearTimeout(timeout);
+          reject(new Error('Google sign-in was cancelled or unavailable.'));
+        });
+      }
+    });
+  });
 }
 
 export default function AuthScreen({
@@ -80,6 +198,10 @@ export default function AuthScreen({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const apiUrl = defaultApiUrl();
+  const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ?? '';
+  const googleAvailable = Platform.OS === 'web' && googleClientId !== '';
+  const passkeyAvailable = passkeyAuthenticationAvailable();
+  const hasProviderSignIn = googleAvailable || passkeyAvailable;
 
   const normalizedEmail = email.trim();
   const validEmail = /^\S+@\S+\.\S+$/.test(normalizedEmail);
@@ -113,10 +235,23 @@ export default function AuthScreen({
     setCode(value.replace(/\D/g, '').slice(0, 6));
   }
 
-  async function authenticate() {
-    const session = await signIn(apiUrl, normalizedEmail, password);
+  async function completeAuthentication(sessionPromise: Promise<ApiSession>) {
+    const session = await sessionPromise;
     await onAuthenticated(session);
     setPassword('');
+  }
+
+  async function authenticatePassword() {
+    await completeAuthentication(signIn(apiUrl, normalizedEmail, password));
+  }
+
+  async function authenticateGoogle() {
+    const credential = await googleCredential(googleClientId);
+    await completeAuthentication(signInWithGoogleCredential(apiUrl, credential));
+  }
+
+  async function authenticatePasskey() {
+    await completeAuthentication(signInWithPasskey(apiUrl));
   }
 
   return (
@@ -127,6 +262,23 @@ export default function AuthScreen({
         {mode === 'sign-in' && (
           <>
             <Text accessibilityRole="header" style={styles.title}>Sign in</Text>
+            {googleAvailable && (
+              <Button
+                title="Continue with Google"
+                secondary
+                disabled={busy}
+                onPress={() => void perform(authenticateGoogle)}
+              />
+            )}
+            {passkeyAvailable && (
+              <Button
+                title="Sign in with a passkey"
+                secondary
+                disabled={busy}
+                onPress={() => void perform(authenticatePasskey)}
+              />
+            )}
+            {hasProviderSignIn && <Text style={styles.separator}>OR USE EMAIL</Text>}
             <Field
               label="Email"
               accessibilityLabel="Email"
@@ -147,13 +299,13 @@ export default function AuthScreen({
               autoComplete="current-password"
               editable={!busy}
               onSubmitEditing={() => {
-                if (validEmail && validPassword) void perform(authenticate);
+                if (validEmail && validPassword) void perform(authenticatePassword);
               }}
             />
             <Button
               title="Sign in"
               disabled={busy || !validEmail || !validPassword}
-              onPress={() => void perform(authenticate)}
+              onPress={() => void perform(authenticatePassword)}
             />
             <Button
               title="Forgot password?"
@@ -410,6 +562,7 @@ const styles = StyleSheet.create({
   },
   code: { fontSize: 22, letterSpacing: 8, textAlign: 'center' },
   hint: { fontSize: 12, lineHeight: 18, color: '#69675f' },
+  separator: { textAlign: 'center', fontSize: 10, fontWeight: '800', color: '#69675f' },
   button: {
     minHeight: 46,
     alignItems: 'center',
@@ -420,6 +573,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#ff7a00',
   },
+  secondaryButton: { backgroundColor: '#fffdf7' },
   buttonText: { fontSize: 13, fontWeight: '900', color: '#171717' },
   link: { minHeight: 30, alignItems: 'center', justifyContent: 'center' },
   linkText: { fontSize: 12, fontWeight: '800', color: '#7a3b00', textDecorationLine: 'underline' },

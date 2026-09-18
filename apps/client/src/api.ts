@@ -91,6 +91,23 @@ export type ColumnItemResolution = 'move_to_default' | 'trash';
 export type SessionInvalidationReason = 'sign_out' | 'refresh_revoked';
 export type PrivateStateCleaner = (reason: SessionInvalidationReason) => void;
 
+type PasskeyRequestOptionsJson = {
+  challenge: string;
+  rpId?: string;
+  timeout?: number;
+  userVerification?: UserVerificationRequirement;
+  allowCredentials?: Array<{
+    id: string;
+    type: PublicKeyCredentialType;
+    transports?: AuthenticatorTransport[];
+  }>;
+};
+
+type PasskeyOptions = {
+  challenge_id: string;
+  public_key: PasskeyRequestOptionsJson;
+};
+
 const foundationBaseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:8000';
 
 function defaultErrorMessage(status: number, code?: string) {
@@ -122,6 +139,20 @@ export class ReauthenticationRequiredError extends ApiError {
   constructor(details?: unknown) {
     super(401, undefined, 'reauthentication_required', details);
     this.name = 'ReauthenticationRequiredError';
+  }
+}
+
+export class PasskeyUnavailableError extends Error {
+  constructor(message = 'Passkey sign-in is unavailable on this browser or deployment.') {
+    super(message);
+    this.name = 'PasskeyUnavailableError';
+  }
+}
+
+export class PasskeyCancelledError extends Error {
+  constructor() {
+    super('Passkey sign-in was cancelled.');
+    this.name = 'PasskeyCancelledError';
   }
 }
 
@@ -480,6 +511,103 @@ export async function signInWithGoogleCredential(baseUrl: string, credential: st
   const tokens = await rawRequest<Tokens>(baseUrl, '/api/v1/auth/google', {
     method: 'POST',
     body: JSON.stringify({ credential }),
+  });
+  return sessionFromTokens(baseUrl, tokens);
+}
+
+function decodeBase64Url(value: string) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='));
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function encodeBase64Url(value: ArrayBuffer) {
+  const binary = String.fromCharCode(...new Uint8Array(value));
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export function passkeyAuthenticationAvailable() {
+  return (
+    Platform.OS === 'web' &&
+    typeof navigator !== 'undefined' &&
+    typeof navigator.credentials?.get === 'function' &&
+    typeof globalThis.PublicKeyCredential !== 'undefined'
+  );
+}
+
+function passkeyRequestOptions(options: PasskeyRequestOptionsJson): PublicKeyCredentialRequestOptions {
+  return {
+    challenge: decodeBase64Url(options.challenge),
+    rpId: options.rpId,
+    timeout: options.timeout,
+    userVerification: options.userVerification,
+    allowCredentials: options.allowCredentials?.map((credential) => ({
+      id: decodeBase64Url(credential.id),
+      type: credential.type,
+      transports: credential.transports,
+    })),
+  };
+}
+
+function isCancelledCredentialError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return error.name === 'AbortError' || error.name === 'NotAllowedError';
+}
+
+export async function signInWithPasskey(baseUrl: string) {
+  if (!passkeyAuthenticationAvailable()) throw new PasskeyUnavailableError();
+
+  let options: PasskeyOptions;
+  try {
+    options = await rawRequest<PasskeyOptions>(
+      baseUrl,
+      '/api/v1/auth/passkeys/authentication/options',
+      { method: 'POST', body: '{}' },
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 503) {
+      throw new PasskeyUnavailableError();
+    }
+    throw error;
+  }
+
+  let credential: Credential | null;
+  try {
+    credential = await navigator.credentials.get({
+      publicKey: passkeyRequestOptions(options.public_key),
+    });
+  } catch (error) {
+    if (isCancelledCredentialError(error)) throw new PasskeyCancelledError();
+    throw new Error('Passkey sign-in failed.', { cause: error });
+  }
+
+  if (!(credential instanceof PublicKeyCredential)) {
+    throw new Error('Passkey sign-in did not return a credential.');
+  }
+
+  const response = credential.response;
+  if (!(response instanceof AuthenticatorAssertionResponse)) {
+    throw new Error('Passkey sign-in returned an invalid assertion.');
+  }
+
+  const tokens = await rawRequest<Tokens>(baseUrl, '/api/v1/auth/passkeys/authentication/verify', {
+    method: 'POST',
+    body: JSON.stringify({
+      challenge_id: options.challenge_id,
+      credential: {
+        id: credential.id,
+        rawId: encodeBase64Url(credential.rawId),
+        type: credential.type,
+        authenticatorAttachment: credential.authenticatorAttachment,
+        clientExtensionResults: credential.getClientExtensionResults(),
+        response: {
+          clientDataJSON: encodeBase64Url(response.clientDataJSON),
+          authenticatorData: encodeBase64Url(response.authenticatorData),
+          signature: encodeBase64Url(response.signature),
+          userHandle: response.userHandle ? encodeBase64Url(response.userHandle) : null,
+        },
+      },
+    }),
   });
   return sessionFromTokens(baseUrl, tokens);
 }
