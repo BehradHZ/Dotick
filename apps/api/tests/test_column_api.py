@@ -27,9 +27,9 @@ def _authenticated_client(user):
     return client
 
 
-def _create_column(client, list_id, title, **extra):
+def _create_column(client, parent_list_id, title, **extra):
     payload = {"title": title, "operation_id": str(uuid.uuid4()), **extra}
-    return client.post(f"{LISTS_URL}/{list_id}/columns", payload, format="json")
+    return client.post(f"{LISTS_URL}/{parent_list_id}/columns", payload, format="json")
 
 
 def _delete_column(client, column_id, version, *, items=None):
