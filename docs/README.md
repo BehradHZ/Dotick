@@ -22,6 +22,7 @@
 - [`operations/`](operations/) — استقرار، مشاهده‌پذیری، بازیابی و عملیات امنیت
 - [`tracking/`](tracking/) — تاریخچهٔ تغییرات، audit پیاده‌سازی و مرور Incrementها
 - [`reference/`](reference/) — اسناد مرجع مشتق‌شده یا قدیمی که منبع نهایی تصمیم نیستند
+- [`licensing.md`](licensing.md) — مدل AGPL-3.0، مرز self-hosting/support و سیاست هویت/برند Dotick
 
 تصمیم‌های تثبیت‌شده و باز در [`decision-register.md`](decision-register.md) ثبت می‌شوند و تصمیم‌های معماری تفصیلی در [`design/adr/`](design/adr/) قرار می‌گیرند.
 

@@ -2,7 +2,7 @@
 
 > **Status:** Increment 0 deployment baseline implemented and hosted-CI verified; Increment 1 product slice verified in CI; configured external-provider/release deployment remains open
 > **Reconciled:** 2026-09-16
-> **Primary target:** reproducible developer-local and CI execution; no supported end-user self-hosting product
+> **Primary target:** reproducible developer-local and CI execution; self-hosting is permitted under AGPL-3.0, while guaranteed production deployment/support is a separate professional-service boundary
 
 ## 1. Deployment units
 
@@ -139,3 +139,12 @@ Hosted CI itself is no longer an open engineering gate.
 - full production monitoring/alerting stack.
 
 See [environment setup](../development/environment-setup.md), [security design](../design/security-design.md), [Increment 1 readiness](../tracking/increment-1-readiness.md), and [the full post-reset commit audit](../tracking/development-commit-audit.md).
+
+
+## 14. AGPL-3.0 self-hosting and professional-services boundary
+
+The software in this repository may be self-hosted under AGPL-3.0. That permission is distinct from an operational support commitment.
+
+The project does not guarantee free installation assistance, production architecture review, migrations, incident response, upgrades, monitoring, backup operation, security hardening, SLA, or troubleshooting for arbitrary third-party environments. Any of those may be offered separately as paid professional services or managed hosting.
+
+A paid services agreement changes service obligations between the parties; it does not remove or narrow software rights already granted by AGPL-3.0. The Dotick name, logos, domains, and product identity are governed separately and are not granted by the software license.

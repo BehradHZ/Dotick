@@ -27,3 +27,10 @@ The roadmap owns implementation order. It does not change product semantics. The
 - `scripts`: traceability checker and local exported-web server.
 
 Each increment adds only its own implementation scope, updates traceability, and runs the applicable tests and build gates.
+
+
+## License and brand
+
+Dotick software is free and open source under the [GNU Affero General Public License v3.0](LICENSE). Personal, commercial, organizational, modification, redistribution, and self-hosting use are permitted subject to AGPL-3.0.
+
+The **Dotick** name, logos, visual marks, and official product identity are not licensed under AGPL-3.0. See [TRADEMARKS.md](TRADEMARKS.md) and [docs/licensing.md](docs/licensing.md) for the software/brand boundary.

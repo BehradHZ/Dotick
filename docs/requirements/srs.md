@@ -2,9 +2,9 @@
 
 **Document type:** Formal Software Requirements Specification
 
-**Version:** 2.9
+**Version:** 3.0
 
-**Baseline date:** 2026-08-26
+**Baseline date:** 2026-09-18
 
 **Status:** Formal SRS Baseline
 
@@ -27,6 +27,7 @@
 | 2.7 | 2026-08-26 | Consistency Reconciliation Baseline | همگام‌سازی Historical Statistics با immutable finalized windows، تثبیت Event single-parent، formalization History/Sync/Time guardrailها، external-AI acknowledgement، PWA/native alarm boundary و اصلاح traceability با Decision Register ادغام‌شده. |
 | 2.8 | 2026-08-26 | SRS Coverage & Reference Integrity Baseline | formalization رفتارهای قطعی Task/Hierarchy که در SRS جا افتاده بودند، تثبیت Global Streak requirement، حذف/اصلاح referenceهای stale یا نامرتبط و همگام‌سازی traceability با System Definition و Decision Register جاری. |
 | 2.9 | 2026-08-26 | Traceability Reconciliation Baseline | افزودن requirement صریح برای confirmation دامنه‌ی inherited sharing، اصلاح Daily Ring completion semantics و Routine reference coverage، و همگام‌سازی source references با Decision Register/engineering baseline جاری. |
+| 3.0 | 2026-09-18 | AGPL-3.0 & Brand Boundary Baseline | تثبیت AGPL-3.0 برای تمام کد Dotick، مجازبودن استفاده تجاری و self-hosting، تفکیک entitlement پشتیبانی از حق نرم‌افزاری، و خارج‌بودن نام/لوگو/هویت Dotick از مجوز کد. |
 
 # 1. مقدمه
 
@@ -723,7 +724,7 @@ Folder
 | SRS-CON-001 | persistence اصلی server-side باید از PostgreSQL استفاده کند. | Inspection + Integration Test |
 | SRS-CON-002 | hierarchy مفهومی Domain Model نباید به تنهایی implementation را به Class Table Inheritance متعهد کند. | Architecture Inspection |
 | SRS-CON-003 | storage strategy باید query simplicity، integrity، migration safety و performance لازم برای behaviorهای این SRS را حفظ کند. | Architecture Review + Test |
-| SRS-CON-004 | Current Scope نباید supported self-hosting برای arbitrary end user را به‌عنوان product capability الزام کند؛ source availability یا development/local execution به‌تنهایی self-host deployment contract ایجاد نمی‌کند. | Architecture + Deployment Inspection |
+| SRS-CON-004 | تمام کد نرم‌افزاری Dotick باید تحت AGPL-3.0 منتشر شود و استفاده شخصی، تجاری، سازمانی و self-hosting را طبق همان license مجاز بداند. Current Scope نباید free/guaranteed support، SLA، managed deployment یا production assistance برای arbitrary self-hosted instance را به‌عنوان entitlement محصول الزام کند. نام، لوگو و هویت برند Dotick خارج از software license هستند. | License + Architecture + Deployment Inspection |
 
 ## 4.3 External service responsibility boundaries
 
@@ -902,7 +903,7 @@ Folder
 موارد زیر نه Current-Scope requirement هستند و نه صرفاً به دلیل نبودن در نسخه فعلی، وعده‌ی نسخه‌ی آینده محسوب می‌شوند. ورود هرکدام به Future Scope نیازمند تصمیم canonical جدید است:
 
 - public social-network behavior شامل follower/following، public feed، standalone Public Profile و public discovery خارج از collaboration action مشخص؛ Profile Picture اختیاری Account از این مرز مستثنا است و فقط identity presentation است.
-- supported self-hosting برای arbitrary end user و production deployment contract شخص ثالث.
+- free/guaranteed support، SLA یا professional production deployment برای arbitrary self-hosted instance به‌عنوان entitlement محصول؛ خود self-hosting طبق AGPL-3.0 مجاز است. نام، لوگو و هویت برند Dotick تحت software license قرار نمی‌گیرند.
 - typed-text AI-assisted Item creation به‌عنوان input مستقیم User؛ typed User input در مدل فعلی manual creation است.
 - general-purpose public developer API برای arbitrary third-party clients؛ integrationهای آینده در جهت فعلی از controlled permission-based surface استفاده می‌کنند.
 - full UI localization به Persian یا سایر زبان‌ها؛ Current Scope UI انگلیسی است و Persian فقط در user-generated content/typography پشتیبانی می‌شود.
