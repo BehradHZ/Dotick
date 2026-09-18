@@ -1,4 +1,4 @@
-name: One-time licensing documentation reconciliation
+name: One-time AGPL licensing reconciliation
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - test
     paths:
       - .github/workflows/one-time-licensing-doc-rewrite.yml
+      - scripts/one_time_licensing_rewrite.py
 
 permissions:
   contents: write
@@ -20,17 +21,27 @@ jobs:
           ref: test
           fetch-depth: 0
 
-      - name: Rewrite documentation
+      - name: Rewrite licensing documentation
         run: python scripts/one_time_licensing_rewrite.py
+
+      - name: Install canonical AGPL-3.0 license text
+        run: curl --fail --silent --show-error --location https://www.gnu.org/licenses/agpl-3.0.txt --output LICENSE
 
       - name: Validate and commit
         run: |
           set -euo pipefail
+          grep -q "GNU AFFERO GENERAL PUBLIC LICENSE" LICENSE
+          grep -q "AGPL-3.0" README.md
+          grep -q "AGPL-3.0" docs/licensing.md
+          grep -q "AGPL-3.0" TRADEMARKS.md
+          grep -q "AGPL-3.0" docs/requirements/system-definition.md
+          grep -q "AGPL-3.0" docs/decision-register.md
+          grep -q "AGPL-3.0" docs/requirements/srs.md
           rm .github/workflows/one-time-licensing-doc-rewrite.yml
           rm scripts/one_time_licensing_rewrite.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md docs .github/workflows/one-time-licensing-doc-rewrite.yml scripts/one_time_licensing_rewrite.py
+          git add -A
           git diff --cached --check
-          git commit -m "docs: adopt open-source paid-services model"
+          git commit -m "docs: adopt AGPL-3.0 and protect Dotick brand"
           git push origin HEAD:test
