@@ -6,6 +6,10 @@ from django.utils import timezone
 from rest_framework.exceptions import APIException
 
 from dotick.identity.models import UserPreferences
+from dotick.organization.concurrency import (
+    increment_locked_version,
+    lock_owned_versioned_resource,
+)
 from dotick.organization.models import Column, Folder, List
 
 DEFAULT_COLUMN_TITLE = "Items"
@@ -65,24 +69,38 @@ def get_folder(*, actor_id, folder_id, for_update=False):
 
 
 @transaction.atomic
-def update_folder(*, actor_id, folder_id, title=UNSET, position=UNSET):
-    row = get_folder(actor_id=actor_id, folder_id=folder_id, for_update=True)
-    changed_fields = ["updated_at"]
+def update_folder(*, actor_id, folder_id, version, title=UNSET, position=UNSET):
+    row = lock_owned_versioned_resource(
+        model=Folder,
+        actor_id=actor_id,
+        resource_id=folder_id,
+        expected_version=version,
+        scope_filters={"is_trashed": False},
+    )
+    updates = {}
     if title is not UNSET:
-        row.title = _normalized_title(title)
-        changed_fields.append("title")
+        updates["title"] = _normalized_title(title)
     if position is not UNSET:
-        row.position = position
-        changed_fields.append("position")
-    row.save(update_fields=changed_fields)
-    return row
+        updates["position"] = position
+    return increment_locked_version(
+        row=row,
+        actor_id=actor_id,
+        expected_version=version,
+        updates=updates,
+    )
 
 
 @transaction.atomic
-def trash_folder(*, actor_id, folder_id, item_resolution=None):
+def trash_folder(*, actor_id, folder_id, version, item_resolution=None):
     from dotick.items.models import Item
 
-    row = get_folder(actor_id=actor_id, folder_id=folder_id, for_update=True)
+    row = lock_owned_versioned_resource(
+        model=Folder,
+        actor_id=actor_id,
+        resource_id=folder_id,
+        expected_version=version,
+        scope_filters={"is_trashed": False},
+    )
     child_lists = list(
         List.objects.select_for_update()
         .filter(owner_id=actor_id, folder=row, is_trashed=False)
@@ -128,25 +146,28 @@ def trash_folder(*, actor_id, folder_id, item_resolution=None):
         List.objects.filter(pk__in=[child.pk for child in child_lists]).update(
             is_trashed=True,
             trashed_at=now,
+            version=F("version") + 1,
             updated_at=now,
         )
-    row.is_trashed = True
-    row.trashed_at = now
-    row.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
+    increment_locked_version(
+        row=row,
+        actor_id=actor_id,
+        expected_version=version,
+        updates={"is_trashed": True, "trashed_at": now},
+    )
 
 
 @transaction.atomic
-def restore_folder(*, actor_id, folder_id):
+def restore_folder(*, actor_id, folder_id, version):
     from dotick.items.models import Item
 
-    try:
-        row = Folder.objects.select_for_update().get(
-            pk=folder_id,
-            owner_id=actor_id,
-            is_trashed=True,
-        )
-    except Folder.DoesNotExist as error:
-        raise Http404 from error
+    row = lock_owned_versioned_resource(
+        model=Folder,
+        actor_id=actor_id,
+        resource_id=folder_id,
+        expected_version=version,
+        scope_filters={"is_trashed": True},
+    )
     deletion_time = row.trashed_at
     child_lists = list(
         List.objects.select_for_update().filter(
@@ -166,11 +187,13 @@ def restore_folder(*, actor_id, folder_id):
         trash_origin_column_id__in=origin_column_ids,
     )
     item_ids = list(trashed_items.values_list("id", flat=True))
+    now = timezone.now()
     if child_lists:
         List.objects.filter(pk__in=[child.pk for child in child_lists]).update(
             is_trashed=False,
             trashed_at=None,
-            updated_at=timezone.now(),
+            version=F("version") + 1,
+            updated_at=now,
         )
     if item_ids:
         Item.objects.filter(pk__in=item_ids).update(
@@ -179,16 +202,20 @@ def restore_folder(*, actor_id, folder_id):
             trashed_at=None,
             trash_origin_column_id=None,
             version=F("version") + 1,
-            updated_at=timezone.now(),
+            updated_at=now,
         )
-    row.is_trashed = False
-    row.trashed_at = None
-    row.save(update_fields=["is_trashed", "trashed_at", "updated_at"])
-    return row
+    return increment_locked_version(
+        row=row,
+        actor_id=actor_id,
+        expected_version=version,
+        updates={"is_trashed": False, "trashed_at": None},
+    )
 
 
 def list_trashed_folders(*, actor_id):
-    return Folder.objects.filter(owner_id=actor_id, is_trashed=True).order_by("-trashed_at", "-id")
+    return Folder.objects.filter(owner_id=actor_id, is_trashed=True).order_by(
+        "-trashed_at", "-id"
+    )
 
 
 def _resolve_folder(*, owner, folder):

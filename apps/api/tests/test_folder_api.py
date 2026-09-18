@@ -28,6 +28,21 @@ def _authenticated_client(user):
     return client
 
 
+def _trash_folder(client, folder_id, version, *, items=None):
+    url = f"{FOLDERS_URL}/{folder_id}"
+    if items is not None:
+        url += f"?items={items}"
+    return client.delete(url, HTTP_IF_MATCH=str(version))
+
+
+def _restore_folder(client, folder_id, version):
+    return client.post(
+        f"{FOLDERS_URL}/{folder_id}/restore",
+        {"version": version},
+        format="json",
+    )
+
+
 def test_folder_create_list_get_and_update_follow_the_public_contract():
     user = _user("folder-crud@example.test")
     client = _authenticated_client(user)
@@ -41,17 +56,19 @@ def test_folder_create_list_get_and_update_follow_the_public_contract():
         "id": str(Folder.objects.get(owner=user, position=0).id),
         "title": "Work",
         "position": 0,
+        "version": 1,
         "is_trashed": False,
         "trashed_at": None,
     }
     assert second.json()["id"] != first.json()["id"]
     assert second.json()["position"] == 1
+    assert second.json()["version"] == 1
 
     listed = client.get(FOLDERS_URL)
     retrieved = client.get(f"{FOLDERS_URL}/{first.json()['id']}")
     updated = client.patch(
         f"{FOLDERS_URL}/{first.json()['id']}",
-        {"title": "Projects", "position": 7},
+        {"version": 1, "title": "Projects", "position": 7},
         format="json",
     )
 
@@ -65,9 +82,10 @@ def test_folder_create_list_get_and_update_follow_the_public_contract():
     assert updated.status_code == 200
     assert updated.json()["title"] == "Projects"
     assert updated.json()["position"] == 7
+    assert updated.json()["version"] == 2
 
 
-def test_folder_endpoints_reject_invalid_input_and_require_authentication():
+def test_folder_update_requires_version_and_rejects_invalid_input():
     user = _user("folder-validation@example.test")
     client = _authenticated_client(user)
 
@@ -87,11 +105,56 @@ def test_folder_endpoints_reject_invalid_input_and_require_authentication():
     assert (
         client.patch(
             f"{FOLDERS_URL}/{folder_id}",
-            {"position": -1},
+            {"title": "Missing version"},
             format="json",
         ).status_code
         == 400
     )
+    assert (
+        client.patch(
+            f"{FOLDERS_URL}/{folder_id}",
+            {"version": 1},
+            format="json",
+        ).status_code
+        == 400
+    )
+    assert (
+        client.patch(
+            f"{FOLDERS_URL}/{folder_id}",
+            {"version": 1, "position": -1},
+            format="json",
+        ).status_code
+        == 400
+    )
+
+
+def test_folder_update_rejects_stale_version_without_overwrite():
+    user = _user("folder-stale-update@example.test")
+    client = _authenticated_client(user)
+    created = client.post(FOLDERS_URL, {"title": "Original"}, format="json").json()
+
+    first_update = client.patch(
+        f"{FOLDERS_URL}/{created['id']}",
+        {"version": 1, "title": "Current"},
+        format="json",
+    )
+    stale = client.patch(
+        f"{FOLDERS_URL}/{created['id']}",
+        {"version": 1, "title": "Stale overwrite"},
+        format="json",
+    )
+
+    assert first_update.status_code == 200
+    assert first_update.json()["version"] == 2
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "version_conflict"
+    assert stale.json()["error"]["details"]["current"] == {
+        "id": created["id"],
+        "version": 2,
+    }
+    row = Folder.objects.get(pk=created["id"])
+    assert row.title == "Current"
+    assert row.version == 2
 
 
 def test_folder_reads_and_writes_are_owner_scoped_and_hide_trashed_rows():
@@ -110,22 +173,29 @@ def test_folder_reads_and_writes_are_owner_scoped_and_hide_trashed_rows():
     assert (
         client.patch(
             f"{FOLDERS_URL}/{folder.id}",
-            {"title": "Taken"},
+            {"version": 1, "title": "Taken"},
             format="json",
         ).status_code
         == 404
     )
+    assert _trash_folder(client, folder.id, 1).status_code == 404
+    assert _restore_folder(client, folder.id, 1).status_code == 404
     assert client.get(FOLDERS_URL).json() == {"results": []}
     folder.refresh_from_db()
     assert folder.title == "Private"
+    assert folder.version == 1
+    assert folder.is_trashed is False
 
 
-def test_folder_trash_and_restore_are_recoverable():
+def test_folder_trash_and_restore_require_versions_and_increment_them():
     user = _user("folder-trash@example.test")
     client = _authenticated_client(user)
     created = client.post(FOLDERS_URL, {"title": "Recoverable"}, format="json").json()
 
-    deleted = client.delete(f"{FOLDERS_URL}/{created['id']}")
+    missing_precondition = client.delete(f"{FOLDERS_URL}/{created['id']}")
+    assert missing_precondition.status_code == 400
+
+    deleted = _trash_folder(client, created["id"], created["version"])
 
     assert deleted.status_code == 204
     assert deleted.content == b""
@@ -134,18 +204,61 @@ def test_folder_trash_and_restore_are_recoverable():
     row = Folder.objects.get(pk=created["id"])
     assert row.is_trashed is True
     assert row.trashed_at is not None
+    assert row.version == 2
 
-    restored = client.post(
-        f"{FOLDERS_URL}/{created['id']}/restore",
-        {},
-        format="json",
+    assert (
+        client.post(
+            f"{FOLDERS_URL}/{created['id']}/restore",
+            {},
+            format="json",
+        ).status_code
+        == 400
     )
+
+    restored = _restore_folder(client, created["id"], row.version)
 
     assert restored.status_code == 200
     assert restored.json()["id"] == created["id"]
     assert restored.json()["is_trashed"] is False
     assert restored.json()["trashed_at"] is None
+    assert restored.json()["version"] == 3
     assert client.get(f"{FOLDERS_URL}/{created['id']}").status_code == 200
+
+
+def test_folder_trash_rejects_stale_version_without_mutation():
+    user = _user("folder-stale-trash@example.test")
+    client = _authenticated_client(user)
+    created = client.post(FOLDERS_URL, {"title": "Project"}, format="json").json()
+    updated = client.patch(
+        f"{FOLDERS_URL}/{created['id']}",
+        {"version": 1, "title": "Current"},
+        format="json",
+    ).json()
+
+    stale = _trash_folder(client, created["id"], 1)
+
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "version_conflict"
+    assert stale.json()["error"]["details"]["current"]["version"] == 2
+    row = Folder.objects.get(pk=created["id"])
+    assert row.is_trashed is False
+    assert row.version == updated["version"] == 2
+
+
+def test_folder_restore_rejects_stale_version_without_mutation():
+    user = _user("folder-stale-restore@example.test")
+    client = _authenticated_client(user)
+    created = client.post(FOLDERS_URL, {"title": "Project"}, format="json").json()
+    assert _trash_folder(client, created["id"], 1).status_code == 204
+
+    stale = _restore_folder(client, created["id"], 1)
+
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "version_conflict"
+    assert stale.json()["error"]["details"]["current"]["version"] == 2
+    row = Folder.objects.get(pk=created["id"])
+    assert row.is_trashed is True
+    assert row.version == 2
 
 
 def test_folder_trash_and_restore_are_state_and_owner_scoped():
@@ -154,37 +267,23 @@ def test_folder_trash_and_restore_are_state_and_owner_scoped():
     folder = Folder.objects.create(owner=owner, title="Private")
     other_client = _authenticated_client(other)
 
-    assert other_client.delete(f"{FOLDERS_URL}/{folder.id}").status_code == 404
-    assert (
-        other_client.post(
-            f"{FOLDERS_URL}/{folder.id}/restore",
-            {},
-            format="json",
-        ).status_code
-        == 404
-    )
+    assert _trash_folder(other_client, folder.id, 1).status_code == 404
+    assert _restore_folder(other_client, folder.id, 1).status_code == 404
     folder.refresh_from_db()
     assert folder.is_trashed is False
 
     owner_client = _authenticated_client(owner)
-    assert owner_client.delete(f"{FOLDERS_URL}/{folder.id}").status_code == 204
-    assert owner_client.delete(f"{FOLDERS_URL}/{folder.id}").status_code == 404
+    assert _trash_folder(owner_client, folder.id, 1).status_code == 204
+    assert _trash_folder(owner_client, folder.id, 2).status_code == 404
     assert (
         owner_client.post(
             f"{FOLDERS_URL}/{folder.id}/restore",
-            {"unexpected": True},
+            {"version": 2, "unexpected": True},
             format="json",
         ).status_code
         == 400
     )
-    assert (
-        other_client.post(
-            f"{FOLDERS_URL}/{folder.id}/restore",
-            {},
-            format="json",
-        ).status_code
-        == 404
-    )
+    assert _restore_folder(other_client, folder.id, 2).status_code == 404
 
 
 def test_trashed_folder_listing_is_owned_separate_and_newest_first():
@@ -196,12 +295,14 @@ def test_trashed_folder_listing_is_owned_separate_and_newest_first():
         title="Older",
         is_trashed=True,
         trashed_at=timezone.now() - timedelta(days=1),
+        version=2,
     )
     newer = Folder.objects.create(
         owner=owner,
         title="Newer",
         is_trashed=True,
         trashed_at=timezone.now(),
+        version=3,
     )
     Folder.objects.create(
         owner=other,
@@ -218,6 +319,7 @@ def test_trashed_folder_listing_is_owned_separate_and_newest_first():
         str(newer.id),
         str(older.id),
     ]
+    assert [row["version"] for row in response.json()["results"]] == [3, 2]
     assert all(row["is_trashed"] is True for row in response.json()["results"])
     assert all(row["trashed_at"] is not None for row in response.json()["results"])
     assert APIClient().get(TRASHED_FOLDERS_URL).status_code == 401
@@ -237,7 +339,7 @@ def _item(*, owner, column, title, operation_id):
     return row
 
 
-def test_folder_delete_requires_a_descendant_item_resolution_and_can_move_to_inbox():
+def test_folder_delete_preserves_child_resolution_and_versions_affected_lists():
     user = _user("folder-move-items@example.test")
     client = _authenticated_client(user)
     client.put("/api/v1/account/bootstrap", {"timezone": "Europe/Berlin"}, format="json")
@@ -251,8 +353,8 @@ def test_folder_delete_requires_a_descendant_item_resolution_and_can_move_to_inb
         operation_id="00000000-0000-0000-0000-000000000401",
     )
 
-    missing = client.delete(f"{FOLDERS_URL}/{folder.id}")
-    invalid = client.delete(f"{FOLDERS_URL}/{folder.id}?items=delete")
+    missing = _trash_folder(client, folder.id, 1)
+    invalid = _trash_folder(client, folder.id, 1, items="delete")
 
     assert missing.status_code == 409
     assert missing.json()["error"]["code"] == "child_resolution_required"
@@ -261,32 +363,38 @@ def test_folder_delete_requires_a_descendant_item_resolution_and_can_move_to_inb
     child_list.refresh_from_db()
     item.refresh_from_db()
     assert folder.is_trashed is False
+    assert folder.version == 1
     assert child_list.is_trashed is False
+    assert child_list.version == 1
     assert item.column_id == child_column.id
     assert item.version == 1
 
-    moved = client.delete(f"{FOLDERS_URL}/{folder.id}?items=move_to_inbox")
+    moved = _trash_folder(client, folder.id, 1, items="move_to_inbox")
 
     assert moved.status_code == 204
     folder.refresh_from_db()
     child_list.refresh_from_db()
     item.refresh_from_db()
     assert folder.is_trashed is True
+    assert folder.version == 2
     assert child_list.is_trashed is True
+    assert child_list.version == 2
     assert item.is_trashed is False
     assert item.column_id == inbox_column.id
     assert item.version == 2
 
-    restored = client.post(f"{FOLDERS_URL}/{folder.id}/restore", {}, format="json")
+    restored = _restore_folder(client, folder.id, 2)
     assert restored.status_code == 200
+    assert restored.json()["version"] == 3
     child_list.refresh_from_db()
     item.refresh_from_db()
     assert child_list.is_trashed is False
+    assert child_list.version == 3
     assert item.column_id == inbox_column.id
     assert item.version == 2
 
 
-def test_folder_delete_can_trash_and_restore_its_item_subtree():
+def test_folder_delete_can_trash_and_restore_its_item_subtree_with_versions():
     user = _user("folder-trash-items@example.test")
     client = _authenticated_client(user)
     client.put("/api/v1/account/bootstrap", {"timezone": "Europe/Berlin"}, format="json")
@@ -300,24 +408,29 @@ def test_folder_delete_can_trash_and_restore_its_item_subtree():
         operation_id="00000000-0000-0000-0000-000000000402",
     )
 
-    deleted = client.delete(f"{FOLDERS_URL}/{folder.id}?items=trash")
+    deleted = _trash_folder(client, folder.id, 1, items="trash")
 
     assert deleted.status_code == 204
+    folder.refresh_from_db()
     child_list.refresh_from_db()
     item.refresh_from_db()
+    assert folder.version == 2
     assert child_list.is_trashed is True
+    assert child_list.version == 2
     assert item.is_trashed is True
     assert item.trashed_at is not None
     assert item.trash_origin_column_id == child_column.id
     assert item.column_id == inbox_column.id
     assert item.version == 2
 
-    restored = client.post(f"{FOLDERS_URL}/{folder.id}/restore", {}, format="json")
+    restored = _restore_folder(client, folder.id, 2)
 
     assert restored.status_code == 200
+    assert restored.json()["version"] == 3
     child_list.refresh_from_db()
     item.refresh_from_db()
     assert child_list.is_trashed is False
+    assert child_list.version == 3
     assert item.is_trashed is False
     assert item.trashed_at is None
     assert item.trash_origin_column_id is None
@@ -325,7 +438,7 @@ def test_folder_delete_can_trash_and_restore_its_item_subtree():
     assert item.version == 3
 
 
-def test_folder_restore_does_not_revive_children_trashed_by_an_earlier_action():
+def test_folder_restore_does_not_revive_or_reversion_earlier_trashed_children():
     user = _user("folder-restore-scope@example.test")
     client = _authenticated_client(user)
     folder = Folder.objects.create(owner=user, title="Project")
@@ -333,9 +446,10 @@ def test_folder_restore_does_not_revive_children_trashed_by_an_earlier_action():
     earlier = timezone.now() - timedelta(days=1)
     List.objects.filter(pk=child_list.pk).update(is_trashed=True, trashed_at=earlier)
 
-    assert client.delete(f"{FOLDERS_URL}/{folder.id}").status_code == 204
-    assert client.post(f"{FOLDERS_URL}/{folder.id}/restore", {}, format="json").status_code == 200
+    assert _trash_folder(client, folder.id, 1).status_code == 204
+    assert _restore_folder(client, folder.id, 2).status_code == 200
 
     child_list.refresh_from_db()
     assert child_list.is_trashed is True
     assert child_list.trashed_at == earlier
+    assert child_list.version == 1

@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -5,6 +7,7 @@ from rest_framework.views import APIView
 
 from dotick.identity.validators import validate_iana_timezone
 from dotick.organization import application
+from dotick.organization.concurrency import EXPECTED_VERSION_ERROR, validate_expected_version
 
 
 class BootstrapInput(serializers.Serializer):
@@ -57,6 +60,7 @@ class FolderCreateInput(StrictInput):
 
 
 class FolderUpdateInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
     title = serializers.CharField(
         max_length=240,
         trim_whitespace=True,
@@ -65,9 +69,13 @@ class FolderUpdateInput(StrictInput):
     position = serializers.IntegerField(min_value=0, required=False)
 
     def validate(self, attrs):
-        if not attrs:
+        if set(attrs) == {"version"}:
             raise serializers.ValidationError("Provide at least one Folder change.")
         return attrs
+
+
+class FolderRestoreInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
 
 
 class ListCreateInput(StrictInput):
@@ -108,11 +116,19 @@ class ColumnUpdateInput(StrictInput):
         return attrs
 
 
+def _parse_if_match_version(request):
+    value = request.headers.get("If-Match", "").strip()
+    if re.fullmatch(r'(?:[1-9][0-9]*|"[1-9][0-9]*")', value) is None:
+        raise serializers.ValidationError({"if_match": [EXPECTED_VERSION_ERROR]})
+    return validate_expected_version(int(value.strip('"')))
+
+
 def _serialize_folder(row):
     return {
         "id": row.id,
         "title": row.title,
         "position": row.position,
+        "version": row.version,
         "is_trashed": row.is_trashed,
         "trashed_at": row.trashed_at,
     }
@@ -183,6 +199,7 @@ class FolderDetail(APIView):
         application.trash_folder(
             actor_id=request.user.id,
             folder_id=folder_id,
+            version=_parse_if_match_version(request),
             item_resolution=request.query_params.get("items"),
         )
         return Response(status=204)
@@ -192,9 +209,13 @@ class FolderRestore(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, folder_id):
-        if request.data:
-            raise serializers.ValidationError({"input": "Unknown fields are not accepted."})
-        row = application.restore_folder(actor_id=request.user.id, folder_id=folder_id)
+        serializer = FolderRestoreInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.restore_folder(
+            actor_id=request.user.id,
+            folder_id=folder_id,
+            **serializer.validated_data,
+        )
         return Response(_serialize_folder(row))
 
 
