@@ -7,6 +7,7 @@ from rest_framework.exceptions import APIException
 
 from dotick.organization.application import DEFAULT_COLUMN_TITLE
 from dotick.organization.models import Column, Folder, List, OrganizationCreateOperation
+from dotick.organization.operation_locks import lock_create_operation_scope
 
 UNSET = object()
 
@@ -101,6 +102,11 @@ def create_list(
         position=position,
     )
     resource_type = OrganizationCreateOperation.ResourceType.LIST
+    lock_create_operation_scope(
+        actor_id=actor_id,
+        resource_type=resource_type,
+        operation_id=operation_id,
+    )
     existing = _get_create_operation(
         actor_id=actor_id,
         resource_type=resource_type,
@@ -175,6 +181,11 @@ def create_column(*, actor_id, list_id, title, operation_id):
         title=normalized_title,
     )
     resource_type = OrganizationCreateOperation.ResourceType.COLUMN
+    lock_create_operation_scope(
+        actor_id=actor_id,
+        resource_type=resource_type,
+        operation_id=operation_id,
+    )
     existing = _get_create_operation(
         actor_id=actor_id,
         resource_type=resource_type,

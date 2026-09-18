@@ -166,4 +166,21 @@ class OrganizationCreateOperation(models.Model):
     def save(self, *args, **kwargs):
         if not self._state.adding:
             raise ValueError("Organization create-operation records are immutable.")
+        ownership_filters = {
+            self.ResourceType.FOLDER: lambda: Folder.objects.filter(
+                pk=self.resource_id,
+                owner_id=self.owner_id,
+            ),
+            self.ResourceType.LIST: lambda: List.objects.filter(
+                pk=self.resource_id,
+                owner_id=self.owner_id,
+            ),
+            self.ResourceType.COLUMN: lambda: Column.objects.filter(
+                pk=self.resource_id,
+                list__owner_id=self.owner_id,
+            ),
+        }
+        resource = ownership_filters.get(self.resource_type)
+        if resource is None or not resource().exists():
+            raise ValueError("Create-operation resource must belong to its owner and type.")
         return super().save(*args, **kwargs)

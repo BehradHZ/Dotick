@@ -14,6 +14,7 @@ from dotick.organization.concurrency import (
     lock_owned_versioned_resource,
 )
 from dotick.organization.models import Column, Folder, List, OrganizationCreateOperation
+from dotick.organization.operation_locks import lock_create_operation_scope
 
 DEFAULT_COLUMN_TITLE = "Items"
 UNSET = object()
@@ -93,6 +94,11 @@ def create_folder(*, owner, title, position=None):
 def create_folder_idempotent(*, actor_id, title, operation_id):
     normalized_title = _normalized_title(title)
     intent_digest = _folder_creation_intent_digest(title=normalized_title)
+    lock_create_operation_scope(
+        actor_id=actor_id,
+        resource_type=OrganizationCreateOperation.ResourceType.FOLDER,
+        operation_id=operation_id,
+    )
     existing = _get_folder_creation_operation(
         actor_id=actor_id,
         operation_id=operation_id,

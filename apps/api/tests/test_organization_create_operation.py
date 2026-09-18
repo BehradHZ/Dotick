@@ -3,7 +3,7 @@ import uuid
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from dotick.organization.models import OrganizationCreateOperation
+from dotick.organization.models import Column, Folder, List, OrganizationCreateOperation
 
 pytestmark = pytest.mark.django_db
 
@@ -15,20 +15,31 @@ def _user(email):
     )
 
 
+def _resource(*, owner, resource_type):
+    if resource_type == OrganizationCreateOperation.ResourceType.FOLDER:
+        return Folder.objects.create(owner=owner, title="Folder")
+    row = List.objects.create(owner=owner, title="List")
+    if resource_type == OrganizationCreateOperation.ResourceType.LIST:
+        return row
+    return Column.objects.create(list=row, title="Column")
+
+
 def _operation(*, owner, operation_id=None, resource_type=None, digest="a" * 64):
+    resource_type = resource_type or OrganizationCreateOperation.ResourceType.FOLDER
+    resource = _resource(owner=owner, resource_type=resource_type)
     return OrganizationCreateOperation.objects.create(
         owner=owner,
-        resource_type=resource_type or OrganizationCreateOperation.ResourceType.FOLDER,
+        resource_type=resource_type,
         operation_id=operation_id or uuid.uuid4(),
         intent_digest=digest,
-        resource_id=uuid.uuid4(),
+        resource_id=resource.id,
     )
 
 
 def test_create_operation_persists_owner_scope_intent_and_result_identity():
     owner = _user("operation-owner@example.test")
     operation_id = uuid.uuid4()
-    resource_id = uuid.uuid4()
+    resource_id = Folder.objects.create(owner=owner, title="Folder").id
 
     row = OrganizationCreateOperation.objects.create(
         owner=owner,
@@ -43,6 +54,43 @@ def test_create_operation_persists_owner_scope_intent_and_result_identity():
     assert row.operation_id == operation_id
     assert row.intent_digest == "b" * 64
     assert row.resource_id == resource_id
+
+
+@pytest.mark.parametrize(
+    ("resource_type", "resource_factory"),
+    [
+        (
+            OrganizationCreateOperation.ResourceType.FOLDER,
+            lambda owner: Folder.objects.create(owner=owner, title="Foreign Folder"),
+        ),
+        (
+            OrganizationCreateOperation.ResourceType.LIST,
+            lambda owner: List.objects.create(owner=owner, title="Foreign List"),
+        ),
+        (
+            OrganizationCreateOperation.ResourceType.COLUMN,
+            lambda owner: Column.objects.create(
+                list=List.objects.create(owner=owner, title="Foreign List"),
+                title="Foreign Column",
+            ),
+        ),
+    ],
+)
+def test_create_operation_rejects_foreign_resource_ids(resource_type, resource_factory):
+    owner = _user(f"operation-local-{resource_type}@example.test")
+    other = _user(f"operation-foreign-{resource_type}@example.test")
+    foreign_resource = resource_factory(other)
+
+    with pytest.raises(ValueError, match="belong to its owner"):
+        OrganizationCreateOperation.objects.create(
+            owner=owner,
+            resource_type=resource_type,
+            operation_id=uuid.uuid4(),
+            intent_digest="a" * 64,
+            resource_id=foreign_resource.id,
+        )
+
+    assert OrganizationCreateOperation.objects.filter(owner=owner).count() == 0
 
 
 def test_same_owner_resource_and_operation_id_cannot_be_reused_with_different_intent():
