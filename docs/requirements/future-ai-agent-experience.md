@@ -2,6 +2,7 @@
 
 > **Status:** Confirmed Future Product Direction  
 > **Scope:** Future capability; **not** a Personal V1 implementation requirement  
+> **Decision references:** DR-145, DR-146
 > **Purpose:** Preserve the product decisions and architectural boundaries for a future built-in AI Agent and AI-generated experience layer without forcing their runtime implementation into current increments.
 
 ---
