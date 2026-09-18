@@ -44,6 +44,15 @@ def _list_creation_intent_digest(*, title, folder_id, position=UNSET):
     return _intent_digest(payload)
 
 
+def _column_creation_intent_digest(*, list_id, title):
+    return _intent_digest(
+        {
+            "list_id": str(list_id),
+            "title": title,
+        }
+    )
+
+
 def _get_create_operation(*, actor_id, resource_type, operation_id):
     return OrganizationCreateOperation.objects.filter(
         owner_id=actor_id,
@@ -61,6 +70,19 @@ def _resolve_list_retry(*, actor_id, operation, intent_digest):
     except (List.DoesNotExist, Column.DoesNotExist) as error:
         raise Http404 from error
     return row, default_column, False
+
+
+def _resolve_column_retry(*, actor_id, operation, intent_digest):
+    if operation.intent_digest != intent_digest:
+        raise IdempotencyConflict
+    try:
+        row = Column.objects.get(
+            pk=operation.resource_id,
+            list__owner_id=actor_id,
+        )
+    except Column.DoesNotExist as error:
+        raise Http404 from error
+    return row, False
 
 
 @transaction.atomic
@@ -143,3 +165,64 @@ def create_list(
         )
 
     return row, default_column, True
+
+
+@transaction.atomic
+def create_column(*, actor_id, list_id, title, operation_id):
+    normalized_title = _normalized_title(title)
+    intent_digest = _column_creation_intent_digest(
+        list_id=list_id,
+        title=normalized_title,
+    )
+    resource_type = OrganizationCreateOperation.ResourceType.COLUMN
+    existing = _get_create_operation(
+        actor_id=actor_id,
+        resource_type=resource_type,
+        operation_id=operation_id,
+    )
+    if existing is not None:
+        return _resolve_column_retry(
+            actor_id=actor_id,
+            operation=existing,
+            intent_digest=intent_digest,
+        )
+
+    try:
+        with transaction.atomic():
+            try:
+                parent = List.objects.select_for_update().get(
+                    pk=list_id,
+                    owner_id=actor_id,
+                    is_trashed=False,
+                )
+            except List.DoesNotExist as error:
+                raise Http404 from error
+
+            row = Column.objects.create(
+                list=parent,
+                title=normalized_title,
+                position=parent.columns.count(),
+                is_default=False,
+            )
+            OrganizationCreateOperation.objects.create(
+                owner_id=actor_id,
+                resource_type=resource_type,
+                operation_id=operation_id,
+                intent_digest=intent_digest,
+                resource_id=row.id,
+            )
+    except IntegrityError:
+        existing = _get_create_operation(
+            actor_id=actor_id,
+            resource_type=resource_type,
+            operation_id=operation_id,
+        )
+        if existing is None:
+            raise
+        return _resolve_column_retry(
+            actor_id=actor_id,
+            operation=existing,
+            intent_digest=intent_digest,
+        )
+
+    return row, True

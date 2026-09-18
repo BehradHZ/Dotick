@@ -108,6 +108,7 @@ class ListRestoreInput(StrictInput):
 
 class ColumnCreateInput(StrictInput):
     title = serializers.CharField(max_length=240, trim_whitespace=True)
+    operation_id = serializers.UUIDField()
 
 
 class ColumnUpdateInput(StrictInput):
@@ -314,12 +315,12 @@ class Columns(APIView):
     def post(self, request, list_id):
         serializer = ColumnCreateInput(data=request.data)
         serializer.is_valid(raise_exception=True)
-        row = application.create_column(
+        row, created = idempotency.create_column(
             actor_id=request.user.id,
             list_id=list_id,
             **serializer.validated_data,
         )
-        return Response(_serialize_column(row), status=201)
+        return Response(_serialize_column(row), status=201 if created else 200)
 
 
 class ColumnDetail(APIView):

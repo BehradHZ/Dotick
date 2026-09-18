@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -25,6 +27,11 @@ def _authenticated_client(user):
     return client
 
 
+def _create_column(client, list_id, title, **extra):
+    payload = {"title": title, "operation_id": str(uuid.uuid4()), **extra}
+    return client.post(f"{LISTS_URL}/{list_id}/columns", payload, format="json")
+
+
 def _delete_column(client, column_id, version, *, items=None):
     url = f"/api/v1/columns/{column_id}"
     if items is not None:
@@ -38,8 +45,8 @@ def test_column_create_list_get_and_update_follow_the_public_contract():
     row, default_column = create_list(owner=user, title="Project")
     columns_url = f"{LISTS_URL}/{row.id}/columns"
 
-    first = client.post(columns_url, {"title": "  Doing  "}, format="json")
-    duplicate = client.post(columns_url, {"title": "Doing"}, format="json")
+    first = _create_column(client, row.id, "  Doing  ")
+    duplicate = _create_column(client, row.id, "Doing")
 
     assert first.status_code == 201
     assert duplicate.status_code == 201
@@ -113,27 +120,21 @@ def test_column_input_and_parent_list_are_validated():
     assert APIClient().get(f"{LISTS_URL}/{foreign_list.id}/columns").status_code == 401
     assert client.get(f"{LISTS_URL}/{foreign_list.id}/columns").status_code == 404
     assert client.get(f"{LISTS_URL}/{trashed_list.id}/columns").status_code == 404
-    assert (
-        client.post(
-            f"{LISTS_URL}/{foreign_list.id}/columns",
-            {"title": "Rejected"},
-            format="json",
-        ).status_code
-        == 404
-    )
+    assert _create_column(client, foreign_list.id, "Rejected").status_code == 404
 
     row, _ = create_list(owner=owner, title="Owned")
     columns_url = f"{LISTS_URL}/{row.id}/columns"
-    assert client.post(columns_url, {"title": "  "}, format="json").status_code == 400
+    assert _create_column(client, row.id, "  ").status_code == 400
     assert (
-        client.post(
-            columns_url,
-            {"title": "Valid", "list_id": str(row.id)},
-            format="json",
+        _create_column(
+            client,
+            row.id,
+            "Valid",
+            list_id=str(row.id),
         ).status_code
         == 400
     )
-    column_id = client.post(columns_url, {"title": "Valid"}, format="json").json()["id"]
+    column_id = _create_column(client, row.id, "Valid").json()["id"]
     assert client.patch(f"/api/v1/columns/{column_id}", {}, format="json").status_code == 400
     assert (
         client.patch(
