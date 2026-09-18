@@ -114,3 +114,56 @@ class Column(models.Model):
                 name="column_one_default_per_list",
             ),
         ]
+
+
+class OrganizationCreateOperation(models.Model):
+    class ResourceType(models.TextChoices):
+        FOLDER = "folder", "Folder"
+        LIST = "list", "List"
+        COLUMN = "column", "Column"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="organization_create_operations",
+        db_column="owner_user_id",
+        editable=False,
+    )
+    resource_type = models.CharField(
+        max_length=16,
+        choices=ResourceType.choices,
+        editable=False,
+    )
+    operation_id = models.UUIDField(editable=False)
+    intent_digest = models.CharField(max_length=64, editable=False)
+    resource_id = models.UUIDField(editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "organization_create_operations"
+        indexes = [
+            models.Index(
+                fields=["owner", "resource_type", "resource_id"],
+                name="orgop_result_lookup",
+            )
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "resource_type", "operation_id"],
+                name="orgop_owner_type_operation_uq",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(resource_type__in=["folder", "list", "column"]),
+                name="orgop_resource_type_valid",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(intent_digest=""),
+                name="orgop_intent_digest_nonempty",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValueError("Organization create-operation records are immutable.")
+        return super().save(*args, **kwargs)
