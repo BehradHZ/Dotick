@@ -167,13 +167,6 @@ def test_private_i1_operations_inherit_bearer_authentication():
                 assert operation.get("security", global_security) == [{"bearerAuth": []}]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "I6 review blocker: Folder/List/Column contracts do not yet carry the optimistic "
-        "version and idempotent-create foundations required before those APIs are implemented."
-    ),
-)
 def test_organization_resources_are_versioned_and_idempotent_before_implementation():
     contract = _load_openapi()
     schemas = contract["components"]["schemas"]
@@ -193,9 +186,21 @@ def test_organization_resources_are_versioned_and_idempotent_before_implementati
 
     container_update = schemas["ContainerUpdateRequest"]
     assert "version" in container_update["required"]
+    assert container_update["properties"]["version"]["minimum"] == 1
 
     list_update = schemas["ListUpdateRequest"]
     assert "version" in list_update["required"]
+    assert list_update["properties"]["version"]["minimum"] == 1
+
+    create_paths = (
+        "/api/v1/folders",
+        "/api/v1/lists",
+        "/api/v1/lists/{list_id}/columns",
+    )
+    for path in create_paths:
+        responses = paths[path]["post"]["responses"]
+        assert {"200", "201", "409"} <= set(responses)
+        assert responses["409"]["$ref"].endswith("/IdempotencyConflict")
 
     organization_paths = (
         "/api/v1/folders/{folder_id}",
@@ -203,8 +208,12 @@ def test_organization_resources_are_versioned_and_idempotent_before_implementati
         "/api/v1/columns/{column_id}",
     )
     for path in organization_paths:
-        assert "IfMatch" in _parameter_refs(paths[path]["delete"])
-        assert "409" in paths[path]["delete"]["responses"]
+        patch_responses = paths[path]["patch"]["responses"]
+        assert {"400", "404", "409"} <= set(patch_responses)
+
+        delete_operation = paths[path]["delete"]
+        assert "IfMatch" in _parameter_refs(delete_operation)
+        assert {"400", "404", "409"} <= set(delete_operation["responses"])
 
     for restore_path in (
         "/api/v1/folders/{folder_id}/restore",
@@ -212,4 +221,8 @@ def test_organization_resources_are_versioned_and_idempotent_before_implementati
     ):
         operation = paths[restore_path]["post"]
         assert operation["requestBody"]["$ref"].endswith("/Version")
-        assert "409" in operation["responses"]
+        assert {"400", "404", "409"} <= set(operation["responses"])
+
+    conflict_responses = contract["components"]["responses"]
+    assert "version_conflict" in conflict_responses["VersionConflict"]["description"]
+    assert "idempotency_conflict" in conflict_responses["IdempotencyConflict"]["description"]
