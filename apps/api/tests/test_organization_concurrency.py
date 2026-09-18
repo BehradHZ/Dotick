@@ -1,11 +1,9 @@
 import pytest
+from config.errors import api_exception_handler
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
 from django.http import Http404
-from rest_framework.exceptions import ValidationError
-
-from config.errors import api_exception_handler
 from dotick.organization.concurrency import (
     OrganizationVersionConflict,
     increment_locked_version,
@@ -13,6 +11,7 @@ from dotick.organization.concurrency import (
     validate_expected_version,
 )
 from dotick.organization.models import Column, Folder, List
+from rest_framework.exceptions import ValidationError
 
 pytestmark = pytest.mark.django_db(transaction=True)
 

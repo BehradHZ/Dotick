@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-
 from dotick.organization import application
 from dotick.organization.models import Folder, List
 

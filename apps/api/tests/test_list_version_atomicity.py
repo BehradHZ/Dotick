@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-
 from dotick.items.models import Item, ItemSource
 from dotick.organization.application import create_list, restore_list, trash_list
 from dotick.organization.models import Column, List

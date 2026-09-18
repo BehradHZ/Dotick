@@ -3,7 +3,6 @@ import uuid
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-
 from dotick.organization.models import OrganizationCreateOperation
 
 pytestmark = pytest.mark.django_db

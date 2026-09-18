@@ -123,7 +123,6 @@ def test_column_input_and_parent_list_are_validated():
     assert _create_column(client, foreign_list.id, "Rejected").status_code == 404
 
     row, _ = create_list(owner=owner, title="Owned")
-    columns_url = f"{LISTS_URL}/{row.id}/columns"
     assert _create_column(client, row.id, "  ").status_code == 400
     assert (
         _create_column(
