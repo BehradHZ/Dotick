@@ -9,7 +9,7 @@
 >
 > `docs/decision-register.md` — consolidated decision rationale, constraints and design handoffs aligned to System Definition
 >
-> `docs/requirements/srs.md` اکنون **Formal SRS Baseline v2.8** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
+> `docs/requirements/srs.md` اکنون **Formal SRS Baseline v3.1** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
 
 ---
 
@@ -463,7 +463,7 @@ Review:
 
 `docs/requirements/srs.md`
 
-نسخه‌ی reconciled قبلی در Formal SRS Baseline v2.8 بازنویسی شده و فقط requirementهای قابل بیان/تست را normative می‌کند.
+نسخه‌ی reconciled قبلی در Formal SRS Baseline v3.1 بازنویسی شده و فقط requirementهای قابل بیان/تست را normative می‌کند.
 
 در این مرحله:
 
@@ -630,6 +630,8 @@ Before locking foundational design in Increments 1–5, teams must review the In
 - server-authorization/revocation behavior for later reconciliation.
 
 Likewise, time-bearing entities must follow the `docs/design/time-semantics-spec.md` baseline from the start even though recurrence and advanced time behavior are completed later. Implementation can be deferred; foundational incompatibility cannot.
+
+Likewise, presentation/application boundaries in current increments must avoid making one specific UI component tree the only safe way to perform a core mutation. Important state-changing behavior should terminate at actor-aware, authorization-aware application/domain boundaries so a future default UI, validated generated experience, or authorized Agent can invoke the same product capability without duplicating domain rules. This is a compatibility constraint only; it does not require building the Future Agent/Experience runtimes early.
 
 ---
 
@@ -1499,6 +1501,14 @@ Retained vision:
 - Dot-matrix style
 
 Theme architecture should use shared tokens/components, not four separate applications.
+
+### Future Generative-Experience Compatibility Guardrail
+
+Increment 5 still implements the retained conventional themes above; it does **not** implement the Future Generative Experience Runtime.
+
+However, its UI architecture must avoid placing authoritative domain rules only inside theme-specific components. Current themes should reuse shared tokens/primitives/components and invoke stable application/domain actions so a later validated generated surface can compose the same product capabilities without bypassing authorization or business rules.
+
+Do not add the future Experience DSL engine, AI theme generator, Preview sandbox, or extension runtime in Increment 5 merely to anticipate E6/E7.
 
 ---
 
@@ -2849,6 +2859,105 @@ Evaluate Swift-native only if justified.
 
 ---
 
+# 24A. Future Increment E5 — Built-in AI Agent Runtime
+
+## Goal
+
+Add a Dotick-operated Agent that can inspect and act on Dotick through explicit User authority without creating a second business-logic path.
+
+## Scope
+
+- authority presets: `Observe`, `Ask`, `Assist`, `Autonomous`;
+- grant lifetimes where applicable: `Once`, `This session`, `Always` until revoked;
+- capability classification and gateway;
+- sensitive/destructive action classification and confirmation policy;
+- revocation and permission inspection;
+- Agent origin in History/Audit;
+- Agent use of the same authorization/domain/application path as ordinary User actions;
+- origin-neutral Undo/recovery for equivalent planning mutations;
+- Agent failure isolation and privacy/context controls.
+
+## Non-goals
+
+- no direct ORM/database mutation tool for the Agent;
+- no authority inferred merely from an AI prompt;
+- no public unrestricted API implied by the built-in Agent.
+
+## New / Updated Future Artifacts
+
+- `AI_AGENT_SPEC.md` — New
+- Architecture — Update
+- Authorization Model — Update
+- Security Design — Update
+- API/capability contracts — Update
+- UI/UX — Update
+- Test Strategy / Agent evaluation suite — Update/New
+
+---
+
+# 24B. Future Increment E6 — Generative Experience Runtime
+
+## Goal
+
+Allow the User to describe and iteratively edit a validated Dotick experience while preserving the stable product kernel.
+
+## Scope
+
+- transformation distance: `Recolor`, `Restyle`, `Transform`, `Reimagine`;
+- declarative Experience Specification/DSL;
+- registered design primitives/components/actions;
+- versioned Experience artifacts;
+- AI generation/edit/repair outside the ordinary interaction loop;
+- deterministic structural/schema validation;
+- required-capability reachability contracts;
+- functional simulation using representative synthetic Dotick state;
+- accessibility validation against the measurable baseline selected for that release;
+- AI UX review after deterministic checks;
+- fully interactive synthetic-data Preview before Apply;
+- protected recovery/default experience and previous-valid-version restore;
+- controlled link/file/package sharing;
+- generated/User-provided/external asset provenance and trust policy;
+- explicit per-device/form-factor adaptation, validation, Preview and Apply; no cross-device auto-activation.
+
+## Hard Boundary
+
+The Experience Runtime does not execute unrestricted AI-generated JavaScript, React/native code, unrestricted CSS, or another arbitrary executable theme payload. Generated presentation maps permitted interactions to registered Dotick capabilities; it does not redefine domain operations.
+
+## New / Updated Future Artifacts
+
+- `GENERATIVE_EXPERIENCE_SPEC.md` — New
+- Experience DSL/schema + versioning artifact — New
+- UI architecture / renderer ADR — New
+- synthetic preview/test-workspace specification — New
+- Architecture — Update
+- UI/UX — Update
+- Security Design — Update
+- Accessibility/Quality specification — Update/New
+- Test Strategy — Update
+
+---
+
+# 24C. Future Increment E7 — Generated Extensions / Personal Productivity Environment
+
+## Goal
+
+Extend Generative Experience with bounded experience-specific state/rules only after the safe presentation runtime is mature.
+
+## Scope candidate
+
+```text
+Extension State
+Extension Events
+Extension UI
+Extension Rules
+```
+
+This phase may support experience-specific progression or other bounded mini-functionality driven by real Dotick events. It must remain sandboxed and must not become an alternate source of truth for core Task/Event/Routine, authorization, Sync, or History semantics.
+
+Exact extension state/event/rule security model is a mandatory Future Design Gate before implementation.
+
+---
+
 # 24. Canonical Feature Coverage Matrix
 
 This matrix maps the current canonical specification to an implementation location.
@@ -2913,6 +3022,17 @@ This matrix maps the current canonical specification to an implementation locati
 | timezone/UTC shared time semantics | 4/7 |
 | responsive mobile-first UI | 5 |
 | four retained themes | 5 |
+| shared token/component theme foundation compatible with later generated surfaces | 5 guardrail |
+| built-in AI Agent authority profiles | E5 |
+| Agent Once / Session / Always grants, revocation and audit | E5 |
+| Agent uses ordinary domain/authorization/Undo path | architecture guardrail now; E5 runtime |
+| Generative Experience transformation distance | E6 |
+| declarative Experience Specification/DSL | E6 |
+| deterministic capability/structural validation + functional simulation | E6 |
+| interactive synthetic-data Preview before Apply | E6 |
+| explicit cross-device adaptation; no auto-apply | E6 |
+| generated experience sharing/package validation | E6 |
+| bounded generated Extension State/Events/UI/Rules | E7 |
 | offline use | 6 |
 | field-level LWW baseline | 6 |
 | sync metadata design | 6 Gate |
@@ -3035,6 +3155,9 @@ This matrix maps the current canonical specification to an implementation locati
 | RingGroup / DailyAction | 10 | 10 |
 | Statistics caches/features | 10 | future analytics |
 | Sync metadata | 6 | 6 |
+| Agent Authority Grant/Profile | — | E5 |
+| Experience Specification / validated variant | — | E6 |
+| Extension State / Events / Rules | — | E7 |
 | Organization/Tenant | — | E1 |
 
 ---
@@ -3057,6 +3180,10 @@ No unresolved Current-Scope Product/Domain decision remains in the current canon
 | adaptive Norm thresholds/windows | before Increment 10 |
 | RingGroup/DailyAction persistence/rule representation/replan concurrency | before Increment 10 |
 | Future trusted-automation authority-level/UX design | before E3 auto-actions |
+| Future built-in Agent capability matrix, risk classification, grants/revocation and confirmation UX | before E5 |
+| Experience DSL/versioning, registered primitives/actions, reachability contracts, validation suite and Preview isolation | before E6 |
+| Generative Experience accessibility acceptance baseline and asset provenance/trust policy | before E6 production release |
+| Generated Extension state/event/rule sandbox and integrity/security model | before E7 |
 | Enterprise SSO SAML/OIDC choice | before E1 |
 
 ---
@@ -3316,6 +3443,15 @@ Google Calendar + Email/External Integrations + Trusted Automation + AI Personal
         ↓
 Future E4
 Native Mobile / OS-specific Capabilities
+        ↓
+Future E5
+Built-in AI Agent Runtime
+        ↓
+Future E6
+Generative Experience Runtime
+        ↓
+Future E7
+Generated Extensions / Personal Productivity Environment
 ```
 
 ---
@@ -3352,6 +3488,14 @@ This revision intentionally changes earlier planning assumptions:
 
 ---
 
+26. Future built-in Agent authority is standardized around Observe/Ask/Assist/Autonomous with Once/Session/Always grant lifetimes where applicable; the exact capability matrix remains a Future Design Gate.
+27. Future Agent mutations use the same authorization/domain/History/Undo path as equivalent User operations rather than a privileged AI mutation path.
+28. Future Generative Experience uses Recolor/Restyle/Transform/Reimagine transformation distance and a validated declarative Experience Specification rather than unrestricted generated executable client code.
+29. Generated experiences require deterministic validation, functional simulation, release-appropriate accessibility checks, AI UX review and interactive synthetic-data Preview; cross-device activation requires explicit adaptation and Apply.
+30. Generated Extension State/Events/UI/Rules is intentionally deferred beyond the initial safe Generative Experience Runtime.
+
+---
+
 # 32. What Must Not Happen
 
 - Do not treat Domain Model inheritance as automatic DB table inheritance.
@@ -3371,6 +3515,11 @@ This revision intentionally changes earlier planning assumptions:
 - Do not reveal hidden performance bonus early if it changes user behavior against the product rule.
 - Do not run full-history statistics recomputation for every historical edit; do not rewrite finalized statistical windows after later source edits.
 - Do not bring Enterprise Custom Roles/multi-tenancy into Personal V1 prematurely.
+- Do not move ordinary UI interactions into a continuous LLM request loop when a validated local Experience Runtime can execute them deterministically.
+- Do not execute unrestricted AI-generated JavaScript/React/native code/CSS as a generated theme contract.
+- Do not let a generated experience or Agent bypass ordinary authorization, domain validation, History/Audit, Sync, or Undo semantics.
+- Do not auto-activate a device-specific generated experience on another device/form factor without explicit adaptation, validation, Preview, and Apply.
+- Do not implement the E7 extension engine prematurely merely because the Future concept is known.
 
 ---
 

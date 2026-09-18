@@ -2,13 +2,13 @@
 
 **Document type:** Requirements Traceability Matrix
 
-**Version:** 2.1
+**Version:** 2.2
 
-**Baseline date:** 2026-08-26
+**Baseline date:** 2026-09-18
 
-**Implementation reconciliation:** 2026-09-06 — current SRS includes `SRS-SHARE-034`; total/family coverage is updated to 419 without changing requirement behavior.
+**Implementation reconciliation:** 2026-09-18 — SRS v3.1 adds confirmed Future Agent/Generative Experience direction only; Personal V1 normative requirement IDs remain unchanged.
 
-**Status:** Reconciled Traceability Baseline for Formal SRS v2.9
+**Status:** Reconciled Traceability Baseline for Formal SRS v3.1
 
 **Scope:** Personal V1
 
@@ -16,7 +16,7 @@
 
 # 1. Purpose and authority
 
-این baseline از `docs/requirements/srs.md` نسخه 2.9 و `docs/decision-register.md` فعلی regenerate و با Roadmap جاری reconcile شده است.
+این baseline از `docs/requirements/srs.md` نسخه 3.1 و `docs/decision-register.md` فعلی regenerate و با Roadmap جاری reconcile شده است.
 
 در تعارض درباره behavior یا Scope، ترتیب authority فعلی پروژه چنین است:
 
@@ -48,7 +48,7 @@ Traceability Matrix
 |---|---|---|
 | `SD` | `docs/requirements/system-definition.md` | primary current behavior and Scope authority |
 | `DR` | `docs/decision-register.md` | decision rationale، constraints و design handoff |
-| `SRS` | `docs/requirements/srs.md` | formal atomic requirements؛ baseline این ماتریس: v2.9 |
+| `SRS` | `docs/requirements/srs.md` | formal atomic requirements؛ baseline این ماتریس: v3.1 |
 | `DM` | `docs/design/domain-model.md` | conceptual entities، relations و constraints؛ پایین‌تر از SRS در behavioral authority |
 | `RM` | `docs/planning/increment-roadmap.md` | implementation order و owning Increment only |
 | `TM` | `docs/requirements/traceability-matrix.md` | derived trace record؛ lowest authority in this chain |
@@ -74,18 +74,20 @@ Traceability Matrix
 
 | Check | Reconciled result |
 |---|---|
-| Formal SRS baseline | v2.9، dated 2026-08-26 |
+| Formal SRS baseline | v3.1، dated 2026-09-18 |
 | Normative SRS requirements | **419** |
 | Functional requirements (§3) | **370** |
 | Interface/constraint requirements (§4) | **15** |
 | Nonfunctional requirements (§5) | **34** |
 | Requirement IDs without a family trace below | **0** |
-| Current Decision Register records | **116** |
+| Current Decision Register records | **118** |
 | Decision records with exact `Status: OPEN` | **0** |
 | DRs directly named by normative SRS source preambles | **92** |
 | Intentionally unspecified Current-Scope details | **26** non-normative design/tuning handoffs |
 
-Verification روش هر requirement در همان atomic row از SRS v2.9 نگه‌داری می‌شود و در این سند دوباره copy نشده است؛ این کار از drift میان دو جدول جلوگیری می‌کند. Count و rangeهای زیر تمام 419 ID را پوشش می‌دهند.
+> **Future-direction trace:** DR-145 and DR-146 are intentionally represented in System Definition §12.4, SRS §8.1.1, Roadmap E5/E6/E7, `docs/design/architecture.md`, and `docs/requirements/future-ai-agent-experience.md`. Because these capabilities are outside Personal V1, they intentionally add **no new Personal V1 normative SRS requirement IDs** in this matrix.
+
+Verification روش هر requirement در همان atomic row از SRS v3.1 نگه‌داری می‌شود و در این سند دوباره copy نشده است؛ این کار از drift میان دو جدول جلوگیری می‌کند. Count و rangeهای زیر تمام 419 ID را پوشش می‌دهند.
 
 # 5. Requirement-family traceability
 
@@ -140,11 +142,11 @@ Normative SRS source preambleها، با expand کردن rangeهایی مانن�
 
 `DR-020`, `DR-022`, `DR-050`, `DR-051`, `DR-052`, `DR-053`, `DR-058`, `DR-059`, `DR-064`, `DR-067`, `DR-069`, `DR-071`, `DR-074`, `DR-075`, `DR-076`, `DR-077`, `DR-078`, `DR-088`, `DR-091`, `DR-092`, `DR-141`, `DR-142`, `DR-143`, `DR-144`.
 
-نبود direct citation در SRS به‌تنهایی traceability gap نیست. این گروه عمدتاً authority/document governance، product/design direction، scope/future boundary یا rationale کلی را ثبت می‌کند. اگر یکی از این DRها behavior الزام‌آور Current Scope ایجاد کند که در SRS v2.9 requirement متناظر ندارد، آن مورد باید ابتدا به‌عنوان SRS coverage defect ثبت و سپس با ID پایدار formalize شود؛ این ماتریس حق ایجاد requirement جایگزین را ندارد.
+نبود direct citation در SRS به‌تنهایی traceability gap نیست. این گروه عمدتاً authority/document governance، product/design direction، scope/future boundary یا rationale کلی را ثبت می‌کند. اگر یکی از این DRها behavior الزام‌آور Current Scope ایجاد کند که در SRS v3.1 requirement متناظر ندارد، آن مورد باید ابتدا به‌عنوان SRS coverage defect ثبت و سپس با ID پایدار formalize شود؛ این ماتریس حق ایجاد requirement جایگزین را ندارد.
 
 ## 6.2 Replaced stale OPEN inventory
 
-فهرست `OPEN-001..025` baseline قبلی حذف شده است، چون وضعیت فعلی را نادرست نشان می‌داد. موضوعات Product/Domain آن فهرست در Decision Register جاری بسته یا consolidate شده‌اند. موارد باقی‌مانده design، representation یا tuning هستند و با `UNSPEC-*`های SRS v2.9 trace می‌شوند.
+فهرست `OPEN-001..025` baseline قبلی حذف شده است، چون وضعیت فعلی را نادرست نشان می‌داد. موضوعات Product/Domain آن فهرست در Decision Register جاری بسته یا consolidate شده‌اند. موارد باقی‌مانده design، representation یا tuning هستند و با `UNSPEC-*`های SRS v3.1 trace می‌شوند.
 
 # 7. Intentionally unspecified Current-Scope handoffs
 
@@ -239,4 +241,4 @@ System Definition section / Decision Register rationale
 
 # 10. Baseline status
 
-این نسخه traceability را تا سطح `Canonical Source -> Formal Requirement Family/ID Range -> Planned Increment -> Verification Method in SRS` برای SRS v2.9 کامل می‌کند. Trace به Analysis، Design، Test Case، Code و Release با ایجاد artifactهای واقعی در Increment مالک تکمیل می‌شود.
+این نسخه traceability را تا سطح `Canonical Source -> Formal Requirement Family/ID Range -> Planned Increment -> Verification Method in SRS` برای SRS v3.1 کامل می‌کند. Trace به Analysis، Design، Test Case، Code و Release با ایجاد artifactهای واقعی در Increment مالک تکمیل می‌شود.

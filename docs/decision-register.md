@@ -3316,6 +3316,75 @@ If a genuine Current-Scope Product/Domain question appears, the alternatives/rat
 
 ---
 
+---
+
+## DR-145 — Generative Experience is a Future presentation/runtime layer over a stable Dotick core
+
+**Status:** CONFIRMED AS FUTURE CAPABILITY
+
+### Context and previous model
+
+Current Dotick theming is intentionally conventional: Increment 5 retains several predefined visual directions implemented from shared tokens/components. A broader Future vision now allows the User to describe an experience that may range from a simple recolor to a substantially reimagined interface with different layout, motion, navigation presentation, and interaction metaphors.
+
+Allowing a model to generate and execute arbitrary client code would make authorization, capability reachability, accessibility, recovery, deterministic behavior, and data integrity difficult to guarantee. Conversely, hard-coding every future visual concept would defeat the purpose of a generative experience system. Continuous LLM inference on every ordinary interaction would also add unnecessary cost, latency, nondeterminism, and online dependency.
+
+### Decision
+
+- Generative Experience is a **Planned Future Capability** and is not a Personal V1 implementation requirement.
+- The User controls transformation distance through four conceptual levels: `Recolor`, `Restyle`, `Transform`, and `Reimagine`. Natural-language constraints may further restrict what changes.
+- A generated experience may change visual tokens, component presentation/composition, motion, sound, layout, navigation presentation, responsive behavior, and restricted interaction metaphors, provided required Dotick capabilities remain reachable.
+- Generated presentation must never redefine the meaning of Task/Event/Routine operations, authorization, recurrence, Sync, History/Undo, deletion, persistence, or other core domain rules.
+- The AI output for this capability is a constrained **declarative Experience Specification/DSL** interpreted by Dotick. Unrestricted AI-generated JavaScript, React/native code, unrestricted CSS, or other arbitrary executable client code is not the theme/runtime contract.
+- Ordinary UI interaction does not require a model round-trip. Experience versions are generated/edited/repaired/adapted, validated, persisted/versioned, and then interpreted by the runtime deterministically.
+- Before Apply on a device, a generated/adapted version passes a validation pipeline that includes deterministic schema/primitive/action checks, required-capability reachability checks, functional simulation against representative synthetic Dotick state, applicable accessibility checks for the release, AI UX review for non-rule-based quality concerns, and an interactive synthetic-data Preview.
+- Preview is interactive, not merely a screenshot. The User can traverse representative product surfaces and exercise important workflows without changing real Account data.
+- A generated experience created on one device does not automatically replace the active experience on another device. The target device offers explicit adaptation; adaptation reuses the existing specification where practical and again requires validation, Preview, and User Apply.
+- A protected recovery path to a known-good/default experience and previous valid version must remain reachable independently of the generated experience.
+- Experience packages may be shareable through a controlled link/file/package mechanism. A received experience is not trusted merely because it was shared and must pass local validation before Apply.
+- Generated, User-provided, or externally sourced assets may be supported under Future asset-provenance, licensing/IP, integrity, safety, caching, and trust policy.
+- A later capability may add bounded `Extension State`, `Extension Events`, `Extension UI`, and `Extension Rules`, but this is separate from the initial Generative Experience Runtime. Current implementation must not create a general arbitrary-code extension engine in anticipation of it.
+
+### Implications
+
+- Increment 5's predefined themes remain Current-Scope presentation work; they are not replaced by a Generative Experience engine.
+- Current UI architecture should favor shared tokens/primitives/components and presentation-independent application actions so later generated presentation does not require extracting business logic from theme-specific components.
+- The full Experience DSL, renderer, validators, synthetic test workspace, Preview isolation, device adaptation, sharing format, asset policy, and extension sandbox remain Future Design Gates.
+- The current accessibility decision remains unchanged: exact conformance is Future. The future Generative Experience release must select and enforce its measurable accessibility baseline before shipping.
+
+---
+
+## DR-146 — Built-in AI Agent uses User-selected authority profiles and the ordinary Dotick capability boundary
+
+**Status:** CONFIRMED AS FUTURE CAPABILITY
+
+### Context and previous model
+
+Dotick already anticipates future external agents and Trusted Automation, but an internal Dotick Agent is a distinct product capability. The desired UX is similar to modern coding agents: the User chooses how much authority the Agent receives instead of approving every operation unconditionally or granting unrestricted access.
+
+A separate privileged Agent mutation path would duplicate business rules and risk divergence from ordinary UI behavior. A large low-level permission matrix exposed directly to ordinary Users would also make authority difficult to understand.
+
+### Decision
+
+- A built-in Dotick AI Agent is a **Planned Future Capability** distinct from external-agent integrations.
+- The ordinary User-facing authority model uses four conceptual presets: `Observe`, `Ask`, `Assist`, and `Autonomous`.
+- `Observe` is read-only within permitted context.
+- `Ask` may prepare/propose state changes but requires User confirmation before writes.
+- `Assist` may execute low-risk operations in granted scope while sensitive/destructive/protected actions follow confirmation policy.
+- `Autonomous` may act without per-action confirmation within the explicitly granted capability scope; non-overridable authorization, integrity, and safety constraints remain active.
+- Where applicable, authority may be granted for `Once`, `This session`, or persistently until revoked (`Always`). Persistent grants are revocable.
+- The exact low-level capability matrix and classification of low-risk/sensitive/destructive operations belong to Future Agent Design rather than being hard-coded by this decision.
+- Agent operations must use the same authoritative application/domain capability path as equivalent User operations. Agent execution must not directly mutate persistence, bypass authorization, skip domain validation, or create alternate Task/Event/Routine semantics.
+- History/Audit may record Agent origin, but caller origin does not change the business meaning of an operation.
+- Core Undo is origin-neutral. If a planning/productivity mutation is undoable when performed by the User, the equivalent Agent-initiated operation remains subject to the same Undo/recovery semantics.
+- User-selected confirmation policy may relax confirmations only where Future Agent policy permits. It does not disable non-overridable safeguards required by authorization, atomicity, data integrity, or other product invariants.
+
+### Implications
+
+- Current application/domain services should remain actor-aware and presentation-independent; UI code must not become the only place where important mutation rules exist.
+- Current increments do not need Agent tables, Agent permission persistence, an Agent tool protocol, or a general Capability Gateway merely to anticipate this Future capability.
+- Before Agent implementation, Future Design must define the capability map, sensitive/destructive classification, grant persistence/revocation, Once/Session/Always lifecycle, confirmation UX, origin/audit representation, failure behavior, and privacy/external-AI context rules.
+- External agents remain governed by their separate integration boundary; confirming a built-in Agent does not create a public general-purpose API.
+
 # Decision coverage and remaining design handoff
 
 ## Current Product/Domain decision state

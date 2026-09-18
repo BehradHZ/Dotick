@@ -2,7 +2,7 @@
 
 **Document type:** Formal Software Requirements Specification
 
-**Version:** 3.0
+**Version:** 3.1
 
 **Baseline date:** 2026-09-18
 
@@ -28,6 +28,7 @@
 | 2.8 | 2026-08-26 | SRS Coverage & Reference Integrity Baseline | formalization رفتارهای قطعی Task/Hierarchy که در SRS جا افتاده بودند، تثبیت Global Streak requirement، حذف/اصلاح referenceهای stale یا نامرتبط و همگام‌سازی traceability با System Definition و Decision Register جاری. |
 | 2.9 | 2026-08-26 | Traceability Reconciliation Baseline | افزودن requirement صریح برای confirmation دامنه‌ی inherited sharing، اصلاح Daily Ring completion semantics و Routine reference coverage، و همگام‌سازی source references با Decision Register/engineering baseline جاری. |
 | 3.0 | 2026-09-18 | AGPL-3.0 & Brand Boundary Baseline | تثبیت AGPL-3.0 برای تمام کد Dotick، مجازبودن استفاده تجاری و self-hosting، تفکیک entitlement پشتیبانی از حق نرم‌افزاری، و خارج‌بودن نام/لوگو/هویت Dotick از مجوز کد. |
+| 3.1 | 2026-09-18 | AI Agent & Generative Experience Future Direction | ثبت Built-in Agent، User-selected authority profiles، Generative Experience/DSL، validation + interactive Preview، cross-device adaptation و late generated extensions به‌عنوان Future Direction بدون افزودن requirement جاری به Personal V1. |
 
 # 1. مقدمه
 
@@ -897,6 +898,20 @@ Folder
 - personalization پیشرفته AI بر اساس correction history و signalهای رفتاری ثبت‌شده.
 - accessibility support برای release mature/public، با specification آینده برای keyboard interaction، screen-reader semantics، scalable text، contrast و measurable conformance target.
 - native Android/iOS، desktop-native clientها، OS/application widgetها و platform-specific capabilityهای عمیق‌تر؛ Current Scope روی installable PWA است. تکمیل full persistent/alarm-like integration با APIهای اختصاصی هر OS می‌تواند در همین native evolution انجام شود.
+
+### 8.1.1 Built-in AI Agent and Generative Experience
+
+علاوه بر external-agent integration، یک **Built-in Dotick AI Agent** نیز Planned Future Direction است. Agent آینده از authority profileهای محدود و قابل‌فهم `Observe / Ask / Assist / Autonomous` استفاده می‌کند و grant در صورت کاربرد می‌تواند `Once / This session / Always-until-revoked` باشد. Agent برای mutation مسیر privileged جداگانه ندارد و عملیاتش باید همان authorization، validation، domain rule، History/Audit و Undo semantics عملیات معادل User را طی کند. جزئیات capability matrix و sensitive/destructive classification متعلق به Future Agent Design است.
+
+**Generative Experience** نیز Planned Future Direction است. User می‌تواند فاصله از UI پایه را در سطح‌های مفهومی `Recolor / Restyle / Transform / Reimagine` کنترل کند. خروجی AI یک Experience Specification/DSL محدود و declarative است که Dotick آن را تفسیر می‌کند؛ اجرای unrestricted AI-generated JavaScript/React/native code/CSS به‌عنوان theme contract این جهت محصول نیست.
+
+Generated Experience می‌تواند presentation، layout، motion، component composition، navigation presentation و interaction metaphorهای مجاز را تغییر دهد، اما capabilityهای لازم باید reachable بمانند و معنای domain actionها تغییر نکند. generation در normal interaction loop انجام نمی‌شود؛ نسخه‌ی تولید/ویرایش/repair/adaptشده پس از validation به‌صورت versioned اجرا می‌شود.
+
+پیش از Apply روی هر device، Future implementation باید structural/capability validation، functional simulation روی synthetic state، accessibility checks مطابق baseline همان Future release، AI UX review و interactive synthetic-data Preview را طی کند. experience ساخته‌شده روی یک device روی device دیگر auto-apply نمی‌شود؛ User صراحتاً adaptation برای form factor جدید را انتخاب می‌کند و variant جدید نیز validation + Preview + Apply مستقل دارد.
+
+یک فاز دیرتر ممکن است bounded `Extension State / Events / UI / Rules` را اضافه کند. این capability جدا از initial Generative Experience Runtime است و هیچ current requirement برای ساخت extension engine ایجاد نمی‌کند.
+
+جزئیات canonical/rationale این Future direction در DR-145 و DR-146 و design vision در `docs/requirements/future-ai-agent-experience.md` ثبت شده است. این subsection requirement ID جدیدی برای Personal V1 ایجاد نمی‌کند.
 
 ## 8.2 Explicitly Out of Scope and Not Currently Planned as Future Commitments
 

@@ -447,6 +447,16 @@ Native or platform-specific capabilities are permitted as long as they do not ch
 
 ---
 
+### 5.4.8 Stable Core and Future AI Experience/Agent Surfaces
+
+Dotick's product meaning must remain independent from the specific interface surface through which an action is reached. A default UI, a future AI-generated experience, or a future built-in AI Agent may present or initiate the same supported capability differently, but none of those surfaces may redefine the domain meaning of that capability or bypass Dotick's authorization, validation, History/Undo, Sync, or data-integrity rules.
+
+Future AI-generated presentation is therefore an experience layer over the Dotick core rather than an alternate source of truth. Likewise, future Agent authority is an explicitly User-granted way to invoke Dotick capabilities, not a privileged database or business-logic bypass.
+
+Current implementation is not required to build the future Agent Runtime or Generative Experience Runtime early. It must only avoid unnecessary coupling of core business behavior to one specific layout, theme, component tree, or human-only calling path when the same behavior can remain behind an authoritative application/domain boundary.
+
+---
+
 # 6. Functional Capabilities
 
 > This section must be organized by capability/domain, not by database table or class implementation.
@@ -2054,6 +2064,34 @@ The following are recognized Future directions for Dotick, but Current-Scope acc
 - OS/application widgets;
 - deeper platform-specific capabilities beyond Current-Scope Notification delivery, including complete persistent/alarm-like behavior using native APIs for each OS, full-screen alarms/background scheduling, and platform-specific interactions.
 
+### Built-in AI Agent
+
+A built-in Dotick AI Agent is a Planned Future Capability distinct from external-agent integrations. The User will choose the Agent's authority through a small set of understandable profiles rather than being forced to configure a large low-level permission matrix for ordinary use.
+
+The confirmed conceptual authority profiles are `Observe`, `Ask`, `Assist`, and `Autonomous`. Their exact capability mapping belongs to Future Agent Design. Where applicable, authority may be granted for `Once`, `This session`, or persistently until revoked (`Always`).
+
+Regardless of profile, Agent operations must pass through the same authoritative Dotick domain/application rules as equivalent User operations. The Agent must not receive a direct privileged path around authorization, validation, atomicity, Sync, History, Audit, or data-integrity safeguards. If an operation is undoable when initiated manually, the equivalent Agent-initiated operation remains subject to the same Core Undo semantics. Caller origin may be recorded for traceability without changing the operation's domain meaning.
+
+### Generative Experience Layer
+
+Dotick has a Planned Future direction in which the User may describe a desired product experience and choose how far it may depart from the current interface. The conceptual transformation levels are `Recolor`, `Restyle`, `Transform`, and `Reimagine`, ranging from token/color changes through component/motion changes to substantial layout, navigation-presentation, and interaction changes.
+
+Generated experiences may alter appearance, motion, sound, component composition, layout, navigation presentation, and restricted interaction metaphors, but required product capabilities must remain reachable and core domain semantics must remain unchanged.
+
+The generated experience must be represented by a constrained declarative Experience Specification interpreted by Dotick. It must not require the client to execute unrestricted AI-generated JavaScript, React/native code, unrestricted CSS, or another arbitrary executable program as a theme. The exact Experience DSL/schema and renderer are Future Design concerns.
+
+Experience generation is not part of the ordinary interaction loop. A generated/edited/adapted experience is validated and versioned, then ordinary interactions execute through the local/runtime interpretation of that validated experience. AI is invoked again when generation, editing, repair, or device/form-factor adaptation is requested.
+
+Before a generated or adapted experience can be applied on a device, the intended future validation flow includes deterministic structural/capability validation, repair when safe, functional simulation against representative synthetic Dotick state, the applicable accessibility checks for the release that ships the feature, AI UX review for concerns that are not reliably rule-based, and a fully interactive synthetic-data Preview in which the User can exercise important workflows before Apply.
+
+A generated experience finalized on one device is not silently activated on another device. Another device may offer to adapt that experience for its own form factor/capabilities; adaptation reuses the existing experience where practical and must again pass validation and interactive Preview before the User applies it.
+
+Generated experiences must also have a protected recovery path to a known-good/default experience that the generated experience itself cannot remove or redefine. Experience versions may be shared through a controlled link/file/package mechanism in the future, but a received experience still requires local validation before Apply. Asset provenance, licensing/IP, integrity, safety, and trust rules for generated, User-provided, or external assets belong to Future Design.
+
+### Late Future Generated Extensions
+
+A later Future phase may allow bounded extension-specific state or rules associated with an experience, such as a progression metaphor driven by real Dotick activity. This is intentionally separate from the initial Generative Experience Runtime. Future Design may introduce bounded concepts such as `Extension State`, `Extension Events`, `Extension UI`, and `Extension Rules`, but current implementation must not create a general arbitrary-code extension engine merely to anticipate that phase. Extension behavior must remain sandboxed and must never become an alternate source of truth for core Dotick domain or authorization semantics.
+
 Dotick's software-licensing model is finalized: all Dotick software code is licensed under AGPL-3.0, including for commercial and organizational use. Dotick may monetize optional services such as official managed hosting, professional deployment, configuration, migration, customization, maintenance, support, training, or SLA-backed operations. Exact pricing, packaging, subscriptions, billing/payment flows, and service levels remain separate Business/Product decisions. Dotick's name, logos, and brand identity remain outside the software license and are governed separately by the trademark/brand policy.
 
 Full UI localization, additional TOTP/SMS 2FA, a bundled free support/SLA product for arbitrary self-hosted production instances, a public social network, direct User typed-text AI input, and a public developer API are not currently Planned Future Capabilities. Self-hosting permission itself is governed by AGPL-3.0 and must not be confused with a promise of free deployment or operational support.
@@ -2134,6 +2172,10 @@ This Glossary records the canonical meanings of terms that have domain-specific 
 | `Service-managed AI` | AI execution mode in which Dotick manages the provider, model/route, and required credentials according to service policy; the User does not directly select the provider/model. |
 | `Personal AI Credential` / `BYOK` | The User's personal credential or API key for a supported provider. When this mode is selected, Dotick first uses the User's credential, and its failure may fall back to Service-managed AI according to the defined policy. |
 | `External AI Processing Control` | A global User setting that disables capabilities dependent on external AI processing without disabling core productivity behaviors that do not depend on AI. |
+| `Built-in AI Agent` | Future Dotick-operated agent that may inspect or invoke registered Dotick capabilities only within explicit User-granted authority; it does not receive a business-logic or persistence bypass. |
+| `Agent Authority Profile` | Future User-facing authority preset for the built-in Agent: conceptually Observe, Ask, Assist, or Autonomous, with exact capability mapping defined by Future Agent Design. |
+| `Generative Experience` | Future validated, versioned presentation/interaction layer generated or adapted from User intent while preserving required capabilities and core Dotick semantics. |
+| `Experience Specification` | Future constrained declarative description interpreted by Dotick to render a generated experience and map permitted interactions to registered product capabilities; it is not unrestricted executable client code. |
 
 ## 14.2 Domain Terms
 
