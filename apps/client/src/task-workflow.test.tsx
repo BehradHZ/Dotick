@@ -164,6 +164,7 @@ test('edits Task title and status using the latest returned Task version', async
 
 test("supports Todo, Done, and Won't do status controls", async () => {
   let current = workTask;
+  const statusBodies: Array<{ version: number; status: 'todo' | 'done' | 'wont_do' }> = [];
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith('/api/v1/auth/token')) return json(tokens);
@@ -176,6 +177,7 @@ test("supports Todo, Done, and Won't do status controls", async () => {
         version: number;
         status: 'todo' | 'done' | 'wont_do';
       };
+      statusBodies.push(body);
       current = { ...current, status: body.status, version: body.version + 1 };
       return json(current);
     }
@@ -187,8 +189,15 @@ test("supports Todo, Done, and Won't do status controls", async () => {
   await screen.findByRole('heading', { name: 'Inbox' });
   openWork();
   await screen.findByText('First task');
+  fireEvent.click(screen.getByRole('button', { name: 'Mark First task Done' }));
+  expect(await screen.findByText('Done')).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: "Mark First task Won't do" }));
   expect(await screen.findByText("Won't do")).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Mark First task Todo' }));
   expect(await screen.findByText('Todo')).toBeVisible();
+  expect(statusBodies).toEqual([
+    { version: 3, status: 'done' },
+    { version: 4, status: 'wont_do' },
+    { version: 5, status: 'todo' },
+  ]);
 });

@@ -214,6 +214,7 @@ test('refreshes server Task state on stale conflict instead of overwriting it', 
   fireEvent.click(screen.getByRole('button', { name: 'Save task' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('changed elsewhere');
   expect(screen.getByLabelText('Task title')).toHaveValue('My stale edit');
+  expect(screen.queryByText('Server title')).not.toBeInTheDocument();
   expect(taskLoads).toBe(2);
 });
 
