@@ -2,9 +2,9 @@
 
 تمام تغییرات مهم و قابل‌مشاهدهٔ پروژه باید در این فایل ثبت شوند.
 
-## Unreleased — Increment 1 (reconciled 2026-09-16)
+## Unreleased — Increment 1 (reconciled 2026-09-19)
 
-- Added verified email registration, resend throttling and password reset using single-use ten-minute codes.
+- Added verified email registration, enumeration-safe resend handling and password reset using single-use ten-minute codes.
 - Added five-minute access tokens, rotating 30-day refresh tokens, active-session listing and specific/current/all-session revocation.
 - Added unique mutable handles, display names, profile-picture references, IANA timezone preferences and dedicated production JWT signing-key configuration.
 - Added Google-only sign-in and explicit account linking, optional WebAuthn Passkeys, independent password fallback, recent-auth/user-verification protections and separately verified secondary contacts. Pending contacts remain inactive and undiscoverable; phone contacts use E.164 validation.
@@ -14,10 +14,11 @@
 - Expanded the validated OpenAPI 3.1 contract to the exact published Increment 1 route set. Contract tests validate the document, lock the reviewed canonical hash and fail when Django routes and documented paths diverge.
 - Hardened the API with stable error codes/envelopes, unknown-field rejection, JSON-only versioned request boundaries, a 16 KiB body limit, malformed request rejection and explicit CORS support for `If-Match` without wildcard origins or cross-origin credentials.
 - Hardened production-like settings with explicit host/CSRF/CORS allowlists, HTTPS-only non-local origins, secure redirect/cookie/HSTS/proxy settings and safe request-correlation logging.
-- Declared identity-sensitive operations with OpenAPI `x-edge-rate-limit-policy: identity-ceremony`; actual threshold/enforcement remains a deployment-edge responsibility and release configuration concern.
+- Added configurable external email and SMS delivery boundaries, shared Google client-ID configuration and validated WebAuthn relying-party settings. Real target-environment delivery/provider/authenticator smoke remains pending.
+- Defined machine-readable `identity-ceremony` edge policy inputs: 10 requests per 60 seconds and 100 requests per 3,600 seconds per verified client IP. Actual shared proxy/CDN enforcement remains a release gate; no process-local limiter is claimed.
 - Enforced append-only Django migration history in CI: existing numbered migrations may not be modified, deleted or renamed; schema changes require new migrations. Fresh-database and schema-drift checks remain active.
-- Hosted CI run `35057831342` completed successfully against audited implementation HEAD `7302ca3b18a79af35058828102bb62e845a56645`, covering locked installs, static checks, traceability, migrations, backend/Golden Time tests, production checks, frontend tests, web export, desktop/mobile E2E, dependency audits, secret scan, non-root container builds and persistence smoke.
-- Configured real email delivery, Google credentials, real WebAuthn browser/authenticator smoke, phone delivery-adapter smoke and formal Increment 1 release/publication remain open. Hosted CI and local product-client integration are no longer open engineering gates.
+- Historical hosted CI run `35057831342` remains evidence for audited implementation SHA `7302ca3b18a79af35058828102bb62e845a56645`, not for current `increment`. The workflow push filter still excludes `increment`; final-SHA hosted verification remains open.
+- Configured real email delivery, Google browser/provider smoke, real WebAuthn browser/authenticator smoke, phone delivery-adapter smoke, deployed edge-rate-limit verification, supported-device smoke and formal Increment 1 release/publication remain open.
 
 See [the complete post-reset implementation audit](development-commit-audit.md) for the 148-commit reconciliation boundary and documentation-impact rules.
 

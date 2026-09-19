@@ -32,13 +32,13 @@
 
 - [Increment 0 verification](tracking/increment-0-foundation-review.md) — formally closed foundation checkpoint.
 - [Increment 1 readiness](tracking/increment-1-readiness.md) — current implemented boundary, acceptance evidence and remaining formal release gates.
-- [Increment 1 backend review](tracking/increment-1-backend-review.md) — historical backend checkpoint plus 2026-09-16 reconciliation.
-- [Increment 1 client review](tracking/increment-1-client-review.md) — minimal product-client checkpoint plus hosted-evidence reconciliation.
-- [Development commit audit](tracking/development-commit-audit.md) — complete post-reset audit boundary covering the 148 implementation commits from the documentation-only baseline through audited HEAD `7302ca3`.
+- [Increment 1 backend review](tracking/increment-1-backend-review.md) — current implemented backend boundary and remaining external evidence.
+- [Increment 1 client review](tracking/increment-1-client-review.md) — current web/Android product-client boundary and deliberate UI limits.
+- [Development commit audit](tracking/development-commit-audit.md) — historical post-reset implementation audit.
 - [API contract](design/openapi.json) and [API contract rules](design/api-contracts.md) — executable published I1 backend contract.
 - [Security design](design/security-design.md) — current I1 API/origin/identity/migration hardening.
-- [Test strategy](quality/test-strategy.md) — current hosted verification and migration-history policy.
+- [Test strategy](quality/test-strategy.md) — verification gates, historical hosted evidence and migration-history policy.
 
-The 2026-09-16 commit-history reconciliation found no implementation change that requires redefining canonical product behavior. System Definition, Decision Register and SRS remain above implementation evidence in authority; implementation/tracking documents were updated instead of turning code accidents into requirements.
+System Definition, Decision Register and SRS remain above implementation evidence in authority; implementation/tracking documents must describe the checked-in behavior without turning code accidents into requirements.
 
-Current hosted CI is green for the audited I1 implementation. Formal I1 closure still requires configured target-environment email, Google, real WebAuthn authenticator and phone-delivery smoke, deployment-edge enforcement for declared identity-ceremony rate limits, and the formal Increment 1 release record/publication.
+The I1 repository slice is present, but formal closure is pending. The workflow does not currently run on pushes to `increment`, so final-SHA hosted evidence is absent. Target-environment email, Google, real WebAuthn authenticator and phone-delivery smoke, deployed edge enforcement for the declared identity-ceremony policy, and formal Increment 1 release publication also remain pending.
