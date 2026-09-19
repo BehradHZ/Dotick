@@ -1,3 +1,6 @@
+import smtplib
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
@@ -23,8 +26,16 @@ class InvalidContactVerification(Exception):
     pass
 
 
+def _email_delivery_is_configured():
+    if settings.EMAIL_BACKEND != "django.core.mail.backends.smtp.EmailBackend":
+        return True
+    return bool(settings.EMAIL_HOST and settings.DEFAULT_FROM_EMAIL)
+
+
 def _deliver_contact_code(*, contact, code):
     if contact.kind == AccountContact.Kind.EMAIL:
+        if not _email_delivery_is_configured():
+            raise ContactDeliveryUnavailable
         try:
             delivered = send_mail(
                 subject="Verify your Dotick contact",
@@ -34,7 +45,7 @@ def _deliver_contact_code(*, contact, code):
                 from_email=None,
                 recipient_list=[contact.value],
             )
-        except Exception as error:
+        except (OSError, smtplib.SMTPException) as error:
             raise ContactDeliveryUnavailable from error
         if delivered != 1:
             raise ContactDeliveryUnavailable
