@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
@@ -7,13 +7,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
 import AuthScreen from './AuthScreen';
 import {
   type ApiSession,
+  ApiError,
   type Bootstrap,
+  createOperationId,
   type ListRecord,
   ReauthenticationRequiredError,
   type Task,
@@ -43,9 +46,24 @@ function errorMessage(error: unknown) {
   return 'Could not load your workspace. Please try again.';
 }
 
-function Action({ title, onPress, disabled = false }: { title: string; onPress: () => void; disabled?: boolean }) {
+function Action({
+  title,
+  onPress,
+  disabled = false,
+}: {
+  title: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={[styles.action, disabled && styles.disabled]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.action, disabled && styles.disabled]}
+    >
       <Text style={styles.actionText}>{title}</Text>
     </Pressable>
   );
@@ -57,6 +75,9 @@ export default function App() {
   const [lists, setLists] = useState<ListRecord[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedListId, setSelectedListId] = useState('');
+  const [listDraft, setListDraft] = useState('');
+  const [listTitleDraft, setListTitleDraft] = useState('');
+  const listCreateAttempt = useRef<{ intent: string; operationId: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -65,44 +86,61 @@ export default function App() {
     setLists([]);
     setTasks([]);
     setSelectedListId('');
+    setListDraft('');
+    setListTitleDraft('');
+    listCreateAttempt.current = null;
     setError('');
   }, []);
 
-  const loadWorkspace = useCallback(async (activeSession: ApiSession, preferredListId?: string) => {
-    const nextBootstrap = await activeSession.bootstrap(localTimezone());
-    const [listResult, taskResult] = await Promise.all([activeSession.lists(), activeSession.tasks()]);
-    setBootstrap(nextBootstrap);
-    setLists(listResult.results);
-    setTasks(taskResult.results);
-    setSelectedListId((current) => {
-      const requested = preferredListId ?? current;
-      if (requested && listResult.results.some((list) => list.id === requested)) return requested;
-      if (listResult.results.some((list) => list.id === nextBootstrap.inbox.id)) return nextBootstrap.inbox.id;
-      return listResult.results[0]?.id ?? '';
-    });
-    setError('');
-  }, []);
+  const loadWorkspace = useCallback(
+    async (activeSession: ApiSession, preferredListId?: string) => {
+      const nextBootstrap = await activeSession.bootstrap(localTimezone());
+      const [listResult, taskResult] = await Promise.all([
+        activeSession.lists(),
+        activeSession.tasks(),
+      ]);
+      setBootstrap(nextBootstrap);
+      setLists(listResult.results);
+      setTasks(taskResult.results);
+      setSelectedListId((current) => {
+        const requested = preferredListId ?? current;
+        if (requested && listResult.results.some((list) => list.id === requested)) return requested;
+        if (listResult.results.some((list) => list.id === nextBootstrap.inbox.id)) {
+          return nextBootstrap.inbox.id;
+        }
+        return listResult.results[0]?.id ?? '';
+      });
+      setError('');
+    },
+    [],
+  );
 
-  const handleSessionFailure = useCallback((failure: unknown) => {
-    if (failure instanceof ReauthenticationRequiredError) {
-      setSession(null);
-      clearWorkspace();
-      return true;
-    }
-    return false;
-  }, [clearWorkspace]);
+  const handleSessionFailure = useCallback(
+    (failure: unknown) => {
+      if (failure instanceof ReauthenticationRequiredError) {
+        setSession(null);
+        clearWorkspace();
+        return true;
+      }
+      return false;
+    },
+    [clearWorkspace],
+  );
 
-  const reloadWorkspace = useCallback(async (activeSession: ApiSession) => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await loadWorkspace(activeSession);
-    } catch (failure) {
-      if (!handleSessionFailure(failure)) setError(errorMessage(failure));
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, handleSessionFailure, loadWorkspace]);
+  const reloadWorkspace = useCallback(
+    async (activeSession: ApiSession) => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        await loadWorkspace(activeSession);
+      } catch (failure) {
+        if (!handleSessionFailure(failure)) setError(errorMessage(failure));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, handleSessionFailure, loadWorkspace],
+  );
 
   useEffect(() => {
     if (!session) return undefined;
@@ -110,7 +148,9 @@ export default function App() {
       setSession(null);
       clearWorkspace();
     });
-    return () => { unregister(); };
+    return () => {
+      unregister();
+    };
   }, [clearWorkspace, session]);
 
   useEffect(() => {
@@ -131,49 +171,202 @@ export default function App() {
     return () => window.removeEventListener('focus', onFocus);
   }, [reloadWorkspace, session]);
 
-  const selectedList = useMemo(() => lists.find((list) => list.id === selectedListId) ?? null, [lists, selectedListId]);
+  const selectedList = useMemo(
+    () => lists.find((list) => list.id === selectedListId) ?? null,
+    [lists, selectedListId],
+  );
   const selectedColumnId = selectedList?.default_column.id ?? bootstrap?.inbox.default_column.id;
-  const selectedTasks = useMemo(() => selectedColumnId ? tasks.filter((task) => task.column_id === selectedColumnId) : [], [selectedColumnId, tasks]);
+  const selectedTasks = useMemo(
+    () => (selectedColumnId ? tasks.filter((task) => task.column_id === selectedColumnId) : []),
+    [selectedColumnId, tasks],
+  );
+
+  useEffect(() => {
+    setListTitleDraft(selectedList?.title ?? '');
+  }, [selectedList?.id, selectedList?.title, selectedList?.version]);
+
+  function changeListDraft(value: string) {
+    setListDraft(value);
+    const nextIntent = value.trim();
+    if (listCreateAttempt.current && listCreateAttempt.current.intent !== nextIntent) {
+      listCreateAttempt.current = null;
+    }
+  }
+
+  async function createList() {
+    const intent = listDraft.trim();
+    if (!session || !intent || busy) return;
+    if (!listCreateAttempt.current || listCreateAttempt.current.intent !== intent) {
+      listCreateAttempt.current = { intent, operationId: createOperationId() };
+    }
+    const operationId = listCreateAttempt.current.operationId;
+    setBusy(true);
+    setError('');
+    try {
+      const created = await session.createList({ title: intent, operation_id: operationId });
+      setLists((current) => [...current.filter((list) => list.id !== created.id), created]);
+      setSelectedListId(created.id);
+      setListDraft('');
+      listCreateAttempt.current = null;
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.code === 'idempotency_conflict') {
+        listCreateAttempt.current = null;
+      }
+      if (!handleSessionFailure(failure)) setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function renameSelectedList() {
+    const title = listTitleDraft.trim();
+    if (
+      !session ||
+      !selectedList ||
+      selectedList.is_inbox ||
+      !title ||
+      title === selectedList.title ||
+      busy
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const updated = await session.updateList(selectedList.id, {
+        version: selectedList.version,
+        title,
+      });
+      setLists((current) => current.map((list) => (list.id === updated.id ? updated : list)));
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.code === 'version_conflict') {
+        await loadWorkspace(session, selectedList.id);
+        setError(failure.message);
+      } else if (!handleSessionFailure(failure)) {
+        setError(errorMessage(failure));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (!session) {
-    return <AuthScreen onAuthenticated={async (nextSession) => {
-      setBusy(true);
-      try {
-        await loadWorkspace(nextSession);
-        setSession(nextSession);
-      } finally {
-        setBusy(false);
-      }
-    }} />;
+    return (
+      <AuthScreen
+        onAuthenticated={async (nextSession) => {
+          setBusy(true);
+          try {
+            await loadWorkspace(nextSession);
+            setSession(nextSession);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+    );
   }
 
   return (
     <View style={styles.page}>
       <View style={styles.topbar}>
-        <View><Text style={styles.brand}>Dotick</Text><Text style={styles.muted}>{session.user.email}</Text></View>
+        <View>
+          <Text style={styles.brand}>Dotick</Text>
+          <Text style={styles.muted}>{session.user.email}</Text>
+        </View>
         <View style={styles.topActions}>
-          <Action title="Reload server state" disabled={busy} onPress={() => void reloadWorkspace(session)} />
-          <Action title="Sign out" disabled={busy} onPress={() => {
-            void session.signOut().catch(() => undefined).finally(() => { setSession(null); clearWorkspace(); });
-          }} />
+          <Action
+            title="Reload server state"
+            disabled={busy}
+            onPress={() => void reloadWorkspace(session)}
+          />
+          <Action
+            title="Sign out"
+            disabled={busy}
+            onPress={() => {
+              void session
+                .signOut()
+                .catch(() => undefined)
+                .finally(() => {
+                  setSession(null);
+                  clearWorkspace();
+                });
+            }}
+          />
         </View>
       </View>
+
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.sidebar}>
-          <Text style={styles.eyebrow}>INCREMENT 1 WORKSPACE</Text>
-          <Text style={styles.sectionTitle}>Inbox</Text>
-          <Text style={styles.muted}>{lists.length} {lists.length === 1 ? 'list' : 'lists'} loaded from the server</Text>
+          <Text style={styles.eyebrow}>LISTS</Text>
+          {lists.map((list) => (
+            <Pressable
+              key={list.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${list.title}`}
+              onPress={() => setSelectedListId(list.id)}
+              style={[styles.listItem, selectedListId === list.id && styles.listItemActive]}
+            >
+              <Text style={styles.listItemText}>
+                {list.is_inbox ? '⌂ ' : ''}
+                {list.title}
+              </Text>
+            </Pressable>
+          ))}
+          <TextInput
+            accessibilityLabel="New list"
+            value={listDraft}
+            onChangeText={changeListDraft}
+            placeholder="New list"
+            maxLength={240}
+            editable={!busy}
+            style={styles.input}
+          />
+          <Action
+            title="Add list"
+            disabled={busy || !listDraft.trim()}
+            onPress={() => void createList()}
+          />
           <Text style={styles.muted}>Timezone: {bootstrap?.preferences.timezone ?? '—'}</Text>
         </View>
+
         <View style={styles.main}>
-          <Text accessibilityRole="header" style={styles.title}>{selectedList?.title ?? bootstrap?.inbox.title ?? 'Inbox'}</Text>
-          <Text style={styles.muted}>{selectedTasks.length} {selectedTasks.length === 1 ? 'task' : 'tasks'} loaded from the server</Text>
+          <Text accessibilityRole="header" style={styles.title}>
+            {selectedList?.title ?? bootstrap?.inbox.title ?? 'Inbox'}
+          </Text>
+          <Text style={styles.muted}>
+            {selectedTasks.length} {selectedTasks.length === 1 ? 'task' : 'tasks'} loaded from the server
+          </Text>
+          {!selectedList?.is_inbox && selectedList && (
+            <View style={styles.inlineEditor}>
+              <TextInput
+                accessibilityLabel="List title"
+                value={listTitleDraft}
+                onChangeText={setListTitleDraft}
+                maxLength={240}
+                editable={!busy}
+                style={[styles.input, styles.flexInput]}
+              />
+              <Action
+                title="Rename list"
+                disabled={
+                  busy || !listTitleDraft.trim() || listTitleDraft.trim() === selectedList.title
+                }
+                onPress={() => void renameSelectedList()}
+              />
+            </View>
+          )}
           <View style={styles.placeholder}>
-            <Text style={styles.placeholderTitle}>Your I1 workspace is connected.</Text>
-            <Text style={styles.muted}>Lists and Tasks are reloaded from the API on authentication, manual refresh, and app re-entry.</Text>
+            <Text style={styles.placeholderTitle}>List details stay simple.</Text>
+            <Text style={styles.muted}>
+              Technical organization details are kept internal while the List remains the user-facing container.
+            </Text>
           </View>
           {busy && <ActivityIndicator accessibilityLabel="Working" color={colors.orange} />}
-          {error !== '' && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+          {error !== '' && (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {error}
+            </Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -182,19 +375,85 @@ export default function App() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background },
-  topbar: { minHeight: 72, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 2, borderColor: colors.ink, backgroundColor: colors.paper, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  topbar: {
+    minHeight: 72,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.paper,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
   brand: { fontSize: 22, fontWeight: '900', color: colors.ink },
   muted: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   topActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' },
-  content: { flexGrow: 1, width: '100%', maxWidth: 1180, alignSelf: 'center', padding: 20, gap: 20, flexDirection: 'row', alignItems: 'flex-start' },
-  sidebar: { width: 250, padding: 18, gap: 10, borderWidth: 2, borderColor: colors.ink, borderRadius: 14, backgroundColor: colors.paper },
-  main: { flex: 1, minHeight: 360, padding: 22, gap: 14, borderWidth: 2, borderColor: colors.ink, borderRadius: 14, backgroundColor: colors.paper },
+  content: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: 1180,
+    alignSelf: 'center',
+    padding: 20,
+    gap: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  sidebar: {
+    width: 250,
+    padding: 18,
+    gap: 10,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    backgroundColor: colors.paper,
+  },
+  main: {
+    flex: 1,
+    minHeight: 360,
+    padding: 22,
+    gap: 14,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    backgroundColor: colors.paper,
+  },
   eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2, color: colors.ink },
-  sectionTitle: { fontSize: 18, fontWeight: '900', color: colors.ink },
   title: { fontSize: 30, fontWeight: '900', color: colors.ink },
-  placeholder: { marginTop: 14, padding: 18, gap: 8, borderWidth: 1.5, borderColor: '#cfc9bb', borderRadius: 12, backgroundColor: '#f8f4e9' },
+  placeholder: {
+    marginTop: 14,
+    padding: 18,
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#cfc9bb',
+    borderRadius: 12,
+    backgroundColor: '#f8f4e9',
+  },
   placeholderTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
-  action: { minHeight: 38, paddingHorizontal: 12, justifyContent: 'center', borderWidth: 1.5, borderColor: colors.ink, borderRadius: 9, backgroundColor: colors.paper },
+  listItem: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 8 },
+  listItemActive: { backgroundColor: '#ffe2bf' },
+  listItemText: { fontSize: 13, fontWeight: '800', color: colors.ink },
+  input: {
+    minHeight: 42,
+    paddingHorizontal: 10,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    color: colors.ink,
+  },
+  inlineEditor: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  flexInput: { flex: 1 },
+  action: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    borderRadius: 9,
+    backgroundColor: colors.paper,
+  },
   actionText: { fontSize: 12, fontWeight: '800', color: colors.ink },
   disabled: { opacity: 0.45 },
   error: { padding: 10, borderRadius: 8, color: colors.red, backgroundColor: colors.redSoft },
