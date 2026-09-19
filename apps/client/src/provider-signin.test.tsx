@@ -89,7 +89,10 @@ test('uses the public Google client ID and hands the provider credential to the 
   vi.stubGlobal('fetch', fetch);
   render(<AuthScreen onAuthenticated={onAuthenticated} />);
 
-  fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+  const googleButton = screen.getByRole('button', { name: 'Continue with Google' });
+  expect(googleButton).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Sign in' })).toBeVisible();
+  fireEvent.click(googleButton);
   await waitFor(() => expect(googleCallback).toBeDefined());
   googleCallback?.({ credential: 'google-id-credential' });
 
@@ -171,7 +174,10 @@ test('completes a browser Passkey ceremony and sends its assertion to the backen
   vi.stubGlobal('fetch', fetch);
   render(<AuthScreen onAuthenticated={onAuthenticated} />);
 
-  fireEvent.click(screen.getByRole('button', { name: 'Sign in with a passkey' }));
+  const passkeyButton = screen.getByRole('button', { name: 'Sign in with a passkey' });
+  expect(passkeyButton).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Sign in' })).toBeVisible();
+  fireEvent.click(passkeyButton);
 
   await waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1));
 });

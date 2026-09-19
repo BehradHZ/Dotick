@@ -31,6 +31,20 @@ function fillRegistration() {
   });
 }
 
+test('shows the complete registration UI and returns to sign-in', () => {
+  render(<AuthScreen onAuthenticated={vi.fn()} />);
+
+  openRegistration();
+
+  expect(screen.getByRole('heading', { name: 'Create account' })).toBeVisible();
+  expect(screen.getByLabelText('Display name')).toBeVisible();
+  expect(screen.getByLabelText('Handle')).toBeVisible();
+  expect(screen.getByLabelText('Registration email')).toBeVisible();
+  expect(screen.getByLabelText('New password')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Back to sign in' }));
+  expect(screen.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+});
+
 test('registers with the complete identity request and verifies a six-digit code', async () => {
   const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     void _init;
@@ -95,6 +109,8 @@ test('resends verification with enumeration-safe copy', async () => {
 
   expect(await screen.findByText('If the account is eligible, a new code was sent.')).toBeVisible();
   expect(screen.queryByText(/account exists/i)).not.toBeInTheDocument();
+  const resend = fetch.mock.calls.find(([url]) => String(url).endsWith('/auth/email/resend'));
+  expect(JSON.parse(String(resend?.[1]?.body))).toEqual({ email: 'new@example.test' });
 });
 
 test('requests and confirms a password reset without disclosing account existence', async () => {
@@ -130,6 +146,14 @@ test('requests and confirms a password reset without disclosing account existenc
     await screen.findByText('Password updated. Sign in with your new password.'),
   ).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  const request = fetch.mock.calls.find(([url]) => String(url).endsWith('/password/reset/request'));
+  expect(JSON.parse(String(request?.[1]?.body))).toEqual({ email: 'person@example.test' });
+  const confirm = fetch.mock.calls.find(([url]) => String(url).endsWith('/password/reset/confirm'));
+  expect(JSON.parse(String(confirm?.[1]?.body))).toEqual({
+    email: 'person@example.test',
+    code: '654321',
+    password: 'Replacement-password-9!',
+  });
 });
 
 test('signs in with email and password and hands the secure session to the client', async () => {
