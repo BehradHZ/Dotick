@@ -42,7 +42,7 @@ function signIn() {
   fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 }
 
-test('replaces the Checkpoint workbench with a server-backed I1 workspace', async () => {
+test('bootstraps Account, Inbox, Lists, and Tasks into the server-backed I1 workspace', async () => {
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('/api/v1/auth/token')) return json(tokens);
@@ -61,6 +61,14 @@ test('replaces the Checkpoint workbench with a server-backed I1 workspace', asyn
   expect(screen.getByText('1 list loaded from the server')).toBeVisible();
   expect(screen.getByText('1 task loaded from the server')).toBeVisible();
   expect(screen.getByText('Server task')).toBeVisible();
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringMatching(/\/api\/v1\/account\/bootstrap$/),
+    expect.objectContaining({ headers: expect.any(Headers) }),
+  );
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringMatching(/\/api\/v1\/lists$/),
+    expect.objectContaining({ headers: expect.any(Headers) }),
+  );
 });
 
 test('reloads authoritative server state instead of keeping an old local snapshot', async () => {

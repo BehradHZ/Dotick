@@ -64,6 +64,80 @@ test('renders and selects server Lists without exposing the technical default Co
   expect(screen.getByLabelText('List title')).toHaveValue('Work');
 });
 
+test('creates a List and renders the returned server record', async () => {
+  vi.stubGlobal('crypto', {
+    randomUUID: vi.fn(() => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  });
+  let createBody: Record<string, unknown> | undefined;
+  const created = {
+    ...work,
+    id: '77777777-7777-4777-8777-777777777777',
+    title: 'Personal',
+    version: 1,
+  };
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/auth/token')) return json(tokens);
+    if (url.endsWith('/api/v1/account/bootstrap'))
+      return json({ preferences: { timezone: 'Europe/London' }, inbox });
+    if (url.endsWith('/api/v1/lists') && init?.method === 'POST') {
+      createBody = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return json(created, 201);
+    }
+    if (url.endsWith('/api/v1/lists')) return json({ results: [inbox, work] });
+    if (url.endsWith('/api/v1/tasks')) return json({ results: [] });
+    throw new Error(`Unhandled request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+  render(<App />);
+  signIn();
+  await screen.findByRole('heading', { name: 'Inbox' });
+  fireEvent.change(screen.getByLabelText('New list'), { target: { value: 'Personal' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add list' }));
+
+  expect(await screen.findByRole('heading', { name: 'Personal' })).toBeVisible();
+  expect(createBody).toEqual({
+    title: 'Personal',
+    operation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  });
+  expect(screen.getByLabelText('New list')).toHaveValue('');
+});
+
+test('consumes each returned List version for the next save', async () => {
+  const patchBodies: Array<Record<string, unknown>> = [];
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/auth/token')) return json(tokens);
+    if (url.endsWith('/api/v1/account/bootstrap'))
+      return json({ preferences: { timezone: 'Europe/London' }, inbox });
+    if (url.endsWith(`/api/v1/lists/${work.id}`) && init?.method === 'PATCH') {
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      patchBodies.push(body);
+      return json({ ...work, title: String(body.title), version: 5 + patchBodies.length - 1 });
+    }
+    if (url.endsWith('/api/v1/lists')) return json({ results: [inbox, work] });
+    if (url.endsWith('/api/v1/tasks')) return json({ results: [] });
+    throw new Error(`Unhandled request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+  render(<App />);
+  signIn();
+  await screen.findByRole('heading', { name: 'Inbox' });
+  fireEvent.click(screen.getByRole('button', { name: 'Open Work' }));
+  const title = screen.getByLabelText('List title');
+  fireEvent.change(title, { target: { value: 'Work one' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Rename list' }));
+  await screen.findByRole('heading', { name: 'Work one' });
+  fireEvent.change(title, { target: { value: 'Work two' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Rename list' }));
+  await screen.findByRole('heading', { name: 'Work two' });
+
+  expect(patchBodies).toEqual([
+    { version: 4, title: 'Work one' },
+    { version: 5, title: 'Work two' },
+  ]);
+});
+
 test('reuses the same operation ID for the same failed List draft', async () => {
   vi.stubGlobal('crypto', {
     randomUUID: vi.fn(() => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
