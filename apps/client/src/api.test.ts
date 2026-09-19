@@ -233,14 +233,51 @@ test('requires reauthentication when the refresh session has been revoked', asyn
   vi.stubGlobal('fetch', fetch);
 
   const session = await signIn(baseUrl, user.email, 'password');
+  const privateStateCleaner = vi.fn();
+  session.onPrivateStateClear(privateStateCleaner);
   const error = await session.folders().catch((failure: unknown) => failure);
   expect(error).toBeInstanceOf(ReauthenticationRequiredError);
   expect(error).toMatchObject({ status: 401, code: 'reauthentication_required' });
   expect(session.isAuthenticated).toBe(false);
+  expect(privateStateCleaner).toHaveBeenCalledOnce();
+  expect(privateStateCleaner).toHaveBeenCalledWith('refresh_revoked');
 
   await expect(session.folders()).rejects.toBeInstanceOf(ReauthenticationRequiredError);
   expect(refreshAttempts).toBe(1);
   expect(folderAttempts).toBe(1);
+});
+
+test('allows fresh re-authentication after a revoked refresh session', async () => {
+  let signInAttempts = 0;
+  let refreshRevoked = false;
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/auth/token')) {
+      signInAttempts += 1;
+      expect(JSON.parse(String(init?.body))).toMatchObject({ email: user.email });
+      return json(tokens(`access-${signInAttempts}`, `refresh-${signInAttempts}`));
+    }
+    if (url.endsWith('/api/v1/auth/token/refresh')) {
+      refreshRevoked = true;
+      return json({ error: { code: 'token_not_valid', details: 'Revoked.' } }, 401);
+    }
+    if (url.endsWith('/api/v1/folders')) {
+      if (!refreshRevoked) return json({ error: { code: 'token_not_valid' } }, 401);
+      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer access-2');
+      return json({ results: [folder] });
+    }
+    throw new Error(`Unhandled request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+
+  const expiredSession = await signIn(baseUrl, user.email, 'old-password');
+  await expect(expiredSession.folders()).rejects.toBeInstanceOf(ReauthenticationRequiredError);
+  const freshSession = await signIn(baseUrl, user.email, 'new-password');
+
+  await expect(freshSession.folders()).resolves.toEqual({ results: [folder] });
+  expect(expiredSession.isAuthenticated).toBe(false);
+  expect(freshSession.isAuthenticated).toBe(true);
+  expect(signInAttempts).toBe(2);
 });
 
 test('refreshes once when necessary so sign-out can revoke the current server session', async () => {
@@ -266,12 +303,16 @@ test('refreshes once when necessary so sign-out can revoke the current server se
   vi.stubGlobal('fetch', fetch);
 
   const session = await signIn(baseUrl, user.email, 'password');
+  const privateStateCleaner = vi.fn();
+  session.onPrivateStateClear(privateStateCleaner);
   await session.signOut();
 
   expect(logoutAttempts).toBe(2);
   expect(refreshAttempts).toBe(1);
   expect(authorizations).toEqual(['Bearer access-one', 'Bearer access-two']);
   expect(session.isAuthenticated).toBe(false);
+  expect(privateStateCleaner).toHaveBeenCalledOnce();
+  expect(privateStateCleaner).toHaveBeenCalledWith('sign_out');
   await expect(session.tasks()).rejects.toBeInstanceOf(ReauthenticationRequiredError);
 });
 

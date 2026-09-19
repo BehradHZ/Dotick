@@ -160,6 +160,8 @@ test('preserves Persian, English, and mixed RTL/LTR Task titles exactly', async 
   }
 
   expect(bodies.map((body) => body.title)).toEqual(titles);
+  expect(bodies[0]?.title).toBe('خرید نان');
+  expect(bodies[1]?.title).toBe('Write report');
   expect(bodies.map((body) => body.column_id)).toEqual([
     work.default_column.id,
     work.default_column.id,
