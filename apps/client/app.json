@@ -3,7 +3,7 @@
     "name": "Dotick",
     "slug": "dotick",
     "version": "0.1.0",
-    "platforms": ["web"],
+    "platforms": ["web", "android"],
     "web": { "bundler": "metro", "output": "single", "name": "Dotick" }
   }
 }

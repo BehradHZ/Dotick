@@ -2,6 +2,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 
 import {
   ApiError,
+  createOperationId,
   defaultApiUrl,
   ReauthenticationRequiredError,
   signIn,
@@ -64,6 +65,13 @@ afterEach(() => {
   window.sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+});
+
+test('generates a secure operation ID when React Native has no global crypto', () => {
+  vi.stubGlobal('crypto', undefined);
+  expect(createOperationId()).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
 });
 
 test('discovers and normalizes a configured API URL', () => {

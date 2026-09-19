@@ -1,3 +1,4 @@
+import { randomUUID as expoRandomUUID } from 'expo-crypto';
 import { NativeModules, Platform } from 'react-native';
 
 export type Checkpoint = { id: string; text: string; created_at: string };
@@ -197,9 +198,7 @@ export function defaultApiUrl() {
 export function createOperationId() {
   const cryptoObject = globalThis.crypto;
   if (typeof cryptoObject?.randomUUID === 'function') return cryptoObject.randomUUID();
-  if (typeof cryptoObject?.getRandomValues !== 'function') {
-    throw new Error('This runtime cannot generate operation IDs securely.');
-  }
+  if (typeof cryptoObject?.getRandomValues !== 'function') return expoRandomUUID();
   const bytes = cryptoObject.getRandomValues(new Uint8Array(16));
   bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
   bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;

@@ -38,7 +38,9 @@ test('Increment 1 workspace persists a List and Task through task recovery', asy
   await page.getByRole('button', { name: 'Add list' }).click();
   await expect(page.getByRole('heading', { name: listTitle })).toBeVisible();
   await page.getByLabel('New task', { exact: true }).fill(taskTitle);
-  await page.getByRole('button', { name: 'Add task' }).click();
+  if (testInfo.project.name === 'mobile')
+    await page.getByLabel('New task', { exact: true }).press('Enter');
+  else await page.getByRole('button', { name: 'Add task' }).click();
   const task = page.getByText(taskTitle, { exact: true });
   await task.scrollIntoViewIfNeeded();
   await expect(task).toBeVisible();

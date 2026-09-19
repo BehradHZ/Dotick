@@ -574,7 +574,9 @@ export default function App() {
                   accessibilityLabel="New task"
                   value={taskDraft}
                   onChangeText={changeTaskDraft}
+                  onSubmitEditing={() => void createTask()}
                   placeholder="Add a task"
+                  returnKeyType="done"
                   maxLength={240}
                   editable={!busy}
                   style={[styles.input, styles.flexInput]}

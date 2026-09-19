@@ -92,6 +92,41 @@ test('creates a Task in the selected List destination with a client operation ID
   expect(screen.getByLabelText('New task')).toHaveValue('');
 });
 
+test('creates a Task when the mobile keyboard submits the draft', async () => {
+  vi.stubGlobal('crypto', { randomUUID: vi.fn(() => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') });
+  const created = {
+    ...workTask,
+    id: '88888888-8888-4888-8888-888888888888',
+    title: 'Mobile task',
+    version: 1,
+  };
+  let taskCreateBody: Record<string, unknown> | undefined;
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/auth/token')) return json(tokens);
+    if (url.endsWith('/api/v1/account/bootstrap'))
+      return json({ preferences: { timezone: 'Europe/London' }, inbox });
+    if (url.endsWith('/api/v1/lists')) return json({ results: [inbox, work] });
+    if (url.endsWith('/api/v1/tasks') && init?.method === 'POST') {
+      taskCreateBody = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return json(created, 201);
+    }
+    if (url.endsWith('/api/v1/tasks')) return json({ results: [] });
+    throw new Error(`Unhandled request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
+  render(<App />);
+  signIn();
+  await screen.findByRole('heading', { name: 'Inbox' });
+  openWork();
+  const draft = screen.getByLabelText('New task');
+  fireEvent.change(draft, { target: { value: 'Mobile task' } });
+  fireEvent.keyDown(draft, { key: 'Enter', code: 'Enter' });
+
+  expect(await screen.findByText('Mobile task')).toBeVisible();
+  expect(taskCreateBody).toMatchObject({ title: 'Mobile task' });
+});
+
 test('preserves a failed Task draft and operation ID for retry', async () => {
   vi.stubGlobal('crypto', { randomUUID: vi.fn(() => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') });
   const bodies: Array<Record<string, unknown>> = [];
