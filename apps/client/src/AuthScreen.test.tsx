@@ -32,7 +32,8 @@ function fillRegistration() {
 }
 
 test('registers with the complete identity request and verifies a six-digit code', async () => {
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+    void _init;
     const url = String(input);
     if (url.endsWith('/api/v1/auth/register')) return json({ status: 'accepted' }, 202);
     if (url.endsWith('/api/v1/auth/email/verify')) return new Response(null, { status: 204 });
@@ -76,7 +77,8 @@ test('registers with the complete identity request and verifies a six-digit code
 });
 
 test('resends verification with enumeration-safe copy', async () => {
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+    void _init;
     const url = String(input);
     if (url.endsWith('/api/v1/auth/register')) return json({ status: 'accepted' }, 202);
     if (url.endsWith('/api/v1/auth/email/resend')) return json({ status: 'accepted' }, 202);
@@ -96,7 +98,8 @@ test('resends verification with enumeration-safe copy', async () => {
 });
 
 test('requests and confirms a password reset without disclosing account existence', async () => {
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+    void _init;
     const url = String(input);
     if (url.endsWith('/api/v1/auth/password/reset/request')) {
       return json({ status: 'accepted' }, 202);
@@ -131,7 +134,8 @@ test('requests and confirms a password reset without disclosing account existenc
 
 test('signs in with email and password and hands the secure session to the client', async () => {
   const onAuthenticated = vi.fn();
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+    void _init;
     const url = String(input);
     if (url.endsWith('/api/v1/auth/token')) return json(tokens);
     throw new Error(`Unhandled request: ${url}`);
@@ -156,38 +160,35 @@ test('signs in with email and password and hands the secure session to the clien
   });
 });
 
-test(
-  'keeps authentication failures generic even when a response contains account-specific text',
-  async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        json(
-          {
-            error: {
-              code: 'not_authenticated',
-              details: 'No account exists for person@example.test.',
-            },
+test('keeps authentication failures generic even when a response contains account-specific text', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(
+      json(
+        {
+          error: {
+            code: 'not_authenticated',
+            details: 'No account exists for person@example.test.',
           },
-          401,
-        ),
+        },
+        401,
       ),
-    );
-    render(<AuthScreen onAuthenticated={vi.fn()} />);
+    ),
+  );
+  render(<AuthScreen onAuthenticated={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText('Email'), {
-      target: { value: 'person@example.test' },
-    });
-    fireEvent.change(screen.getByLabelText('Password'), {
-      target: { value: 'Safe-password-for-tests-8!' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+  fireEvent.change(screen.getByLabelText('Email'), {
+    target: { value: 'person@example.test' },
+  });
+  fireEvent.change(screen.getByLabelText('Password'), {
+    target: { value: 'Safe-password-for-tests-8!' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Check your email and password.');
-    expect(alert).not.toHaveTextContent('No account exists');
-  },
-);
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Check your email and password.');
+  expect(alert).not.toHaveTextContent('No account exists');
+});
 
 test('renders safe validation text instead of the raw backend error envelope', async () => {
   vi.stubGlobal(
@@ -211,7 +212,8 @@ test('renders safe validation text instead of the raw backend error envelope', a
   fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
   const alert = await screen.findByRole('alert');
-  expect(alert).toHaveTextContent('Handle is unavailable.');
+  expect(alert).toHaveTextContent('Could not complete the request. Please try again.');
+  expect(alert).not.toHaveTextContent('Handle is unavailable.');
   expect(alert).not.toHaveTextContent('validation_error');
   expect(alert).not.toHaveTextContent('{');
 });

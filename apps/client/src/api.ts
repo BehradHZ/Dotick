@@ -161,7 +161,23 @@ export function requiresReauthentication(error: unknown) {
 }
 
 function trimUrl(url: string) {
-  return url.trim().replace(/\/+$/, '');
+  const value = url.trim().replace(/\/+$/, '');
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error('API URL must be a valid HTTP or HTTPS URL.');
+  }
+  if (
+    !['http:', 'https:'].includes(parsed.protocol) ||
+    parsed.username !== '' ||
+    parsed.password !== '' ||
+    parsed.search !== '' ||
+    parsed.hash !== ''
+  ) {
+    throw new Error('API URL must be a valid HTTP or HTTPS URL.');
+  }
+  return value;
 }
 
 function nativeDevelopmentHost() {
@@ -199,23 +215,6 @@ export function createOperationId() {
 
 type ErrorRecord = Record<string, unknown>;
 
-function firstMessage(value: unknown): string | undefined {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const message = firstMessage(entry);
-      if (message) return message;
-    }
-    return undefined;
-  }
-  if (!value || typeof value !== 'object') return undefined;
-  for (const entry of Object.values(value as ErrorRecord)) {
-    const message = firstMessage(entry);
-    if (message) return message;
-  }
-  return undefined;
-}
-
 function errorMetadata(body: unknown) {
   if (!body || typeof body !== 'object') return {};
   const record = body as ErrorRecord;
@@ -224,22 +223,142 @@ function errorMetadata(body: unknown) {
     const error = envelope as ErrorRecord;
     const code = typeof error.code === 'string' ? error.code : undefined;
     const details = error.details;
-    return { code, details, message: firstMessage(details) };
+    return { code, details };
   }
   const code = typeof record.code === 'string' ? record.code : undefined;
-  const detail = typeof record.detail === 'string' ? record.detail : undefined;
-  return { code, details: body, message: detail ?? firstMessage(body) };
+  return { code, details: body };
 }
 
 async function readBody(response: Response) {
   if (response.status === 204) return undefined;
   const text = await response.text();
-  if (!text) return undefined;
+  if (!text) throw new Error('Server returned an empty response.');
   try {
     return JSON.parse(text) as unknown;
   } catch {
-    return undefined;
+    throw new Error('Server returned malformed JSON.');
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasString(record: Record<string, unknown>, key: string) {
+  return typeof record[key] === 'string';
+}
+
+function hasNumber(record: Record<string, unknown>, key: string) {
+  return typeof record[key] === 'number' && Number.isInteger(record[key]);
+}
+
+function isTokens(value: unknown, includeUser: boolean) {
+  if (!isRecord(value) || !hasString(value, 'access') || !hasString(value, 'refresh')) return false;
+  if (!includeUser) return true;
+  const user = value.user;
+  return (
+    isRecord(user) &&
+    hasString(user, 'email') &&
+    hasString(user, 'handle') &&
+    hasString(user, 'display_name')
+  );
+}
+
+function isFolder(value: unknown) {
+  return (
+    isRecord(value) &&
+    hasString(value, 'id') &&
+    hasString(value, 'title') &&
+    hasNumber(value, 'position') &&
+    hasNumber(value, 'version') &&
+    typeof value.is_trashed === 'boolean' &&
+    (value.trashed_at === null || typeof value.trashed_at === 'string')
+  );
+}
+
+function isDefaultColumn(value: unknown) {
+  return isRecord(value) && hasString(value, 'id') && value.is_default === true;
+}
+
+function isList(value: unknown) {
+  return (
+    isRecord(value) &&
+    hasString(value, 'id') &&
+    hasString(value, 'title') &&
+    (value.folder_id === null || typeof value.folder_id === 'string') &&
+    typeof value.is_inbox === 'boolean' &&
+    hasNumber(value, 'position') &&
+    hasNumber(value, 'version') &&
+    typeof value.is_trashed === 'boolean' &&
+    (value.trashed_at === null || typeof value.trashed_at === 'string') &&
+    isDefaultColumn(value.default_column)
+  );
+}
+
+function isColumn(value: unknown) {
+  return (
+    isRecord(value) &&
+    hasString(value, 'id') &&
+    hasString(value, 'list_id') &&
+    hasString(value, 'title') &&
+    hasNumber(value, 'position') &&
+    hasNumber(value, 'version') &&
+    typeof value.is_default === 'boolean'
+  );
+}
+
+function isTask(value: unknown) {
+  if (!isRecord(value) || !isRecord(value.source)) return false;
+  return (
+    hasString(value, 'id') &&
+    hasString(value, 'title') &&
+    ['todo', 'done', 'wont_do'].includes(String(value.status)) &&
+    hasNumber(value, 'version') &&
+    hasString(value, 'column_id') &&
+    hasString(value, 'owner_user_id') &&
+    hasString(value, 'created_by_user_id') &&
+    hasString(value.source, 'platform') &&
+    hasString(value, 'created_at') &&
+    hasString(value, 'updated_at')
+  );
+}
+
+function isResults(value: unknown, item: (entry: unknown) => boolean) {
+  return isRecord(value) && Array.isArray(value.results) && value.results.every(item);
+}
+
+function validSuccessBody(path: string, method: string, body: unknown, status: number) {
+  if (status === 204) return body === undefined;
+  if (path === '/api/v1/auth/token' || path === '/api/v1/auth/google') return isTokens(body, true);
+  if (path === '/api/v1/auth/token/refresh') return isTokens(body, false);
+  if (path === '/api/v1/auth/passkeys/authentication/verify') return isTokens(body, true);
+  if (path === '/api/v1/auth/passkeys/authentication/options') {
+    return isRecord(body) && hasString(body, 'challenge_id') && isRecord(body.public_key);
+  }
+  if (path === '/api/v1/account/bootstrap') {
+    return (
+      isRecord(body) &&
+      isRecord(body.preferences) &&
+      hasString(body.preferences, 'timezone') &&
+      isRecord(body.inbox) &&
+      hasString(body.inbox, 'id') &&
+      hasString(body.inbox, 'title') &&
+      body.inbox.is_inbox === true &&
+      isDefaultColumn(body.inbox.default_column)
+    );
+  }
+  if (path === '/api/v1/folders' && method === 'GET') return isResults(body, isFolder);
+  if (path === '/api/v1/lists' && method === 'GET') return isResults(body, isList);
+  if (path === '/api/v1/tasks' && method === 'GET') return isResults(body, isTask);
+  if (path === '/api/v1/trash/folders') return isResults(body, isFolder);
+  if (path === '/api/v1/trash/lists') return isResults(body, isList);
+  if (path === '/api/v1/trash/tasks') return isResults(body, isTask);
+  if (/\/columns$/.test(path) && method === 'GET') return isResults(body, isColumn);
+  if (/\/folders(?:\/[^/]+(?:\/restore)?)?$/.test(path)) return isFolder(body);
+  if (/\/lists(?:\/[^/]+(?:\/restore)?)?$/.test(path)) return isList(body);
+  if (/\/columns(?:\/[^/]+)?$/.test(path)) return isColumn(body);
+  if (/\/tasks(?:\/[^/]+(?:\/restore)?)?$/.test(path)) return isTask(body);
+  return isRecord(body);
 }
 
 async function rawRequest<T>(baseUrl: string, path: string, init: RequestInit = {}) {
@@ -258,8 +377,11 @@ async function rawRequest<T>(baseUrl: string, path: string, init: RequestInit = 
     });
     const body = await readBody(response);
     if (!response.ok) {
-      const { code, details, message } = errorMetadata(body);
-      throw new ApiError(response.status, message, code, details);
+      const { code, details } = errorMetadata(body);
+      throw new ApiError(response.status, undefined, code, details);
+    }
+    if (!validSuccessBody(path, init.method ?? 'GET', body, response.status)) {
+      throw new Error('Server returned data that does not match the API contract.');
     }
     return body as T;
   } catch (error) {
@@ -535,7 +657,9 @@ export function passkeyAuthenticationAvailable() {
   );
 }
 
-function passkeyRequestOptions(options: PasskeyRequestOptionsJson): PublicKeyCredentialRequestOptions {
+function passkeyRequestOptions(
+  options: PasskeyRequestOptionsJson,
+): PublicKeyCredentialRequestOptions {
   return {
     challenge: decodeBase64Url(options.challenge),
     rpId: options.rpId,
@@ -550,8 +674,9 @@ function passkeyRequestOptions(options: PasskeyRequestOptionsJson): PublicKeyCre
 }
 
 function isCancelledCredentialError(error: unknown) {
-  if (!(error instanceof Error)) return false;
-  return error.name === 'AbortError' || error.name === 'NotAllowedError';
+  if (error === null || typeof error !== 'object') return false;
+  const name = Reflect.get(error, 'name');
+  return name === 'AbortError' || name === 'NotAllowedError';
 }
 
 export async function signInWithPasskey(baseUrl: string) {

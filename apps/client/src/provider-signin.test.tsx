@@ -96,6 +96,38 @@ test('uses the public Google client ID and hands the provider credential to the 
   await waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1));
 });
 
+test('retries Google script loading after a failed injection without hanging', async () => {
+  vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'google-client-id.apps.exampleusercontent.com');
+  const onAuthenticated = vi.fn();
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(tokens)));
+  render(<AuthScreen onAuthenticated={onAuthenticated} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+  const failedScript = await waitFor(() => {
+    const script = document.querySelector<HTMLScriptElement>('script[data-dotick-google]');
+    expect(script).not.toBeNull();
+    return script as HTMLScriptElement;
+  });
+  failedScript.dispatchEvent(new Event('error'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Google sign-in could not load.');
+
+  let callback: ((response: { credential: string }) => void) | undefined;
+  window.google = {
+    accounts: {
+      id: {
+        initialize: vi.fn((input) => {
+          callback = input.callback;
+        }),
+        prompt: vi.fn(() => undefined),
+      },
+    },
+  };
+  fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+  await waitFor(() => expect(callback).toBeDefined());
+  callback?.({ credential: 'retry-credential' });
+  await waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1));
+});
+
 test('hides Passkey sign-in when WebAuthn is unsupported and keeps password fallback', () => {
   render(<AuthScreen onAuthenticated={vi.fn()} />);
 
@@ -104,9 +136,10 @@ test('hides Passkey sign-in when WebAuthn is unsupported and keeps password fall
 });
 
 test('completes a browser Passkey ceremony and sends its assertion to the backend', async () => {
-  let credentialFactory: (() => Credential) | undefined;
-  const installed = installPasskeyBrowser(async () => credentialFactory?.() ?? null);
-  credentialFactory = () => new installed.FakePublicKeyCredential() as unknown as Credential;
+  const credentialFactory: { current?: () => Credential } = {};
+  const installed = installPasskeyBrowser(async () => credentialFactory.current?.() ?? null);
+  credentialFactory.current = () =>
+    new installed.FakePublicKeyCredential() as unknown as Credential;
   const onAuthenticated = vi.fn();
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -144,14 +177,17 @@ test('completes a browser Passkey ceremony and sends its assertion to the backen
 });
 
 test('reports a cancelled Passkey ceremony without removing password fallback', async () => {
+  const crossRealmCancellation = Object.assign(Object.create(null) as object, {
+    name: 'NotAllowedError',
+  });
   installPasskeyBrowser(async () => {
-    throw new DOMException('Cancelled', 'NotAllowedError');
+    throw crossRealmCancellation;
   });
   vi.stubGlobal(
     'fetch',
-    vi.fn().mockResolvedValue(
-      json({ challenge_id: 'challenge-id', public_key: { challenge: 'AQ' } }),
-    ),
+    vi
+      .fn()
+      .mockResolvedValue(json({ challenge_id: 'challenge-id', public_key: { challenge: 'AQ' } })),
   );
   render(<AuthScreen onAuthenticated={vi.fn()} />);
 
@@ -165,9 +201,11 @@ test('reports unavailable Passkey configuration without removing password fallba
   installPasskeyBrowser(async () => null);
   vi.stubGlobal(
     'fetch',
-    vi.fn().mockResolvedValue(
-      json({ error: { code: 'provider_unavailable', details: 'Passkeys not configured.' } }, 503),
-    ),
+    vi
+      .fn()
+      .mockResolvedValue(
+        json({ error: { code: 'provider_unavailable', details: 'Passkeys not configured.' } }, 503),
+      ),
   );
   render(<AuthScreen onAuthenticated={vi.fn()} />);
 

@@ -59,6 +59,7 @@ function storageText(storage: Storage) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   window.localStorage.clear();
   window.sessionStorage.clear();
   vi.unstubAllGlobals();
@@ -68,6 +69,45 @@ afterEach(() => {
 test('discovers and normalizes a configured API URL', () => {
   vi.stubEnv('EXPO_PUBLIC_API_URL', ' https://api.example.test/// ');
   expect(defaultApiUrl()).toBe(baseUrl);
+});
+
+test('rejects malformed API URLs before sending credentials', async () => {
+  vi.stubEnv('EXPO_PUBLIC_API_URL', 'javascript:alert(1)');
+  expect(() => defaultApiUrl()).toThrow('valid HTTP or HTTPS URL');
+  const fetch = vi.fn();
+  vi.stubGlobal('fetch', fetch);
+  await expect(signIn('https://user:secret@example.test', user.email, 'password')).rejects.toThrow(
+    'Connection interrupted',
+  );
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['malformed JSON', new Response('{broken', { status: 200 })],
+  ['empty success', new Response(null, { status: 200 })],
+  ['wrong typed shape', json({ access: 'only-access' })],
+])('rejects %s instead of accepting it as typed success data', async (_name, response) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+  await expect(signIn(baseUrl, user.email, 'password')).rejects.toThrow('Connection interrupted');
+});
+
+test('aborts a request after the configured timeout', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          );
+        }),
+    ),
+  );
+  const request = signIn(baseUrl, user.email, 'password');
+  const rejection = expect(request).rejects.toThrow('Connection interrupted');
+  await vi.advanceTimersByTimeAsync(8_000);
+  await rejection;
 });
 
 test('acquires email/password tokens without persisting credentials or tokens', async () => {
@@ -118,6 +158,35 @@ test('refreshes a private bearer session once after an expired access token', as
   expect(authorizations).toEqual(['Bearer access-one', 'Bearer access-two']);
   expect(storageText(window.localStorage)).not.toContain('refresh-two');
   expect(storageText(window.sessionStorage)).not.toContain('refresh-two');
+});
+
+test('shares one rotating refresh across concurrent unauthorized requests', async () => {
+  let refreshAttempts = 0;
+  const resourceAttempts = new Map<string, number>();
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/auth/token')) return json(tokens());
+    if (url.endsWith('/api/v1/auth/token/refresh')) {
+      refreshAttempts += 1;
+      expect(JSON.parse(String(init?.body))).toEqual({ refresh: 'refresh-one' });
+      await Promise.resolve();
+      return json({ access: 'access-two', refresh: 'refresh-two' });
+    }
+    const resource = url.endsWith('/api/v1/folders') ? 'folders' : 'lists';
+    const attempt = (resourceAttempts.get(resource) ?? 0) + 1;
+    resourceAttempts.set(resource, attempt);
+    if (attempt === 1) return json({ error: { code: 'token_not_valid' } }, 401);
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer access-two');
+    return json({ results: [] });
+  });
+  vi.stubGlobal('fetch', fetch);
+
+  const session = await signIn(baseUrl, user.email, 'password');
+  await expect(Promise.all([session.folders(), session.lists()])).resolves.toEqual([
+    { results: [] },
+    { results: [] },
+  ]);
+  expect(refreshAttempts).toBe(1);
 });
 
 test('does not enter a refresh loop when the retried request is still unauthorized', async () => {
@@ -174,40 +243,37 @@ test('requires reauthentication when the refresh session has been revoked', asyn
   expect(folderAttempts).toBe(1);
 });
 
-test(
-  'refreshes once when necessary so sign-out can revoke the current server session',
-  async () => {
-    let logoutAttempts = 0;
-    let refreshAttempts = 0;
-    const authorizations: Array<string | null> = [];
-    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.endsWith('/api/v1/auth/token')) return json(tokens());
-      if (url.endsWith('/api/v1/auth/token/refresh')) {
-        refreshAttempts += 1;
-        return json({ access: 'access-two', refresh: 'refresh-two' });
-      }
-      if (url.endsWith('/api/v1/auth/logout')) {
-        logoutAttempts += 1;
-        authorizations.push(new Headers(init?.headers).get('Authorization'));
-        return logoutAttempts === 1
-          ? json({ error: { code: 'token_not_valid', details: 'Expired.' } }, 401)
-          : new Response(null, { status: 204 });
-      }
-      throw new Error(`Unhandled request: ${url}`);
-    });
-    vi.stubGlobal('fetch', fetch);
+test('refreshes once when necessary so sign-out can revoke the current server session', async () => {
+  let logoutAttempts = 0;
+  let refreshAttempts = 0;
+  const authorizations: Array<string | null> = [];
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/api/v1/auth/token')) return json(tokens());
+    if (url.endsWith('/api/v1/auth/token/refresh')) {
+      refreshAttempts += 1;
+      return json({ access: 'access-two', refresh: 'refresh-two' });
+    }
+    if (url.endsWith('/api/v1/auth/logout')) {
+      logoutAttempts += 1;
+      authorizations.push(new Headers(init?.headers).get('Authorization'));
+      return logoutAttempts === 1
+        ? json({ error: { code: 'token_not_valid', details: 'Expired.' } }, 401)
+        : new Response(null, { status: 204 });
+    }
+    throw new Error(`Unhandled request: ${url}`);
+  });
+  vi.stubGlobal('fetch', fetch);
 
-    const session = await signIn(baseUrl, user.email, 'password');
-    await session.signOut();
+  const session = await signIn(baseUrl, user.email, 'password');
+  await session.signOut();
 
-    expect(logoutAttempts).toBe(2);
-    expect(refreshAttempts).toBe(1);
-    expect(authorizations).toEqual(['Bearer access-one', 'Bearer access-two']);
-    expect(session.isAuthenticated).toBe(false);
-    await expect(session.tasks()).rejects.toBeInstanceOf(ReauthenticationRequiredError);
-  },
-);
+  expect(logoutAttempts).toBe(2);
+  expect(refreshAttempts).toBe(1);
+  expect(authorizations).toEqual(['Bearer access-one', 'Bearer access-two']);
+  expect(session.isAuthenticated).toBe(false);
+  await expect(session.tasks()).rejects.toBeInstanceOf(ReauthenticationRequiredError);
+});
 
 test('preserves stable API error code and details from the current envelope', async () => {
   vi.stubGlobal(
@@ -244,7 +310,7 @@ test('preserves stable API error code and details from the current envelope', as
       message: 'The Folder changed after the supplied version.',
       current: { id: folder.id, version: 2 },
     },
-    message: 'The Folder changed after the supplied version.',
+    message: 'This item changed elsewhere. Refresh and try again.',
   });
 });
 

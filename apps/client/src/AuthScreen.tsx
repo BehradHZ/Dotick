@@ -55,11 +55,7 @@ function Field({ label, accessibilityLabel, style, ...props }: FieldProps) {
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        {...props}
-        accessibilityLabel={accessibilityLabel}
-        style={[styles.input, style]}
-      />
+      <TextInput {...props} accessibilityLabel={accessibilityLabel} style={[styles.input, style]} />
     </View>
   );
 }
@@ -111,35 +107,51 @@ function safeErrorMessage(error: unknown) {
   return 'Could not complete the request. Please try again.';
 }
 
+let googleIdentityLoad: Promise<NonNullable<Window['google']>> | null = null;
+
 async function loadGoogleIdentity() {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     throw new Error('Google sign-in is unavailable on this device.');
   }
   if (window.google) return window.google;
+  if (googleIdentityLoad) return googleIdentityLoad;
 
-  await new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-dotick-google]');
-    if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener(
-        'error',
-        () => reject(new Error('Google sign-in could not load.')),
-        { once: true },
-      );
-      return;
+  googleIdentityLoad = new Promise<NonNullable<Window['google']>>((resolve, reject) => {
+    let script = document.querySelector<HTMLScriptElement>('script[data-dotick-google]');
+    if (script?.dataset.dotickGoogleFailed === 'true') {
+      script.remove();
+      script = null;
     }
-
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.dataset.dotickGoogle = 'true';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Google sign-in could not load.'));
-    document.head.appendChild(script);
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.dataset.dotickGoogle = 'true';
+      document.head.appendChild(script);
+    }
+    const timeout = window.setTimeout(() => fail(), 15_000);
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      script?.removeEventListener('load', loaded);
+      script?.removeEventListener('error', fail);
+    };
+    const loaded = () => {
+      cleanup();
+      if (window.google) resolve(window.google);
+      else fail();
+    };
+    const fail = () => {
+      cleanup();
+      if (script) script.dataset.dotickGoogleFailed = 'true';
+      reject(new Error('Google sign-in could not load.'));
+    };
+    script.addEventListener('load', loaded, { once: true });
+    script.addEventListener('error', fail, { once: true });
+  }).catch((error: unknown) => {
+    googleIdentityLoad = null;
+    throw error;
   });
-
-  if (!window.google) throw new Error('Google sign-in could not load.');
-  return window.google;
+  return googleIdentityLoad;
 }
 
 async function googleCredential(clientId: string) {
@@ -261,7 +273,9 @@ export default function AuthScreen({
 
         {mode === 'sign-in' && (
           <>
-            <Text accessibilityRole="header" style={styles.title}>Sign in</Text>
+            <Text accessibilityRole="header" style={styles.title}>
+              Sign in
+            </Text>
             {googleAvailable && (
               <Button
                 title="Continue with Google"
@@ -324,7 +338,9 @@ export default function AuthScreen({
 
         {mode === 'register' && (
           <>
-            <Text accessibilityRole="header" style={styles.title}>Create account</Text>
+            <Text accessibilityRole="header" style={styles.title}>
+              Create account
+            </Text>
             <Field
               label="Display name"
               accessibilityLabel="Display name"
@@ -396,7 +412,9 @@ export default function AuthScreen({
 
         {mode === 'verify' && (
           <>
-            <Text accessibilityRole="header" style={styles.title}>Check your inbox</Text>
+            <Text accessibilityRole="header" style={styles.title}>
+              Check your inbox
+            </Text>
             <Text style={styles.hint}>
               Enter the 6-digit verification code for {normalizedEmail}.
             </Text>
@@ -444,7 +462,9 @@ export default function AuthScreen({
 
         {mode === 'reset-request' && (
           <>
-            <Text accessibilityRole="header" style={styles.title}>Reset password</Text>
+            <Text accessibilityRole="header" style={styles.title}>
+              Reset password
+            </Text>
             <Text style={styles.hint}>The response does not reveal whether an account exists.</Text>
             <Field
               label="Email"
@@ -479,7 +499,9 @@ export default function AuthScreen({
 
         {mode === 'reset-confirm' && (
           <>
-            <Text accessibilityRole="header" style={styles.title}>Choose a new password</Text>
+            <Text accessibilityRole="header" style={styles.title}>
+              Choose a new password
+            </Text>
             <Field
               label="Reset code"
               accessibilityLabel="Reset code"
@@ -522,7 +544,11 @@ export default function AuthScreen({
         )}
 
         {busy && <ActivityIndicator accessibilityLabel="Working" />}
-        {error !== '' && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+        {error !== '' && (
+          <Text accessibilityRole="alert" style={styles.error}>
+            {error}
+          </Text>
+        )}
         {notice !== '' && (
           <Text accessibilityLiveRegion="polite" style={styles.notice}>
             {notice}
