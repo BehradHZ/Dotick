@@ -1,8 +1,8 @@
-# Increment 1 Initial Physical ERD
+# Increment 1 Physical ERD
 
-> **Status:** Initial physical ERD finalized for Increment 1 design.
+> **Status:** Reconciled with final Increment 1 organization persistence.
 >
-> **Date:** 2026-09-11
+> **Reconciled:** 2026-09-19
 >
 > **Database:** PostgreSQL
 >
@@ -33,6 +33,7 @@ erDiagram
 
     USERS ||--o{ FOLDERS : owns
     USERS ||--o{ LISTS : owns
+    USERS ||--o{ ORGANIZATION_CREATE_OPERATIONS : scopes
     FOLDERS o|--o{ LISTS : groups
     LISTS ||--|{ COLUMNS : contains
 
@@ -92,6 +93,7 @@ title           varchar NOT NULL
 position        integer NOT NULL
 is_trashed      boolean NOT NULL
 trashed_at      timestamptz NULL
+version         bigint NOT NULL DEFAULT 1
 created_at      timestamptz NOT NULL
 updated_at      timestamptz NOT NULL
 ```
@@ -101,6 +103,7 @@ Important constraints/index intent:
 - owner-scoped queries;
 - non-negative position;
 - title normalized/non-empty at application and/or DB constraint boundary;
+- `version >= 1`; accepted mutations increment it atomically;
 - no blind cascade behavior that would destroy child Lists.
 
 ### `lists`
@@ -114,6 +117,7 @@ position        integer NOT NULL
 is_inbox        boolean NOT NULL
 is_trashed      boolean NOT NULL
 trashed_at      timestamptz NULL
+version         bigint NOT NULL DEFAULT 1
 created_at      timestamptz NOT NULL
 updated_at      timestamptz NOT NULL
 ```
@@ -123,6 +127,7 @@ Important invariants:
 - a List may be folderless (`folder_id IS NULL`);
 - Inbox is represented by a concrete owned List;
 - at most one Inbox List per owner via partial uniqueness;
+- `version >= 1`; accepted mutations increment it atomically;
 - if `folder_id` is present, service/write validation must ensure Folder and List belong to the same owner.
 
 ### `columns`
@@ -133,6 +138,7 @@ list_id     uuid FK -> lists.id NOT NULL
 title       varchar NOT NULL
 position    integer NOT NULL
 is_default  boolean NOT NULL
+version     bigint NOT NULL DEFAULT 1
 created_at  timestamptz NOT NULL
 updated_at  timestamptz NOT NULL
 ```
@@ -142,7 +148,30 @@ Important invariants:
 - every List has at least one Column;
 - every List has exactly one default Column through transactional creation plus uniqueness enforcement;
 - partial unique constraint on `(list_id) WHERE is_default` prevents multiple defaults;
+- `version >= 1`; accepted mutations increment it atomically;
 - `Tab` and `Section` do not exist as separate physical tables.
+
+### `organization_create_operations`
+
+```text
+id              uuid PK
+owner_user_id   uuid FK -> users.id NOT NULL
+resource_type   varchar NOT NULL
+operation_id    uuid NOT NULL
+intent_digest   char(64) NOT NULL
+resource_id     uuid NOT NULL
+created_at      timestamptz NOT NULL
+```
+
+Important invariants:
+
+- `resource_type IN ('folder', 'list', 'column')`;
+- `intent_digest <> ''`;
+- unique `(owner_user_id, resource_type, operation_id)`;
+- indexed `(owner_user_id, resource_type, resource_id)` result lookup;
+- rows are immutable after insert;
+- `resource_id` is a polymorphic result reference, so the model write boundary validates the matching owner/type/resource rather than pretending one FK can target three tables;
+- the operation row and created resource commit atomically.
 
 ## 5. Item and Task tables
 
@@ -250,6 +279,9 @@ The physical schema plus write transactions must preserve:
 6. `owner_user_id` and `created_by_user_id` are stored independently even when equal in I1 personal creation.
 7. A Task status mutation changes `tasks.status` and Item mutation metadata/version without changing Item identity.
 8. Trash is orthogonal to Task status: `items.is_trashed` does not create a new Task status.
+9. Folder/List/Column versions start at 1, remain positive and increment once per accepted resource mutation.
+10. One owner/resource-type/operation-ID create scope resolves to one immutable intent and one resource result.
+11. Concurrent identical creates serialize on a transaction-scoped PostgreSQL advisory lock; exactly one resource and operation row persist.
 
 ## 9. Index baseline
 
@@ -261,6 +293,8 @@ lists(owner_user_id, folder_id, position)
 columns(list_id, position)
 UNIQUE columns(list_id) WHERE is_default
 UNIQUE lists(owner_user_id) WHERE is_inbox
+UNIQUE organization_create_operations(owner_user_id, resource_type, operation_id)
+organization_create_operations(owner_user_id, resource_type, resource_id)
 items(owner_user_id, is_trashed, updated_at DESC)
 items(column_id, is_trashed, updated_at DESC)
 items(owner_user_id, kind, is_trashed)
@@ -299,6 +333,8 @@ source/provenance -> item_sources
 Task outcome      -> tasks.status
 Resource lifecycle-> items.is_trashed
 placement         -> items.column_id -> columns -> lists
+optimistic token  -> folders/lists/columns/items.version
+create retry      -> organization_create_operations
 ```
 
-That separation keeps Increment 1 minimal while remaining compatible with later collaboration and sync/history evolution without implementing those later capabilities early.
+Create retry semantics are owner- and resource-type-scoped: first commit returns the new resource, an identical retry returns that same resource, and changed intent conflicts. Optimistic versions reject stale mutations; clients must refetch and reconcile rather than overwrite. These mechanisms keep Increment 1 minimal and compatible with later collaboration and sync/history evolution without implementing those later capabilities early.
