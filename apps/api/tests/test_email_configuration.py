@@ -25,6 +25,8 @@ def _production_environment(**overrides):
         "DJANGO_CORS_ORIGINS": "https://app.example.test",
         "DJANGO_CSRF_TRUSTED_ORIGINS": "https://app.example.test",
         "DJANGO_JWT_SIGNING_KEY": TEST_JWT_SIGNING_KEY,
+        "WEBAUTHN_RP_ID": "example.test",
+        "WEBAUTHN_RP_NAME": "Dotick Production",
         "WEBAUTHN_ORIGIN": "https://app.example.test",
         "DJANGO_EMAIL_BACKEND": SMTP_BACKEND,
         "DJANGO_EMAIL_HOST": "smtp.example.test",

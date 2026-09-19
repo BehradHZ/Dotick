@@ -33,7 +33,7 @@ Tests create and destroy `test_<PGDATABASE>` databases, so the development Postg
 
 Google web sign-in uses the same public OAuth client ID in backend `GOOGLE_OAUTH_CLIENT_ID` and client `EXPO_PUBLIC_GOOGLE_CLIENT_ID`. The browser credential flow does not require a Google client secret, and no secret may use an `EXPO_PUBLIC_` variable because Expo bundles those values into the client. If either client ID is absent, Google sign-in stays unavailable cleanly while independent email/password sign-in remains available.
 
-Passkeys use `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and the configured WebAuthn origin. Local defaults target localhost. Non-local/production-like WebAuthn origins must use HTTPS.
+Passkeys use `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and `WEBAUTHN_ORIGIN`. Local/test defaults use the `localhost` RP over `http://localhost:8081`. Non-local environments must set all three values explicitly, use an HTTPS origin without credentials, path, query or fragment, and keep the origin host equal to or below the RP ID domain. HTTP is accepted only for localhost loopback development.
 
 Phone-contact verification uses a deployment delivery adapter. Until a real adapter is configured, automated tests cover the application boundary but do not constitute release smoke.
 

@@ -5,6 +5,7 @@ Django settings for the Dotick API foundation.
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from corsheaders.defaults import default_headers
 from django.core.exceptions import ImproperlyConfigured
@@ -42,6 +43,44 @@ def _env_port(name, *, default):
     if not 1 <= port <= 65_535:
         raise ImproperlyConfigured(f"{name} must be between 1 and 65535.")
     return port
+
+
+def _webauthn_origin_host(origin):
+    try:
+        parsed = urlsplit(origin)
+        _ = parsed.port
+    except ValueError as error:
+        raise ImproperlyConfigured("WEBAUTHN_ORIGIN must be a valid origin.") from error
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ImproperlyConfigured("WEBAUTHN_ORIGIN must be a valid origin.")
+    return parsed.scheme, parsed.hostname.rstrip(".").lower()
+
+
+def _validate_webauthn_rp_id(rp_id):
+    labels = rp_id.split(".")
+    if (
+        not rp_id
+        or len(rp_id) > 253
+        or rp_id.endswith(".")
+        or any(
+            not label
+            or len(label) > 63
+            or label.startswith("-")
+            or label.endswith("-")
+            or not label.isascii()
+            or any(not (character.isalnum() or character == "-") for character in label)
+            for label in labels
+        )
+    ):
+        raise ImproperlyConfigured("WEBAUTHN_RP_ID must be a valid domain name.")
 
 
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
@@ -202,12 +241,25 @@ SIMPLE_JWT = {
 }
 
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
-WEBAUTHN_RP_ID = os.getenv("WEBAUTHN_RP_ID", "localhost").strip()
-WEBAUTHN_RP_NAME = os.getenv("WEBAUTHN_RP_NAME", "Dotick").strip()
+default_webauthn_rp_id = "localhost" if IS_LOCAL else ""
+default_webauthn_rp_name = "Dotick" if IS_LOCAL else ""
+WEBAUTHN_RP_ID = os.getenv("WEBAUTHN_RP_ID", default_webauthn_rp_id).strip()
+WEBAUTHN_RP_NAME = os.getenv("WEBAUTHN_RP_NAME", default_webauthn_rp_name).strip()
 default_webauthn_origin = "http://localhost:8081" if IS_LOCAL else ""
 WEBAUTHN_ORIGIN = os.getenv("WEBAUTHN_ORIGIN", default_webauthn_origin).strip()
-if not IS_LOCAL and not WEBAUTHN_ORIGIN.startswith("https://"):
+_validate_webauthn_rp_id(WEBAUTHN_RP_ID)
+if not WEBAUTHN_RP_NAME:
+    raise ImproperlyConfigured("WEBAUTHN_RP_NAME may not be blank.")
+webauthn_origin_scheme, webauthn_origin_host = _webauthn_origin_host(WEBAUTHN_ORIGIN)
+if not IS_LOCAL and webauthn_origin_scheme != "https":
     raise ImproperlyConfigured("Production WebAuthn origin must use HTTPS.")
+if webauthn_origin_scheme == "http" and webauthn_origin_host != "localhost":
+    raise ImproperlyConfigured("HTTP WebAuthn origin is allowed only for localhost development.")
+normalized_webauthn_rp_id = WEBAUTHN_RP_ID.lower()
+if webauthn_origin_host != normalized_webauthn_rp_id and not webauthn_origin_host.endswith(
+    f".{normalized_webauthn_rp_id}"
+):
+    raise ImproperlyConfigured("WEBAUTHN_RP_ID must match the WebAuthn origin domain.")
 
 FOUNDATION_ENABLED = IS_LOCAL and os.getenv("DOTICK_FOUNDATION_ENABLED", "0") == "1"
 API_MAX_JSON_BODY_BYTES = 16 * 1024
