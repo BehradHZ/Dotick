@@ -11,6 +11,7 @@ from dotick.identity.contact_challenges import (
     try_consume_contact_challenge,
 )
 from dotick.identity.models import AccountContact
+from dotick.identity.sms import SmsDeliveryUnavailable, get_sms_delivery_adapter
 from dotick.identity.validators import normalize_contact_value
 
 
@@ -51,8 +52,13 @@ def _deliver_contact_code(*, contact, code):
             raise ContactDeliveryUnavailable
         return
 
-    # A deployment-specific SMS adapter is intentionally required for phone delivery.
-    raise ContactDeliveryUnavailable
+    try:
+        get_sms_delivery_adapter().send_verification_code(
+            phone_number=contact.value,
+            code=code,
+        )
+    except SmsDeliveryUnavailable as error:
+        raise ContactDeliveryUnavailable from error
 
 
 def request_contact_verification(*, user, kind, value):

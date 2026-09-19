@@ -174,6 +174,13 @@ if EMAIL_BACKEND == SMTP_EMAIL_BACKEND and EMAIL_HOST and not DEFAULT_FROM_EMAIL
         "DJANGO_DEFAULT_FROM_EMAIL is required when SMTP email delivery is configured."
     )
 
+SMS_DELIVERY_ADAPTER = os.getenv(
+    "DOTICK_SMS_DELIVERY_ADAPTER",
+    "dotick.identity.sms.UnavailableSmsDeliveryAdapter",
+).strip()
+if not SMS_DELIVERY_ADAPTER:
+    raise ImproperlyConfigured("DOTICK_SMS_DELIVERY_ADAPTER may not be blank.")
+
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
