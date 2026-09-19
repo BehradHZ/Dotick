@@ -82,7 +82,9 @@ The current I1 automated suite covers:
 
 The product client is no longer an I0-only workbench. Automated evidence covers registration/verification/password recovery, sign-in/bootstrap, persisted Inbox rendering, List/Task creation, draft retention after failure, versioned status changes, sign-out privacy and time vectors.
 
-Playwright desktop and mobile flows exercise the real product client against Django + PostgreSQL for sign-in, bootstrap, Task creation, re-authentication/reload, retrieval, completion and Trash behavior.
+`e2e/workspace.spec.ts` is the I1 Playwright acceptance evidence. Its desktop and mobile flows exercise the real product client against Django + PostgreSQL for sign-in, bootstrap, Task creation, re-authentication/reload, retrieval, completion and Trash behavior.
+
+`e2e/increment-0-checkpoint-regression.spec.ts` is retained only as an I0 foundation regression. It verifies the disposable Checkpoint API and PostgreSQL path in CI; it is not I1 acceptance evidence.
 
 Configured external email/Google/WebAuthn/phone systems are intentionally not called by deterministic E2E; they require target-environment smoke before formal I1 closure.
 

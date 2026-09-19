@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 
 class Command(BaseCommand):
@@ -36,6 +37,10 @@ class Command(BaseCommand):
                     "Developer account already exists with a different password; no changes made."
                 )
 
+            if existing.email_verified_at is None:
+                existing.email_verified_at = timezone.now()
+                existing.save(update_fields=["email_verified_at"])
+
             self.stdout.write(self.style.SUCCESS(f"Developer account ready: {email}"))
             return
 
@@ -45,6 +50,7 @@ class Command(BaseCommand):
         User.objects.create_user(
             email=email,
             password=password,
+            email_verified_at=timezone.now(),
         )
 
         self.stdout.write(self.style.SUCCESS(f"Developer account created: {email}"))

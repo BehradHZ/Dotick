@@ -200,7 +200,7 @@ These are foundation-level checks, not completion claims for the full product re
 
 | Requirement / gate | Implementation and verification |
 |---|---|
-| `SRS-IF-001..003`, I0 §7.5 | `apps/client/src/api.ts`, `apps/api/dotick/foundation/api.py`, `application.py`; `e2e/walking-skeleton.spec.ts` traverses the actual web/API/PostgreSQL stack |
+| `SRS-IF-001..003`, I0 §7.5 | `apps/api/dotick/foundation/api.py`, `application.py`; `e2e/increment-0-checkpoint-regression.spec.ts` retains the Checkpoint API/PostgreSQL path strictly as I0 regression evidence |
 | `SRS-IF-005`, `SRS-CON-004` | loopback-only development ports in `compose.yaml`; secure production settings check; production TLS deployment remains a later gate |
 | `SRS-CON-001` | PostgreSQL identity/foundation migrations and API tests; clean container-database migration and readback |
 | `SRS-CON-002..003` | explicit-composition ADR retained; disposable I0 records are isolated from the unimplemented Item schema |
@@ -210,7 +210,7 @@ These are foundation-level checks, not completion claims for the full product re
 | Increment 0 quality gates | `.github/workflows/ci.yml`, `scripts/check_traceability.py`, `docs/tracking/increment-0-foundation-review.md` |
 | `SRS-AUTH-001..015`, I1-AC-01/02/09 backend | `apps/api/dotick/identity/`, migrations `0002..0007`, `docs/design/authentication-design.md`, `docs/design/openapi.json`, `apps/api/tests/test_identity_api.py`, `test_federated_identity_api.py`; configured external delivery/provider smoke remains open |
 | `SRS-ORG-001..005`, `SRS-DAY-002`, I1-AC-03/08 backend | `apps/api/dotick/organization/`, `organization/0001_initial.py`, `apps/api/tests/test_organization_api.py`; atomic concurrent bootstrap, Inbox/default Column, optional Folder, ordering and recoverable container lifecycle |
-| `SRS-ITEM-002..009`, `SRS-TASK-001/014/020`, I1-AC-04..08 | `apps/api/dotick/items/`, `dotick/tasks/`, `apps/client/src/`, API/component tests and `e2e/walking-skeleton.spec.ts`; explicit composition, owner/source identity, optimistic version, idempotency and Task Trash/restore |
+| `SRS-ITEM-002..009`, `SRS-TASK-001/014/020`, I1-AC-04..08 | `apps/api/dotick/items/`, `dotick/tasks/`, `apps/client/src/`, API/component tests and `e2e/workspace.spec.ts`; explicit composition, owner/source identity, optimistic version, idempotency and Task Trash/restore |
 | Increment 1 remaining acceptance | `docs/tracking/increment-1-readiness.md` retains configured provider/delivery, hosted CI and release evidence; local backend/client completion is not whole-increment release completion |
 
 # 9. Update rules

@@ -98,7 +98,7 @@ jobs:
       - name: Client web export
         run: npm run build
 
-      - name: Desktop and mobile Walking Skeleton E2E
+      - name: Increment 0 Checkpoint and Increment 1 workspace E2E regressions
         run: |
           npx playwright install --with-deps chromium
           python -m uv run python apps/api/manage.py create_developer
