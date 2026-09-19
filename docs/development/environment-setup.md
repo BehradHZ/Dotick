@@ -31,7 +31,7 @@ Tests create and destroy `test_<PGDATABASE>` databases, so the development Postg
 
 ## Provider configuration
 
-Google web sign-in uses the same public OAuth client ID in backend `GOOGLE_OAUTH_CLIENT_ID` and client `EXPO_PUBLIC_GOOGLE_CLIENT_ID`. Never put a Google client secret in an Expo public variable.
+Google web sign-in uses the same public OAuth client ID in backend `GOOGLE_OAUTH_CLIENT_ID` and client `EXPO_PUBLIC_GOOGLE_CLIENT_ID`. The browser credential flow does not require a Google client secret, and no secret may use an `EXPO_PUBLIC_` variable because Expo bundles those values into the client. If either client ID is absent, Google sign-in stays unavailable cleanly while independent email/password sign-in remains available.
 
 Passkeys use `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and the configured WebAuthn origin. Local defaults target localhost. Non-local/production-like WebAuthn origins must use HTTPS.
 

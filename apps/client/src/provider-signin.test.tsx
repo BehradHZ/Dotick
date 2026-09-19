@@ -55,7 +55,7 @@ afterEach(() => {
 });
 
 test('hides Google sign-in when the public client ID is unconfigured and keeps password fallback', () => {
-  vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', '');
+  vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', '   ');
   render(<AuthScreen onAuthenticated={vi.fn()} />);
 
   expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument();
