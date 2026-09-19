@@ -17,6 +17,33 @@ load_dotenv(REPO_ROOT / ".env")
 DOTICK_ENV = os.getenv("DOTICK_ENV", "local").strip().lower()
 IS_LOCAL = DOTICK_ENV in {"local", "test"}
 
+
+def _env_bool(name, *, default=False):
+    raw_value = os.getenv(name)
+    if raw_value is None or not raw_value.strip():
+        return default
+
+    value = raw_value.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise ImproperlyConfigured(f"{name} must be a boolean value.")
+
+
+def _env_port(name, *, default):
+    raw_value = os.getenv(name)
+    if raw_value is None or not raw_value.strip():
+        return default
+    try:
+        port = int(raw_value)
+    except ValueError as error:
+        raise ImproperlyConfigured(f"{name} must be an integer port.") from error
+    if not 1 <= port <= 65_535:
+        raise ImproperlyConfigured(f"{name} must be between 1 and 65535.")
+    return port
+
+
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = IS_LOCAL and os.getenv("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = [
@@ -119,6 +146,33 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+SMTP_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND", SMTP_EMAIL_BACKEND).strip()
+if not EMAIL_BACKEND:
+    raise ImproperlyConfigured("DJANGO_EMAIL_BACKEND may not be blank.")
+EMAIL_HOST = os.getenv("DJANGO_EMAIL_HOST", "localhost" if IS_LOCAL else "").strip()
+EMAIL_PORT = _env_port("DJANGO_EMAIL_PORT", default=25)
+EMAIL_HOST_USER = os.getenv("DJANGO_EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = _env_bool("DJANGO_EMAIL_USE_TLS")
+EMAIL_USE_SSL = _env_bool("DJANGO_EMAIL_USE_SSL")
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DJANGO_DEFAULT_FROM_EMAIL",
+    "webmaster@localhost" if IS_LOCAL else "",
+).strip()
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ImproperlyConfigured(
+        "DJANGO_EMAIL_USE_TLS and DJANGO_EMAIL_USE_SSL are mutually exclusive."
+    )
+if bool(EMAIL_HOST_USER) != bool(EMAIL_HOST_PASSWORD):
+    raise ImproperlyConfigured(
+        "DJANGO_EMAIL_HOST_USER and DJANGO_EMAIL_HOST_PASSWORD must be configured together."
+    )
+if EMAIL_BACKEND == SMTP_EMAIL_BACKEND and EMAIL_HOST and not DEFAULT_FROM_EMAIL:
+    raise ImproperlyConfigured(
+        "DJANGO_DEFAULT_FROM_EMAIL is required when SMTP email delivery is configured."
+    )
 
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
