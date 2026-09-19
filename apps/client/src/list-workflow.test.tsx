@@ -70,11 +70,17 @@ test('reuses the same operation ID for the same failed List draft', async () => 
   });
   const bodies: Array<Record<string, unknown>> = [];
   let posts = 0;
-  const created = { ...work, id: '77777777-7777-4777-8777-777777777777', title: 'Personal', version: 7 };
+  const created = {
+    ...work,
+    id: '77777777-7777-4777-8777-777777777777',
+    title: 'Personal',
+    version: 7,
+  };
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith('/api/v1/auth/token')) return json(tokens);
-    if (url.endsWith('/api/v1/account/bootstrap')) return json({ preferences: { timezone: 'Europe/London' }, inbox });
+    if (url.endsWith('/api/v1/account/bootstrap'))
+      return json({ preferences: { timezone: 'Europe/London' }, inbox });
     if (url.endsWith('/api/v1/lists') && init?.method === 'POST') {
       bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
       posts += 1;
@@ -112,7 +118,8 @@ test('generates a new operation ID when the failed List draft intent changes', a
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith('/api/v1/auth/token')) return json(tokens);
-    if (url.endsWith('/api/v1/account/bootstrap')) return json({ preferences: { timezone: 'Europe/London' }, inbox });
+    if (url.endsWith('/api/v1/account/bootstrap'))
+      return json({ preferences: { timezone: 'Europe/London' }, inbox });
     if (url.endsWith('/api/v1/lists') && init?.method === 'POST') {
       bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
       throw new TypeError('offline');
@@ -141,10 +148,14 @@ test('uses the current List version and reloads server state on version conflict
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith('/api/v1/auth/token')) return json(tokens);
-    if (url.endsWith('/api/v1/account/bootstrap')) return json({ preferences: { timezone: 'Europe/London' }, inbox });
+    if (url.endsWith('/api/v1/account/bootstrap'))
+      return json({ preferences: { timezone: 'Europe/London' }, inbox });
     if (url.endsWith(`/api/v1/lists/${work.id}`) && init?.method === 'PATCH') {
       expect(JSON.parse(String(init.body))).toEqual({ version: 4, title: 'My overwrite' });
-      return json({ error: { code: 'version_conflict', details: { current: { id: work.id, version: 5 } } } }, 409);
+      return json(
+        { error: { code: 'version_conflict', details: { current: { id: work.id, version: 5 } } } },
+        409,
+      );
     }
     if (url.endsWith('/api/v1/lists')) {
       listLoads += 1;
