@@ -84,7 +84,9 @@ Versioned `/api/v1/` write requests are constrained before view dispatch:
 - 16 KiB maximum request body;
 - stable errors for malformed/unsupported/oversized requests.
 
-Sensitive identity operations are annotated in OpenAPI with `x-edge-rate-limit-policy: identity-ceremony`. A formal I1 deployment must implement and smoke-test matching edge thresholds/enforcement. The OpenAPI annotation itself is not an application-process limiter.
+Sensitive identity operations are annotated in OpenAPI with `x-edge-rate-limit-policy: identity-ceremony`. [`identity-rate-limit-policy.json`](identity-rate-limit-policy.json) is the deployment contract: it lists every protected operation and defines a per-verified-client-IP burst limit of 10 requests per 60 seconds plus a sustained limit of 100 requests per 3,600 seconds. The four `DOTICK_EDGE_IDENTITY_CEREMONY_*` environment variables configure those edge thresholds.
+
+The proxy/CDN must apply both limits collectively across the listed operations, derive client IP only from trusted connection metadata, and return `429` with `Retry-After` when either threshold is exceeded. Multi-instance enforcement needs edge/shared state. Django intentionally has no process-local substitute. A formal I1 deployment must configure and smoke-test the policy before release.
 
 ## 9. Logging and operations
 

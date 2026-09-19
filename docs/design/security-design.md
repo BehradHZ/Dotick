@@ -89,9 +89,11 @@ The OpenAPI contract classifies sensitive identity ceremonies with:
 x-edge-rate-limit-policy: identity-ceremony
 ```
 
-The classified operations include registration, verification/resend, password-reset, Passkey authentication ceremonies and contact verification flows. This is an explicit handoff to the deployment edge. It does **not** claim that an application-process limiter is implemented merely because the metadata exists.
+The classified operations include registration, verification/resend, password-reset, Passkey authentication ceremonies and contact verification flows. The exact operation set is machine-readable in [`identity-rate-limit-policy.json`](../operations/identity-rate-limit-policy.json) and is checked against OpenAPI.
 
-Concrete thresholds, shared-store semantics and target-environment enforcement must be configured and smoke-tested before formal I1 release.
+The initial deployment baseline applies both limits collectively per verified client IP: 10 requests per 60 seconds and 100 requests per 3,600 seconds. Deployment tooling reads the corresponding `DOTICK_EDGE_IDENTITY_CEREMONY_*` variables. Client IP must come from the trusted proxy/CDN connection metadata, not an untrusted forwarded header supplied by the caller. A rejected request returns `429` and a `Retry-After` header without disclosing account state.
+
+This is an explicit handoff to the deployment edge. Per-process counters would diverge across workers and are not an acceptable substitute. Target-environment enforcement and threshold smoke tests remain required before formal I1 release.
 
 ## 9. Database and migration safety
 
