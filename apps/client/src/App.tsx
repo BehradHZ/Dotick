@@ -1,473 +1,201 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
-import { ApiError, type Checkpoint, type Credentials, foundationApi } from './api';
+
+import AuthScreen from './AuthScreen';
+import {
+  type ApiSession,
+  type Bootstrap,
+  type ListRecord,
+  ReauthenticationRequiredError,
+  type Task,
+} from './api';
 
 const colors = {
   paper: '#fffdf7',
-  background: '#f4f1e8',
-  ink: '#151515',
+  background: '#f2eee3',
+  ink: '#171717',
   muted: '#69675f',
   orange: '#ff7a00',
-  soft: '#ffe2bf',
-  green: '#daf4e2',
   red: '#b42318',
+  redSoft: '#ffe5df',
 };
 
-function Button({
-  title,
-  onPress,
-  disabled = false,
-  secondary = false,
-}: {
-  title: string;
-  onPress: () => void;
-  disabled?: boolean;
-  secondary?: boolean;
-}) {
+function localTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+function errorMessage(error: unknown) {
+  if (error instanceof ReauthenticationRequiredError) return error.message;
+  if (error instanceof Error) return error.message;
+  return 'Could not load your workspace. Please try again.';
+}
+
+function Action({ title, onPress, disabled = false }: { title: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        secondary && styles.secondary,
-        disabled && styles.disabled,
-        pressed && styles.pressed,
-      ]}
-    >
-      <Text style={styles.buttonText}>{title}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={[styles.action, disabled && styles.disabled]}>
+      <Text style={styles.actionText}>{title}</Text>
     </Pressable>
   );
 }
 
-function errorMessage(error: unknown) {
-  return error instanceof ApiError
-    ? error.message
-    : 'Connection interrupted. Your text is still here. Try again when the API is available.';
-}
-
 export default function App() {
-  const { width } = useWindowDimensions();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [credentials, setCredentials] = useState<Credentials | null>(null);
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
-  const [text, setText] = useState('');
+  const [session, setSession] = useState<ApiSession | null>(null);
+  const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
+  const [lists, setLists] = useState<ListRecord[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [selectedListId, setSelectedListId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
 
-  async function signIn() {
+  const clearWorkspace = useCallback(() => {
+    setBootstrap(null);
+    setLists([]);
+    setTasks([]);
+    setSelectedListId('');
     setError('');
+  }, []);
+
+  const loadWorkspace = useCallback(async (activeSession: ApiSession, preferredListId?: string) => {
+    const nextBootstrap = await activeSession.bootstrap(localTimezone());
+    const [listResult, taskResult] = await Promise.all([activeSession.lists(), activeSession.tasks()]);
+    setBootstrap(nextBootstrap);
+    setLists(listResult.results);
+    setTasks(taskResult.results);
+    setSelectedListId((current) => {
+      const requested = preferredListId ?? current;
+      if (requested && listResult.results.some((list) => list.id === requested)) return requested;
+      if (listResult.results.some((list) => list.id === nextBootstrap.inbox.id)) return nextBootstrap.inbox.id;
+      return listResult.results[0]?.id ?? '';
+    });
+    setError('');
+  }, []);
+
+  const handleSessionFailure = useCallback((failure: unknown) => {
+    if (failure instanceof ReauthenticationRequiredError) {
+      setSession(null);
+      clearWorkspace();
+      return true;
+    }
+    return false;
+  }, [clearWorkspace]);
+
+  const reloadWorkspace = useCallback(async (activeSession: ApiSession) => {
+    if (busy) return;
     setBusy(true);
-    const candidate = { email: email.trim(), password };
     try {
-      const response = await foundationApi(candidate).list();
-      setCheckpoints(response.results);
-      setCredentials(candidate);
-      setPassword('');
+      await loadWorkspace(activeSession);
     } catch (failure) {
-      setError(errorMessage(failure));
+      if (!handleSessionFailure(failure)) setError(errorMessage(failure));
     } finally {
       setBusy(false);
     }
-  }
+  }, [busy, handleSessionFailure, loadWorkspace]);
 
-  async function save() {
-    if (!credentials || !text.trim() || busy) return;
-    setError('');
-    setNotice('');
-    setBusy(true);
-    try {
-      const record = await foundationApi(credentials).create(text.trim());
-      setCheckpoints((existing) => [record, ...existing].slice(0, 100));
-      setText('');
-      setNotice('Checkpoint saved.');
-    } catch (failure) {
-      setError(errorMessage(failure));
-    } finally {
-      setBusy(false);
-    }
-  }
+  useEffect(() => {
+    if (!session) return undefined;
+    const unregister = session.onPrivateStateClear(() => {
+      setSession(null);
+      clearWorkspace();
+    });
+    return () => { unregister(); };
+  }, [clearWorkspace, session]);
 
-  async function reload() {
-    if (!credentials) return;
-    setError('');
-    setNotice('');
-    setBusy(true);
-    try {
-      setCheckpoints((await foundationApi(credentials).list()).results);
-      setNotice('Checkpoints refreshed.');
-    } catch (failure) {
-      setError(errorMessage(failure));
-    } finally {
-      setBusy(false);
-    }
-  }
+  useEffect(() => {
+    if (!session) return undefined;
+    let previous = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (next) => {
+      const returning = previous !== 'active' && next === 'active';
+      previous = next;
+      if (returning) void reloadWorkspace(session);
+    });
+    return () => subscription.remove();
+  }, [reloadWorkspace, session]);
 
-  function signOut() {
-    setCredentials(null);
-    setCheckpoints([]);
-    setText('');
-    setError('');
-    setNotice('');
-    setPassword('');
+  useEffect(() => {
+    if (!session || Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
+    const onFocus = () => void reloadWorkspace(session);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [reloadWorkspace, session]);
+
+  const selectedList = useMemo(() => lists.find((list) => list.id === selectedListId) ?? null, [lists, selectedListId]);
+  const selectedColumnId = selectedList?.default_column.id ?? bootstrap?.inbox.default_column.id;
+  const selectedTasks = useMemo(() => selectedColumnId ? tasks.filter((task) => task.column_id === selectedColumnId) : [], [selectedColumnId, tasks]);
+
+  if (!session) {
+    return <AuthScreen onAuthenticated={async (nextSession) => {
+      setBusy(true);
+      try {
+        await loadWorkspace(nextSession);
+        setSession(nextSession);
+      } finally {
+        setBusy(false);
+      }
+    }} />;
   }
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.pageContent}>
+    <View style={styles.page}>
       <View style={styles.topbar}>
-        <View style={styles.brand}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>✓</Text>
-          </View>
-          <View>
-            <Text style={styles.brandName}>Dotick</Text>
-            <Text style={styles.muted}>A little structure. A little momentum.</Text>
-          </View>
-        </View>
-        {credentials && <Button title="Sign out" secondary disabled={busy} onPress={signOut} />}
-      </View>
-      <View style={styles.badge}>
-        <Text style={styles.eyebrow}>INCREMENT 0 · DEVELOPMENT WORKBENCH</Text>
-      </View>
-      <View style={[styles.workspace, width < 800 && styles.stacked]}>
-        <View style={[styles.intro, width < 800 && styles.introCompact]}>
-          <Text accessibilityRole="header" style={styles.headline}>
-            Good things{'\n'}start small.
-          </Text>
-          <Text style={styles.introText}>
-            The first working piece of Dotick. Save a checkpoint, reload it, and keep building from
-            a solid foundation.
-          </Text>
-          <View style={styles.roadmapCard}>
-            <Text style={styles.eyebrow}>THE PATH AHEAD</Text>
-            <View style={styles.step}>
-              <Text style={styles.stepNumber}>00</Text>
-              <View style={styles.stepBody}>
-                <Text style={styles.stepTitle}>Make it work</Text>
-                <Text style={styles.muted}>Engineering foundation · current</Text>
-              </View>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.step}>
-              <Text style={[styles.stepNumber, styles.future]}>01</Text>
-              <View style={styles.stepBody}>
-                <Text style={styles.stepTitle}>Make it useful</Text>
-                <Text style={styles.muted}>Identity, organization & basic tasks</Text>
-              </View>
-            </View>
-          </View>
-          <Text style={styles.caption}>
-            This isolated workbench verifies persistence. Checkpoints are development data; Task,
-            Event, and Routine flows follow their roadmap increments.
-          </Text>
-        </View>
-        <View style={styles.panel}>
-          <View style={styles.panelHeader}>
-            <Text style={styles.eyebrow}>
-              {credentials ? 'YOUR WORKSPACE' : 'LET’S GET STARTED'}
-            </Text>
-            <Text accessibilityRole="header" style={styles.panelTitle}>
-              {credentials ? 'Checkpoints' : 'Open your workbench'}
-            </Text>
-            <Text style={styles.muted}>
-              {credentials
-                ? 'Your latest 100 saved checkpoints.'
-                : 'Sign in with your local developer account.'}
-            </Text>
-          </View>
-          <View style={styles.panelBody}>
-            {!credentials ? (
-              <View style={styles.form}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  accessibilityLabel="Email"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  style={styles.input}
-                  placeholder="you@example.test"
-                  editable={!busy}
-                />
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  accessibilityLabel="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoComplete="current-password"
-                  style={styles.input}
-                  placeholder="Your developer password"
-                  editable={!busy}
-                  onSubmitEditing={() => {
-                    if (email && password && !busy) void signIn();
-                  }}
-                />
-                <Button
-                  title="Open workbench"
-                  disabled={busy || !email.trim() || !password}
-                  onPress={() => void signIn()}
-                />
-                <Text style={styles.caption}>
-                  Use the account created during local setup. Credentials are kept only for this
-                  open session.
-                </Text>
-              </View>
-            ) : (
-              <>
-                <Text style={styles.label}>New checkpoint</Text>
-                <TextInput
-                  accessibilityLabel="New checkpoint"
-                  value={text}
-                  onChangeText={setText}
-                  maxLength={240}
-                  multiline
-                  editable={!busy}
-                  style={[styles.input, styles.composer]}
-                  placeholder="What would you like to remember?"
-                />
-                <View style={styles.actions}>
-                  <Text style={styles.caption}>{text.length}/240</Text>
-                  <Button
-                    title="Save checkpoint"
-                    disabled={busy || !text.trim()}
-                    onPress={() => void save()}
-                  />
-                </View>
-                <View style={styles.listHeader}>
-                  <Text style={styles.eyebrow}>SAVED CHECKPOINTS</Text>
-                  <Button title="Refresh" secondary disabled={busy} onPress={() => void reload()} />
-                </View>
-                {checkpoints.length === 0 ? (
-                  <View style={styles.empty}>
-                    <Text style={styles.emptyIcon}>✦</Text>
-                    <Text style={styles.stepTitle}>A fresh start.</Text>
-                    <Text style={styles.muted}>Your first checkpoint belongs here.</Text>
-                  </View>
-                ) : (
-                  checkpoints.map((record) => (
-                    <View key={record.id} style={styles.record}>
-                      <View style={styles.recordDot}>
-                        <Text>✓</Text>
-                      </View>
-                      <View style={styles.stepBody}>
-                        <Text style={styles.recordText}>{record.text}</Text>
-                        <Text style={styles.caption}>
-                          {new Date(record.created_at).toLocaleString()}
-                        </Text>
-                      </View>
-                    </View>
-                  ))
-                )}
-              </>
-            )}
-            {busy && (
-              <ActivityIndicator
-                accessibilityLabel="Working"
-                color={colors.orange}
-                style={styles.spinner}
-              />
-            )}
-            {error !== '' && (
-              <Text accessibilityRole="alert" style={styles.error}>
-                {error}
-              </Text>
-            )}
-            {notice !== '' && (
-              <Text accessibilityLiveRegion="polite" style={styles.notice}>
-                {notice}
-              </Text>
-            )}
-          </View>
+        <View><Text style={styles.brand}>Dotick</Text><Text style={styles.muted}>{session.user.email}</Text></View>
+        <View style={styles.topActions}>
+          <Action title="Reload server state" disabled={busy} onPress={() => void reloadWorkspace(session)} />
+          <Action title="Sign out" disabled={busy} onPress={() => {
+            void session.signOut().catch(() => undefined).finally(() => { setSession(null); clearWorkspace(); });
+          }} />
         </View>
       </View>
-      <Text style={styles.footer}>DOTICK / ONE VERIFIED STEP AT A TIME</Text>
-    </ScrollView>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.sidebar}>
+          <Text style={styles.eyebrow}>INCREMENT 1 WORKSPACE</Text>
+          <Text style={styles.sectionTitle}>Inbox</Text>
+          <Text style={styles.muted}>{lists.length} {lists.length === 1 ? 'list' : 'lists'} loaded from the server</Text>
+          <Text style={styles.muted}>Timezone: {bootstrap?.preferences.timezone ?? '—'}</Text>
+        </View>
+        <View style={styles.main}>
+          <Text accessibilityRole="header" style={styles.title}>{selectedList?.title ?? bootstrap?.inbox.title ?? 'Inbox'}</Text>
+          <Text style={styles.muted}>{selectedTasks.length} {selectedTasks.length === 1 ? 'task' : 'tasks'} loaded from the server</Text>
+          <View style={styles.placeholder}>
+            <Text style={styles.placeholderTitle}>Your I1 workspace is connected.</Text>
+            <Text style={styles.muted}>Lists and Tasks are reloaded from the API on authentication, manual refresh, and app re-entry.</Text>
+          </View>
+          {busy && <ActivityIndicator accessibilityLabel="Working" color={colors.orange} />}
+          {error !== '' && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: 'transparent' },
-  pageContent: {
-    padding: 24,
-    paddingBottom: 40,
-    maxWidth: 1200,
-    width: '100%',
-    alignSelf: 'center',
-    gap: 28,
-  },
-  topbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 16,
-    flexWrap: 'wrap',
-  },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  logo: {
-    width: 44,
-    height: 44,
-    backgroundColor: colors.orange,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 12,
-    boxShadow: '3px 3px 0 #151515',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-3deg' }],
-  },
-  logoText: { fontSize: 26, fontWeight: '900' },
-  brandName: { fontSize: 23, fontWeight: '900', color: colors.ink },
-  muted: { color: colors.muted, fontSize: 13, lineHeight: 20 },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    borderRadius: 8,
-    backgroundColor: colors.soft,
-  },
-  eyebrow: { fontSize: 10, letterSpacing: 1.3, fontWeight: '800', color: colors.ink },
-  workspace: { flexDirection: 'row', gap: 48, alignItems: 'flex-start' },
-  stacked: { flexDirection: 'column-reverse', gap: 28 },
-  intro: { flex: 1, gap: 24, paddingTop: 10 },
-  introCompact: { width: '100%', flex: undefined },
-  headline: {
-    fontSize: 52,
-    fontWeight: '900',
-    letterSpacing: -2,
-    color: colors.ink,
-    lineHeight: 56,
-  },
-  introText: { fontSize: 17, lineHeight: 28, color: colors.muted, maxWidth: 400 },
-  roadmapCard: {
-    padding: 20,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 14,
-    backgroundColor: colors.paper,
-    gap: 18,
-  },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  stepNumber: {
-    fontSize: 17,
-    fontWeight: '900',
-    backgroundColor: colors.soft,
-    padding: 9,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  future: { backgroundColor: colors.background, color: colors.muted },
-  stepBody: { flex: 1, gap: 4 },
-  stepTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
-  divider: { height: 1, backgroundColor: '#dedbd1' },
-  caption: { color: colors.muted, fontSize: 12, lineHeight: 19 },
-  panel: {
-    flex: 1.35,
-    width: '100%',
-    backgroundColor: colors.paper,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 18,
-    boxShadow: '5px 5px 0 #151515',
-    overflow: 'hidden',
-  },
-  panelHeader: { padding: 24, borderBottomWidth: 2, borderColor: colors.ink, gap: 8 },
-  panelTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.8, color: colors.ink },
-  panelBody: { padding: 24, gap: 12 },
-  form: { gap: 12 },
-  label: { fontSize: 13, fontWeight: '800', color: colors.ink },
-  input: {
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    padding: 13,
-    fontSize: 15,
-    color: colors.ink,
-    minHeight: 48,
-  },
-  composer: { minHeight: 104, textAlignVertical: 'top' },
-  button: {
-    borderWidth: 2,
-    borderColor: colors.ink,
-    backgroundColor: colors.orange,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '2px 2px 0 #151515',
-  },
-  buttonText: { fontSize: 13, fontWeight: '800', color: colors.ink },
-  secondary: { backgroundColor: colors.paper },
+  page: { flex: 1, backgroundColor: colors.background },
+  topbar: { minHeight: 72, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 2, borderColor: colors.ink, backgroundColor: colors.paper, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  brand: { fontSize: 22, fontWeight: '900', color: colors.ink },
+  muted: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+  topActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' },
+  content: { flexGrow: 1, width: '100%', maxWidth: 1180, alignSelf: 'center', padding: 20, gap: 20, flexDirection: 'row', alignItems: 'flex-start' },
+  sidebar: { width: 250, padding: 18, gap: 10, borderWidth: 2, borderColor: colors.ink, borderRadius: 14, backgroundColor: colors.paper },
+  main: { flex: 1, minHeight: 360, padding: 22, gap: 14, borderWidth: 2, borderColor: colors.ink, borderRadius: 14, backgroundColor: colors.paper },
+  eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2, color: colors.ink },
+  sectionTitle: { fontSize: 18, fontWeight: '900', color: colors.ink },
+  title: { fontSize: 30, fontWeight: '900', color: colors.ink },
+  placeholder: { marginTop: 14, padding: 18, gap: 8, borderWidth: 1.5, borderColor: '#cfc9bb', borderRadius: 12, backgroundColor: '#f8f4e9' },
+  placeholderTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
+  action: { minHeight: 38, paddingHorizontal: 12, justifyContent: 'center', borderWidth: 1.5, borderColor: colors.ink, borderRadius: 9, backgroundColor: colors.paper },
+  actionText: { fontSize: 12, fontWeight: '800', color: colors.ink },
   disabled: { opacity: 0.45 },
-  pressed: { transform: [{ translateX: 2 }, { translateY: 2 }], boxShadow: '0 0 0 #151515' },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  listHeader: {
-    marginTop: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderColor: '#dedbd1',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  empty: { paddingVertical: 28, gap: 8, alignItems: 'center' },
-  emptyIcon: { fontSize: 36, color: colors.orange },
-  record: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: '#c5c1b7',
-    borderRadius: 10,
-    backgroundColor: '#f8f4e9',
-  },
-  recordDot: {
-    width: 27,
-    height: 27,
-    backgroundColor: colors.green,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recordText: { fontSize: 15, lineHeight: 23, fontWeight: '700', color: colors.ink },
-  spinner: { marginTop: 8 },
-  error: {
-    color: colors.red,
-    fontSize: 13,
-    lineHeight: 20,
-    padding: 12,
-    backgroundColor: '#ffe6df',
-    borderRadius: 8,
-  },
-  notice: { color: '#245e37', fontSize: 13, paddingVertical: 8 },
-  footer: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: 20,
-  },
+  error: { padding: 10, borderRadius: 8, color: colors.red, backgroundColor: colors.redSoft },
 });
