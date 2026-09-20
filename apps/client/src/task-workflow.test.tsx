@@ -189,7 +189,9 @@ test('edits Task title and status using the latest returned Task version', async
   fireEvent.change(screen.getByLabelText('Task title'), { target: { value: 'Updated task' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save task' }));
   expect(await screen.findByText('Updated task')).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Mark Updated task Done' }));
+  const markDone = screen.getByRole('button', { name: 'Mark Updated task Done' });
+  await waitFor(() => expect(markDone).toBeEnabled());
+  fireEvent.click(markDone);
   await waitFor(() => expect(screen.getByText('Done')).toBeVisible());
   expect(patchBodies).toEqual([
     { version: 3, title: 'Updated task' },
