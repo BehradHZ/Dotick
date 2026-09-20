@@ -101,13 +101,12 @@ Hierarchy باید مستقیم queryable باشد.
 parent_id: UUID | null -> Schedulable
 ```
 
-اما:
+قواعد قطعی:
 
-- Task: حداکثر یک structural parent.
-- Event: چند reference مجاز است.
-- `OPEN`: multi-parent ساختاری Event هنوز قطعی نشده.
-
-اگر Event multi-parent واقعی لازم شود، `parent_id` به‌تنهایی کافی نیست و relation table لازم خواهد شد.
+- Task و Event هرکدام حداکثر یک structural parent دارند.
+- هر دو می‌توانند چند reference غیرساختاری داشته باشند.
+- structural relation با `structural_parent_id` و reference با `ContentBlock` مستقل ذخیره می‌شود.
+- schema و mutation semantics در ADR-0004 ثبت شده است.
 
 ## 3.2 Index expectation
 
@@ -309,7 +308,7 @@ data
 position/order metadata
 ```
 
-schema دقیق OPEN است.
+schema دقیق، payload هر type و conflict granularity در ADR-0003 ثبت شده است.
 
 ## 8.4 Item reference semantics
 
@@ -1229,15 +1228,12 @@ Field-level Last-Write-Wins
 
 # 33. Open domain decisions
 
-1. Event multi-parent structural relation یا single-parent + multi-reference.
-2. storage schema ContentBlock.
-3. exact generic relation model child/reference.
-4. DailyRing scoring formula.
-5. difficulty/effort representation.
-6. global user streak entity.
-7. frequency-routine streak formal model.
-8. incremental Routine inactivity reset.
-9. exact ownership of Folder/List/Column در group contexts.
-10. ~~storage inheritance strategy~~ — برای baseline Personal V1 در DR-054 بسته شد.
-11. exact field-level sync metadata.
+1. DailyRing scoring formula.
+2. difficulty/effort representation.
+3. global user streak entity.
+4. frequency-routine streak formal model.
+5. incremental Routine inactivity reset.
+6. exact ownership of Folder/List/Column در group contexts.
+7. ~~storage inheritance strategy~~ — برای baseline Personal V1 در DR-054 بسته شد.
+8. exact field-level sync metadata.
 

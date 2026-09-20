@@ -832,6 +832,8 @@ Canonical requirement:
 
 Exact storage schema must be decided here.
 
+**Resolved:** ADR-0003 defines stable identity, ordering, exact type payloads, block-level optimistic concurrency and relational Item references.
+
 ## B. Child vs Reference backend relation
 
 System must distinguish:
@@ -842,6 +844,8 @@ System must distinguish:
 without forcing two complex UI workflows.
 
 Exact relation schema must be decided.
+
+**Resolved:** ADR-0004 separates the single direct structural parent foreign key from multi-context `item_reference` ContentBlocks and defines atomic hierarchy mutations.
 
 ## C. Structural parent invariant — already confirmed
 
