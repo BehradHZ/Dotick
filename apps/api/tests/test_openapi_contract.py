@@ -9,8 +9,8 @@ from openapi_spec_validator import validate
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OPENAPI_PATH = REPO_ROOT / "docs" / "design" / "openapi.json"
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
-REVIEWED_CONTRACT_SHA256 = "15c8cf0fe5a4f699eb7375e06b45a819813ce8a51278d4112e3050e7c7ffbd27"
-PUBLISHED_INCREMENT_1_PATHS = {
+REVIEWED_CONTRACT_SHA256 = "e041ff0c2ec707ab0acee5f243ee59a855e354acb3c114f998b0e8d6aa297c9c"
+PUBLISHED_INCREMENT_2_PATHS = {
     "/api/v1/account",
     "/api/v1/account/bootstrap",
     "/api/v1/account/contacts",
@@ -99,7 +99,7 @@ def test_openapi_document_is_valid_openapi_31():
     validate(_load_contract())
 
 
-def test_openapi_paths_exactly_match_the_published_increment_1_routes():
+def test_openapi_paths_exactly_match_the_published_increment_2_routes():
     contract_paths = set(_load_contract()["paths"])
     routed_paths = {
         "/" + re.sub(r"<[^:>]+:([^>]+)>", r"{\1}", route)
@@ -107,10 +107,10 @@ def test_openapi_paths_exactly_match_the_published_increment_1_routes():
         if route.startswith("api/v1/") and not route.startswith("api/v1/foundation/")
     }
 
-    assert contract_paths == PUBLISHED_INCREMENT_1_PATHS == routed_paths
+    assert contract_paths == PUBLISHED_INCREMENT_2_PATHS == routed_paths
 
 
-def test_openapi_is_the_executable_increment_1_contract():
+def test_openapi_is_the_executable_increment_2_contract():
     contract = _load_contract()
 
     assert contract["openapi"] == "3.1.0"

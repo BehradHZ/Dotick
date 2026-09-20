@@ -53,6 +53,12 @@ def test_task_create_persists_composed_rows_in_the_inbox():
         "id": str(item.id),
         "title": "خرید نان",
         "status": "todo",
+        "priority": "none",
+        "due_at": None,
+        "end_at": None,
+        "is_all_day": False,
+        "deadline_at": None,
+        "grace_period_days": 0,
         "version": 1,
         "column_id": workspace["inbox"]["default_column"]["id"],
         "owner_user_id": str(user.id),
@@ -167,6 +173,121 @@ def test_task_create_requires_authentication_and_strict_valid_input():
         ).status_code
         == 400
     )
+
+
+def test_task_create_and_update_support_schedule_deadline_grace_and_priority():
+    user = _user("task-schedule@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Ship release",
+            "operation_id": "00000000-0000-0000-0000-000000000830",
+            "priority": "urgent_important",
+            "due_at": "2026-10-01T08:00:00Z",
+            "end_at": "2026-10-01T10:00:00Z",
+            "deadline_at": "2026-10-02T08:00:00Z",
+            "grace_period_days": 2,
+        },
+        format="json",
+    )
+
+    assert created.status_code == 201
+    assert created.json()["priority"] == "urgent_important"
+    assert created.json()["due_at"] == "2026-10-01T08:00:00Z"
+    assert created.json()["end_at"] == "2026-10-01T10:00:00Z"
+    assert created.json()["deadline_at"] == "2026-10-02T08:00:00Z"
+    assert created.json()["grace_period_days"] == 2
+
+    updated = client.patch(
+        f"{TASKS_URL}/{created.json()['id']}",
+        {
+            "version": 1,
+            "priority": "important",
+            "due_at": "2026-10-03T00:00:00Z",
+            "end_at": None,
+            "deadline_at": None,
+            "grace_period_days": 0,
+            "is_all_day": True,
+        },
+        format="json",
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["priority"] == "important"
+    assert updated.json()["due_at"] == "2026-10-03T00:00:00Z"
+    assert updated.json()["end_at"] is None
+    assert updated.json()["deadline_at"] is None
+    assert updated.json()["grace_period_days"] == 0
+    assert updated.json()["is_all_day"] is True
+    assert updated.json()["version"] == 2
+
+
+@pytest.mark.parametrize(
+    "schedule",
+    [
+        {"end_at": "2026-10-01T10:00:00Z"},
+        {
+            "due_at": "2026-10-01T10:00:00Z",
+            "end_at": "2026-10-01T09:00:00Z",
+        },
+        {
+            "due_at": "2026-10-01T10:00:00Z",
+            "deadline_at": "2026-10-01T09:00:00Z",
+        },
+        {"is_all_day": True},
+        {"grace_period_days": 1},
+    ],
+)
+def test_task_create_rejects_invalid_schedule_combinations(schedule):
+    user = _user(f"task-invalid-schedule-{len(str(schedule))}@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+
+    response = client.post(
+        TASKS_URL,
+        {
+            "title": "Invalid schedule",
+            "operation_id": str(uuid4()),
+            **schedule,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert Item.objects.filter(owner=user).count() == 0
+
+
+def test_task_update_validates_merged_schedule_and_skipped_is_system_only():
+    user = _user("task-schedule-update-validation@example.test")
+    client = _authenticated_client(user)
+    client.put(BOOTSTRAP_URL, {"timezone": "Europe/Berlin"}, format="json")
+    created = client.post(
+        TASKS_URL,
+        {
+            "title": "Keep valid",
+            "operation_id": "00000000-0000-0000-0000-000000000831",
+            "due_at": "2026-10-01T08:00:00Z",
+            "deadline_at": "2026-10-02T08:00:00Z",
+        },
+        format="json",
+    ).json()
+    url = f"{TASKS_URL}/{created['id']}"
+
+    invalid_order = client.patch(
+        url,
+        {"version": 1, "end_at": "2026-10-03T08:00:00Z"},
+        format="json",
+    )
+    skipped = client.patch(url, {"version": 1, "status": "skipped"}, format="json")
+
+    assert invalid_order.status_code == 400
+    assert skipped.status_code == 400
+    item = Item.objects.select_related("task").get(pk=created["id"])
+    assert item.version == 1
+    assert item.task.status == "todo"
 
 
 def test_task_list_returns_only_owned_active_tasks_in_active_lists_newest_first():

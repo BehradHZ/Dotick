@@ -34,11 +34,19 @@ export type ColumnRecord = {
   version: number;
   is_default: boolean;
 };
-export type TaskStatus = 'todo' | 'done' | 'wont_do';
+export type TaskStatus = 'todo' | 'overdue' | 'missed' | 'done' | 'wont_do' | 'skipped';
+export type TaskUserStatus = 'todo' | 'done' | 'wont_do';
+export type TaskPriority = 'urgent_important' | 'important' | 'urgent' | 'none';
 export type Task = {
   id: string;
   title: string;
   status: TaskStatus;
+  priority: TaskPriority;
+  due_at: string | null;
+  end_at: string | null;
+  is_all_day: boolean;
+  deadline_at: string | null;
+  grace_period_days: number;
   version: number;
   column_id: string;
   owner_user_id: string;
@@ -79,12 +87,24 @@ export type TaskCreate = {
   title: string;
   operation_id: string;
   column_id?: string | null;
+  priority?: TaskPriority;
+  due_at?: string | null;
+  end_at?: string | null;
+  is_all_day?: boolean;
+  deadline_at?: string | null;
+  grace_period_days?: number;
 };
 export type TaskUpdate = {
   version: number;
   title?: string;
-  status?: TaskStatus;
+  status?: TaskUserStatus;
   column_id?: string;
+  priority?: TaskPriority;
+  due_at?: string | null;
+  end_at?: string | null;
+  is_all_day?: boolean;
+  deadline_at?: string | null;
+  grace_period_days?: number;
 };
 export type FolderItemResolution = 'move_to_inbox' | 'trash';
 export type ListItemResolution = 'move_to_inbox' | 'trash';
@@ -311,7 +331,13 @@ function isTask(value: unknown) {
   return (
     hasString(value, 'id') &&
     hasString(value, 'title') &&
-    ['todo', 'done', 'wont_do'].includes(String(value.status)) &&
+    ['todo', 'overdue', 'missed', 'done', 'wont_do', 'skipped'].includes(String(value.status)) &&
+    ['urgent_important', 'important', 'urgent', 'none'].includes(String(value.priority)) &&
+    (value.due_at === null || typeof value.due_at === 'string') &&
+    (value.end_at === null || typeof value.end_at === 'string') &&
+    typeof value.is_all_day === 'boolean' &&
+    (value.deadline_at === null || typeof value.deadline_at === 'string') &&
+    hasNumber(value, 'grace_period_days') &&
     hasNumber(value, 'version') &&
     hasString(value, 'column_id') &&
     hasString(value, 'owner_user_id') &&

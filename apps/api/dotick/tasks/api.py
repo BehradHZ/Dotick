@@ -20,13 +20,28 @@ class TaskCreateInput(StrictInput):
     title = serializers.CharField(max_length=240, trim_whitespace=True)
     operation_id = serializers.UUIDField()
     column_id = serializers.UUIDField(required=False, allow_null=True)
+    priority = serializers.ChoiceField(choices=Task.Priority.values, required=False)
+    due_at = serializers.DateTimeField(required=False, allow_null=True)
+    end_at = serializers.DateTimeField(required=False, allow_null=True)
+    is_all_day = serializers.BooleanField(required=False)
+    deadline_at = serializers.DateTimeField(required=False, allow_null=True)
+    grace_period_days = serializers.IntegerField(required=False, min_value=0)
 
 
 class TaskUpdateInput(StrictInput):
     version = serializers.IntegerField(min_value=1)
     title = serializers.CharField(max_length=240, trim_whitespace=True, required=False)
-    status = serializers.ChoiceField(choices=Task.Status.values, required=False)
+    status = serializers.ChoiceField(
+        choices=[Task.Status.TODO, Task.Status.DONE, Task.Status.WONT_DO],
+        required=False,
+    )
     column_id = serializers.UUIDField(required=False)
+    priority = serializers.ChoiceField(choices=Task.Priority.values, required=False)
+    due_at = serializers.DateTimeField(required=False, allow_null=True)
+    end_at = serializers.DateTimeField(required=False, allow_null=True)
+    is_all_day = serializers.BooleanField(required=False)
+    deadline_at = serializers.DateTimeField(required=False, allow_null=True)
+    grace_period_days = serializers.IntegerField(required=False, min_value=0)
 
     def validate(self, attrs):
         if set(attrs) == {"version"}:
@@ -48,6 +63,12 @@ class TaskOutput(serializers.Serializer):
     id = serializers.UUIDField()
     title = serializers.CharField()
     status = serializers.CharField(source="task.status")
+    priority = serializers.CharField(source="task.priority")
+    due_at = serializers.DateTimeField(source="task.due_at", allow_null=True)
+    end_at = serializers.DateTimeField(source="task.end_at", allow_null=True)
+    is_all_day = serializers.BooleanField(source="task.is_all_day")
+    deadline_at = serializers.DateTimeField(source="task.deadline_at", allow_null=True)
+    grace_period_days = serializers.IntegerField(source="task.grace_period_days")
     version = serializers.IntegerField()
     column_id = serializers.UUIDField()
     owner_user_id = serializers.UUIDField(source="owner_id")

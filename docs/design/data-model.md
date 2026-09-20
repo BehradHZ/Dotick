@@ -205,14 +205,19 @@ The resource row and operation row are committed in one transaction. Transaction
 
 ### `tasks`
 
-I1 فقط lifecycle پایه را پیاده می‌کند.
+I2 scheduling و priority را به subtype موجود اضافه می‌کند و identity مشترک در `items` می‌ماند.
 
 | Column | Type | Constraint / note |
 |---|---|---|
 | `item_id` | uuid | PK, FK items, cascade |
-| `status` | varchar | `todo`, `done`, `wont_do` در I1؛ stateهای زمانی در I2 |
+| `status` | varchar | `todo`, `overdue`, `missed`, `done`, `wont_do`, `skipped` |
+| `priority` | varchar | `urgent_important`, `important`, `urgent`, `none`; default `none` |
+| `due_at` / `end_at` | timestamptz nullable | unscheduled مجاز؛ `end_at` نیازمند `due_at` و `due_at <= end_at` |
+| `is_all_day` | boolean | default false؛ true نیازمند `due_at` است و instant را حذف نمی‌کند |
+| `deadline_at` | timestamptz nullable | مستقل مجاز؛ در صورت وجود schedule باید پس از due/end باشد |
+| `grace_period_days` | integer | nonnegative، default 0؛ مقدار nonzero نیازمند deadline است |
 
-فیلدهای scheduling، priority، dependency و hierarchy در migration Increment 2 افزوده می‌شوند، نه به صورت columnهای unused در I1.
+dependency و hierarchy در migrationهای بعدی Increment 2 افزوده می‌شوند. read/edit معمولی status زمانی را دوباره محاسبه نمی‌کند؛ lifecycle transition از application behavior صریح انجام می‌شود.
 
 ## 4.4 Initial physical ERD
 
@@ -299,7 +304,7 @@ Exactly-one subtype/source/default-Column invariants are completed by transactio
 5. با version code همان commit سازگار باشد؛
 6. برای عملیات پرریسک backup/restore note داشته باشد.
 
-# 9. Verification for Increment 0/1
+# 9. Verification for delivered Increment 0/1 and Increment 2 slices
 
 | Requirement | Design evidence | Required verification |
 |---|---|---|
@@ -309,12 +314,14 @@ Exactly-one subtype/source/default-Column invariants are completed by transactio
 | SRS-CON-004 | Compose/local-hosted topology | deployment smoke test |
 | SRS-ITEM-002..009 | `items`, `tasks`, `item_sources` | model/service/API tests in I1 |
 | SRS-ORG-001..005 | folder/list/column schema | constraint and acceptance tests in I1 |
+| SRS-TASK-002..006, 016, 018, 020..022 | I2 Task schedule/priority fields and constraints | PostgreSQL migration + model/service/API tests |
 
 # 10. Deferred physical design
 
 - Event, Routine and TrackingState tables.
 - hierarchy child/reference relation.
 - ContentBlock storage.
+- Task dependency relation and explicit lifecycle runner.
 - recurrence/reminder schema.
 - Group ownership.
 - sync field clocks.

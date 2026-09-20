@@ -1,10 +1,11 @@
 import hashlib
+import json
 
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.http import Http404
 from django.utils import timezone
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ValidationError
 
 from dotick.items.models import Item, ItemSource
 from dotick.organization.models import Column
@@ -28,15 +29,39 @@ class VersionConflict(APIException):
             "id": str(item.id),
             "title": item.title,
             "status": item.task.status,
+            "priority": item.task.priority,
+            "due_at": item.task.due_at,
+            "end_at": item.task.end_at,
+            "is_all_day": item.task.is_all_day,
+            "deadline_at": item.task.deadline_at,
+            "grace_period_days": item.task.grace_period_days,
             "version": item.version,
             "column_id": str(item.column_id),
         }
         super().__init__("The Task changed after the supplied version.")
 
 
-def _creation_intent_digest(*, title, column_id):
-    value = f"{title.strip()}\0{column_id or 'inbox'}"
+def _creation_intent_digest(**intent):
+    value = json.dumps(intent, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _validate_schedule(*, due_at, end_at, is_all_day, deadline_at, grace_period_days):
+    errors = {}
+    if end_at is not None and due_at is None:
+        errors["end_at"] = "A duration end requires due_at."
+    elif end_at is not None and end_at < due_at:
+        errors["end_at"] = "end_at must be at or after due_at."
+    if deadline_at is not None and due_at is not None and deadline_at < due_at:
+        errors["deadline_at"] = "deadline_at must be at or after due_at."
+    if deadline_at is not None and end_at is not None and deadline_at < end_at:
+        errors["deadline_at"] = "deadline_at must be at or after end_at."
+    if is_all_day and due_at is None:
+        errors["is_all_day"] = "An all-day Task requires due_at."
+    if deadline_at is None and grace_period_days != 0:
+        errors["grace_period_days"] = "A nonzero grace period requires deadline_at."
+    if errors:
+        raise ValidationError(errors)
 
 
 def _get_task_by_operation(*, actor_id, operation_id):
@@ -98,7 +123,21 @@ def get_task(*, actor_id, task_id):
 
 
 @transaction.atomic
-def update_task(*, actor_id, task_id, version, title=UNSET, status=UNSET, column_id=UNSET):
+def update_task(
+    *,
+    actor_id,
+    task_id,
+    version,
+    title=UNSET,
+    status=UNSET,
+    column_id=UNSET,
+    priority=UNSET,
+    due_at=UNSET,
+    end_at=UNSET,
+    is_all_day=UNSET,
+    deadline_at=UNSET,
+    grace_period_days=UNSET,
+):
     try:
         item = (
             Item.objects.select_for_update(of=("self",))
@@ -128,8 +167,31 @@ def update_task(*, actor_id, task_id, version, title=UNSET, status=UNSET, column
         except Column.DoesNotExist as error:
             raise Http404("The destination Column is unavailable.") from error
 
-    if status is not UNSET:
-        Task.objects.filter(pk=item.pk).update(status=status)
+    schedule = {
+        "due_at": item.task.due_at if due_at is UNSET else due_at,
+        "end_at": item.task.end_at if end_at is UNSET else end_at,
+        "is_all_day": item.task.is_all_day if is_all_day is UNSET else is_all_day,
+        "deadline_at": item.task.deadline_at if deadline_at is UNSET else deadline_at,
+        "grace_period_days": (
+            item.task.grace_period_days if grace_period_days is UNSET else grace_period_days
+        ),
+    }
+    _validate_schedule(**schedule)
+
+    task_changes = {}
+    for field, value in {
+        "status": status,
+        "priority": priority,
+        "due_at": due_at,
+        "end_at": end_at,
+        "is_all_day": is_all_day,
+        "deadline_at": deadline_at,
+        "grace_period_days": grace_period_days,
+    }.items():
+        if value is not UNSET:
+            task_changes[field] = value
+    if task_changes:
+        Task.objects.filter(pk=item.pk).update(**task_changes)
 
     item_changes = {
         "version": F("version") + 1,
@@ -234,9 +296,37 @@ def restore_task(*, actor_id, task_id, version):
 
 
 @transaction.atomic
-def create_task(*, actor_id, title, operation_id, column_id=None):
+def create_task(
+    *,
+    actor_id,
+    title,
+    operation_id,
+    column_id=None,
+    priority=Task.Priority.NONE,
+    due_at=None,
+    end_at=None,
+    is_all_day=False,
+    deadline_at=None,
+    grace_period_days=0,
+):
     normalized_title = title.strip()
-    intent_digest = _creation_intent_digest(title=normalized_title, column_id=column_id)
+    _validate_schedule(
+        due_at=due_at,
+        end_at=end_at,
+        is_all_day=is_all_day,
+        deadline_at=deadline_at,
+        grace_period_days=grace_period_days,
+    )
+    intent_digest = _creation_intent_digest(
+        title=normalized_title,
+        column_id=column_id or "inbox",
+        priority=priority,
+        due_at=due_at,
+        end_at=end_at,
+        is_all_day=is_all_day,
+        deadline_at=deadline_at,
+        grace_period_days=grace_period_days,
+    )
     existing = (
         Item.objects.filter(
             owner_id=actor_id,
@@ -281,7 +371,15 @@ def create_task(*, actor_id, title, operation_id, column_id=None):
                 creation_operation_id=operation_id,
                 creation_intent_digest=intent_digest,
             )
-            Task.objects.create(item=item)
+            Task.objects.create(
+                item=item,
+                priority=priority,
+                due_at=due_at,
+                end_at=end_at,
+                is_all_day=is_all_day,
+                deadline_at=deadline_at,
+                grace_period_days=grace_period_days,
+            )
             ItemSource.objects.create(item=item, platform=ItemSource.Platform.MANUAL)
     except IntegrityError:
         return _resolve_creation_retry(

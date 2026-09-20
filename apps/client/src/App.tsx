@@ -22,7 +22,7 @@ import {
   type ListRecord,
   ReauthenticationRequiredError,
   type Task,
-  type TaskStatus,
+  type TaskUserStatus,
 } from './api';
 
 const colors = {
@@ -33,6 +33,14 @@ const colors = {
   orange: '#ff7a00',
   red: '#b42318',
   redSoft: '#ffe5df',
+};
+const TASK_STATUS_LABEL: Record<Task['status'], string> = {
+  todo: 'Todo',
+  overdue: 'Overdue',
+  missed: 'Missed',
+  done: 'Done',
+  wont_do: "Won't do",
+  skipped: 'Skipped',
 };
 function localTimezone() {
   try {
@@ -334,7 +342,7 @@ export default function App() {
   }
   async function updateTask(
     task: Task,
-    change: { title?: string; status?: TaskStatus; column_id?: string },
+    change: { title?: string; status?: TaskUserStatus; column_id?: string },
   ) {
     if (!session || busy) return;
     setBusy(true);
@@ -636,13 +644,7 @@ export default function App() {
                       <View style={[styles.taskHeader, compact && styles.stackOnCompact]}>
                         <View style={styles.flexInput}>
                           <Text style={styles.taskTitle}>{task.title}</Text>
-                          <Text style={styles.muted}>
-                            {task.status === 'wont_do'
-                              ? "Won't do"
-                              : task.status === 'done'
-                                ? 'Done'
-                                : 'Todo'}
-                          </Text>
+                          <Text style={styles.muted}>{TASK_STATUS_LABEL[task.status]}</Text>
                         </View>
                         <Action
                           title={`Edit ${task.title}`}

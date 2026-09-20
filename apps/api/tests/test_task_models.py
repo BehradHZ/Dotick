@@ -69,18 +69,32 @@ def test_deleting_an_item_cascades_to_its_task_subtype():
     assert not Task.objects.filter(pk=task.pk).exists()
 
 
-def test_task_defaults_to_todo_and_exposes_only_increment_1_statuses():
+def test_task_defaults_to_todo_and_exposes_increment_2_statuses_and_priorities():
     owner = _user("task-status-default@example.test")
     item = _item(owner)
 
     task = Task.objects.create(item=item)
 
     assert task.status == Task.Status.TODO
-    assert {value for value, _ in Task.Status.choices} == {"todo", "done", "wont_do"}
+    assert task.priority == Task.Priority.NONE
+    assert {value for value, _ in Task.Status.choices} == {
+        "todo",
+        "overdue",
+        "missed",
+        "done",
+        "wont_do",
+        "skipped",
+    }
+    assert {value for value, _ in Task.Priority.choices} == {
+        "urgent_important",
+        "important",
+        "urgent",
+        "none",
+    }
 
 
-@pytest.mark.parametrize("status", [Task.Status.TODO, Task.Status.DONE, Task.Status.WONT_DO])
-def test_task_accepts_each_increment_1_status(status):
+@pytest.mark.parametrize("status", Task.Status.values)
+def test_task_accepts_each_increment_2_status(status):
     owner = _user(f"task-status-{status}@example.test")
     item = _item(owner)
 
@@ -90,7 +104,7 @@ def test_task_accepts_each_increment_1_status(status):
     assert task.status == status
 
 
-def test_task_database_rejects_statuses_outside_increment_1():
+def test_task_database_rejects_unknown_status():
     owner = _user("task-status-invalid@example.test")
     item = _item(owner)
 

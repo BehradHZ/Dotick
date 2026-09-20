@@ -3,7 +3,7 @@
 > **Status:** Increment 1 published backend contract implemented and CI-guarded
 > **Reconciled:** 2026-09-16
 
-`docs/design/openapi.json` is the executable OpenAPI 3.1 handoff for every currently published Increment 1 product route. The contract covers Identity, Account, Folder/List/Column, Basic Task and Trash/restore boundaries. Foundation workbench routes are deliberately outside the published I1 product contract.
+`docs/design/openapi.json` is the executable OpenAPI 3.1 handoff for every currently published product route. The contract covers Identity, Account, Folder/List/Column, Task scheduling/priority and Trash/restore boundaries. Foundation workbench routes are deliberately outside the published product contract.
 
 ## Contract rules
 
@@ -27,7 +27,7 @@ The current contract includes:
 - Passkey registration/authentication/list/delete;
 - account detail, bootstrap and verified-contact lifecycle;
 - Folder, List and Column operations;
-- Basic Task create/read/edit/move/status/delete/restore;
+- Task create/read/edit/move/status/schedule/priority/delete/restore;
 - owner-scoped Trash queries and Folder/List/Task restore.
 
 Routes for Event, Routine, collaboration, full sync/history and later-Increment capabilities are intentionally absent until their owning Increment.

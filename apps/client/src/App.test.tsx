@@ -26,7 +26,13 @@ const inbox = {
 const task = {
   id: '33333333-3333-4333-8333-333333333333',
   title: 'Server task',
-  status: 'todo',
+  status: 'overdue',
+  priority: 'none',
+  due_at: null,
+  end_at: null,
+  is_all_day: false,
+  deadline_at: null,
+  grace_period_days: 0,
   version: 1,
   column_id: inbox.default_column.id,
   owner_user_id: '44444444-4444-4444-8444-444444444444',
@@ -42,7 +48,7 @@ function signIn() {
   fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 }
 
-test('bootstraps Account, Inbox, Lists, and Tasks into the server-backed I1 workspace', async () => {
+test('bootstraps Account, Inbox, Lists, and scheduled Tasks into the server-backed workspace', async () => {
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('/api/v1/auth/token')) return json(tokens);
@@ -61,6 +67,7 @@ test('bootstraps Account, Inbox, Lists, and Tasks into the server-backed I1 work
   expect(screen.getByText('1 list loaded from the server')).toBeVisible();
   expect(screen.getByText('1 task loaded from the server')).toBeVisible();
   expect(screen.getByText('Server task')).toBeVisible();
+  expect(screen.getByText('Overdue')).toBeVisible();
   expect(fetch).toHaveBeenCalledWith(
     expect.stringMatching(/\/api\/v1\/account\/bootstrap$/),
     expect.objectContaining({ headers: expect.any(Headers) }),
