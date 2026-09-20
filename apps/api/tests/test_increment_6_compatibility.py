@@ -173,8 +173,14 @@ def test_private_i1_operations_inherit_bearer_authentication():
 
     assert "403" in contract["paths"]["/api/v1/auth/password"]["put"]["responses"]
     assert "403" in contract["paths"]["/api/v1/auth/google/link"]["post"]["responses"]
-    assert "403" in contract["paths"]["/api/v1/auth/passkeys/registration/options"]["post"]["responses"]
-    assert "403" in contract["paths"]["/api/v1/auth/passkeys/registration/verify"]["post"]["responses"]
+    assert (
+        "403"
+        in contract["paths"]["/api/v1/auth/passkeys/registration/options"]["post"]["responses"]
+    )
+    assert (
+        "403"
+        in contract["paths"]["/api/v1/auth/passkeys/registration/verify"]["post"]["responses"]
+    )
 
 
 def test_organization_resources_are_versioned_and_idempotent_before_implementation():
