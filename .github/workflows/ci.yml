@@ -56,7 +56,7 @@ jobs:
           npm ci
           python -c "import os,secrets; open(os.environ['GITHUB_ENV'],'a').write('DJANGO_SECRET_KEY='+secrets.token_urlsafe(64)+'\n')"
 
-      - name: Ruff, ESLint, Prettier and TypeScript
+      - name: Lint, format and type checks
         run: |
           python -m uv run ruff check apps/api scripts
           python -m uv run ruff format --check apps/api scripts
@@ -67,7 +67,7 @@ jobs:
       - name: Traceability check
         run: python scripts/check_traceability.py
 
-      - name: Migration and schema drift checks
+      - name: Migration history, drift and fresh-database checks
         env:
           MIGRATION_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
@@ -76,8 +76,9 @@ jobs:
           python -m uv run python apps/api/manage.py showmigrations
           python -m uv run python scripts/check_migrations.py
           python -m uv run python scripts/verify_clean_database.py
+          python -m uv run python apps/api/manage.py check
 
-      - name: Backend and golden-time tests
+      - name: Backend, OpenAPI and compatibility tests
         run: |
           python -m uv run python apps/api/manage.py test dotick
           python -m uv run pytest
@@ -92,13 +93,13 @@ jobs:
           WEBAUTHN_ORIGIN: https://testserver
         run: python -m uv run python apps/api/manage.py check --deploy --fail-level WARNING
 
-      - name: Frontend component, network and time-vector tests
+      - name: Frontend unit, component, network and time-vector tests
         run: npm test
 
       - name: Client web export
         run: npm run build
 
-      - name: Increment 0 Checkpoint and Increment 1 workspace E2E regressions
+      - name: Desktop/mobile Increment 1 E2E and Increment 0 regression
         run: |
           npx playwright install --with-deps chromium
           python -m uv run python apps/api/manage.py create_developer
