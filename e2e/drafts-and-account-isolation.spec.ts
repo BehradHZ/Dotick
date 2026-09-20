@@ -50,7 +50,7 @@ function authorization(access: string) {
   return { Authorization: `Bearer ${access}` };
 }
 
-test('failed List and Task saves preserve their browser drafts', async ({ page }) => {
+test('failed List save preserves its browser draft', async ({ page }) => {
   await signIn(page);
 
   const listDraft = `Unsaved list ${crypto.randomUUID()}`;
@@ -64,8 +64,10 @@ test('failed List and Task saves preserve their browser drafts', async ({ page }
   await page.getByRole('button', { name: 'Add list' }).click();
   await expect(page.getByRole('alert')).toContainText('Connection interrupted');
   await expect(listInput).toHaveValue(listDraft);
-  await page.unroute(listsRoute);
+});
 
+test('failed Task save preserves its browser draft', async ({ page }) => {
+  await signIn(page);
   const taskDraft = `Unsaved task ${crypto.randomUUID()}`;
   await page.route('**/api/v1/tasks', async (route) => {
     if (route.request().method() === 'POST') await route.abort('failed');
