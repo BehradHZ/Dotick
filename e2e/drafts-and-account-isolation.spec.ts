@@ -60,7 +60,7 @@ test('failed List and Task saves preserve their browser drafts', async ({ page }
     else await route.continue();
   });
   const listInput = page.getByLabel('New list', { exact: true });
-  await listInput.fill(listDraft);
+  await listInput.pressSequentially(listDraft);
   await page.getByRole('button', { name: 'Add list' }).click();
   await expect(page.getByRole('alert')).toContainText('Connection interrupted');
   await expect(listInput).toHaveValue(listDraft);
@@ -72,7 +72,7 @@ test('failed List and Task saves preserve their browser drafts', async ({ page }
     else await route.continue();
   });
   const taskInput = page.getByLabel('New task', { exact: true });
-  await taskInput.fill(taskDraft);
+  await taskInput.pressSequentially(taskDraft);
   await page.getByRole('button', { name: 'Add task' }).click();
   await expect(page.getByRole('alert')).toContainText('Connection interrupted');
   await expect(taskInput).toHaveValue(taskDraft);
