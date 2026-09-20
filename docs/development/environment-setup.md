@@ -1,7 +1,7 @@
 # Development environment
 
 > **Status:** Increment 0 closed; Increment 1 backend/minimal product client implemented and hosted-CI verified
-> **Reconciled:** 2026-09-16
+> **Reconciled:** 2026-09-20
 
 Run commands from the repository root.
 
@@ -29,15 +29,31 @@ The initializer creates ignored local secrets without overwriting existing value
 
 Tests create and destroy `test_<PGDATABASE>` databases, so the development PostgreSQL role needs `CREATEDB`. Never point test commands at production.
 
-## Provider configuration
+## Identity provider and delivery configuration
 
-Google web sign-in uses the same public OAuth client ID in backend `GOOGLE_OAUTH_CLIENT_ID` and client `EXPO_PUBLIC_GOOGLE_CLIENT_ID`. The browser credential flow does not require a Google client secret, and no secret may use an `EXPO_PUBLIC_` variable because Expo bundles those values into the client. If either client ID is absent, Google sign-in stays unavailable cleanly while independent email/password sign-in remains available.
+Copy variable names from `.env.example`, but inject production secrets through deployment secret storage. Every `EXPO_PUBLIC_*` value is bundled into browser/native client code and is public by definition.
 
-Passkeys use `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and `WEBAUTHN_ORIGIN`. Local/test defaults use the `localhost` RP over `http://localhost:8081`. Non-local environments must set all three values explicitly, use an HTTPS origin without credentials, path, query or fragment, and keep the origin host equal to or below the RP ID domain. HTTP is accepted only for localhost loopback development.
+### Email
 
-Phone-contact verification uses a deployment delivery adapter. Until a real adapter is configured, automated tests cover the application boundary but do not constitute release smoke.
+`DJANGO_EMAIL_BACKEND` selects the Django backend. SMTP uses `DJANGO_EMAIL_HOST`, `DJANGO_EMAIL_PORT`, optional paired `DJANGO_EMAIL_HOST_USER`/`DJANGO_EMAIL_HOST_PASSWORD`, `DJANGO_EMAIL_USE_TLS`, `DJANGO_EMAIL_USE_SSL`, and `DJANGO_DEFAULT_FROM_EMAIL`. The port must be between 1 and 65535; TLS and SSL cannot both be enabled; username and password must be supplied together. The local in-memory backend is suitable only for tests. Missing or failed contact-email delivery returns `503 contact_delivery_unavailable`; real registration/reset and contact delivery must still be smoke-tested in the target environment.
 
-Configured real email, Google, WebAuthn authenticator and phone-delivery smoke remain formal I1 release inputs.
+### SMS
+
+`DOTICK_SMS_DELIVERY_ADAPTER` is a non-empty dotted import path to a deployment adapter implementing `send_verification_code(phone_number, code)`. The checked-in `dotick.identity.sms.UnavailableSmsDeliveryAdapter` is a deliberate safe default: phone contacts stay pending and the API returns `503 contact_delivery_unavailable`. Provider credentials belong to the adapter's server-only environment configuration, not this repository or the Expo bundle.
+
+### Google
+
+Google web sign-in uses the same public OAuth client ID in backend `GOOGLE_OAUTH_CLIENT_ID` and client `EXPO_PUBLIC_GOOGLE_CLIENT_ID`. The browser credential flow needs no Google client secret. If the backend ID is absent, Google authentication returns `503 provider_unavailable` without contacting Google; if the public ID is absent, the client hides Google sign-in. Independent email/password sign-in remains available.
+
+### WebAuthn
+
+Passkeys use `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and `WEBAUTHN_ORIGIN`. Local/test defaults use RP ID `localhost`, RP name `Dotick`, and `http://localhost:8081`. Non-local environments must set all three values explicitly. The origin must be a bare HTTPS origin with no credentials, path, query or fragment, and its host must equal the RP ID or be its subdomain. HTTP is accepted only for `localhost` development. Invalid configuration stops application startup.
+
+### Identity ceremony edge limits
+
+The four `DOTICK_EDGE_IDENTITY_CEREMONY_*` variables define the deployment-edge baseline: 10 requests per 60 seconds and 100 requests per 3,600 seconds, collectively across the operations in [`identity-rate-limit-policy.json`](../operations/identity-rate-limit-policy.json), keyed by verified client IP. Django intentionally does not read these as an in-process limiter. Configure them in the proxy/CDN, use only trusted connection metadata for client IP, and return `429` with `Retry-After` when either threshold is exceeded.
+
+Configured real email, SMS, Google, WebAuthn authenticator and deployment-edge threshold smoke remain formal I1 release inputs.
 
 ## Host/origin configuration
 

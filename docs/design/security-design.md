@@ -1,7 +1,7 @@
 # Dotick Security Design
 
 > **Status:** Increment 1 security baseline implemented and hosted-CI verified; deployment-specific provider/edge smoke remains open
-> **Reconciled:** 2026-09-16
+> **Reconciled:** 2026-09-20
 
 This document describes security controls implemented for the current I0/I1 boundary. It does not pull later authorization, offline-sync or collaboration behavior into Increment 1.
 
@@ -66,11 +66,16 @@ Structured request logging uses an allowlist of fields such as timestamp, level,
 
 Each request receives a server correlation/request ID. API responses are configured to avoid accidental caching of sensitive product responses where the current boundary requires it.
 
-Secret material belongs in environment configuration or secret storage, never Expo public variables, repository files or test fixtures. Google client IDs may be public; client secrets may not be embedded into the Expo bundle.
+Secret material belongs in environment configuration or secret storage, never Expo public variables, repository files or test fixtures. `EXPO_PUBLIC_*` values are bundled into the client and are never secret. Google OAuth client IDs are public identifiers; this credential flow does not require a browser-visible Google secret. SMTP passwords, SMS-provider credentials, Django/JWT signing keys and any future provider secrets remain server-only.
 
 ## 7. External identity and delivery boundaries
 
 Automated tests replace external provider/delivery boundaries deterministically. This is implementation evidence, not release evidence for a configured real provider.
+
+- Email delivery is selected through Django's environment-driven backend/SMTP settings. Invalid port, credential pairing and simultaneous TLS/SSL configuration are rejected. Missing or failed contact delivery has a stable unavailable response and does not verify the contact.
+- SMS delivery is selected by a server-side adapter import path. The default unavailable adapter keeps phone contacts pending; provider credentials are owned by the deployment adapter.
+- Google uses matching public client IDs on server and client. Missing server configuration returns provider unavailable before token verification; missing client configuration hides the Google action.
+- WebAuthn RP ID, display name and origin are environment-driven. Production-like startup rejects blank/invalid RP settings, insecure non-local origins and origins outside the RP ID domain; localhost HTTP remains available for development.
 
 Formal I1 closure still requires target-environment smoke for:
 
@@ -80,6 +85,8 @@ Formal I1 closure still requires target-environment smoke for:
 - phone verification delivery adapter.
 
 Provider failure must remain isolated from core manual Task management.
+
+The authoritative variable-by-variable setup is in [Development environment](../development/environment-setup.md). Operational verification and secret-handling guidance is in [Security operations](../operations/security-operations.md).
 
 ## 8. Rate limiting and abuse controls
 

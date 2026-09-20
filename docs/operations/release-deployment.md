@@ -1,7 +1,7 @@
 # Dotick Deployment Baseline
 
 > **Status:** Increment 0 deployment baseline implemented and hosted-CI verified; Increment 1 product slice verified in CI; configured external-provider/release deployment remains open
-> **Reconciled:** 2026-09-16
+> **Reconciled:** 2026-09-20
 > **Primary target:** reproducible developer-local and CI execution; self-hosting is permitted under AGPL-3.0, while guaranteed production deployment/support is a separate professional-service boundary
 
 ## 1. Deployment units
@@ -38,11 +38,20 @@ Outside local/test, the application requires explicit:
 - CSRF trusted origins;
 - CORS origins;
 - JWT signing key;
-- WebAuthn relying-party/origin configuration where Passkeys are enabled.
+- WebAuthn RP ID, RP name and HTTPS origin.
 
 Wildcard host/origin trust is rejected. Production trusted/CORS/WebAuthn origins must use HTTPS. Secure redirect, secure cookies, HSTS and trusted proxy HTTPS-header handling are enabled in production-like settings.
 
 The Expo bundle may contain public configuration such as a Google client ID or public API URL, but never client secrets or server signing material.
+
+Identity delivery/provider configuration is deployment-owned:
+
+- configure SMTP through the `DJANGO_EMAIL_*` variables and keep the host password in secret storage;
+- replace the default unavailable `DOTICK_SMS_DELIVERY_ADAPTER` with a tested deployment adapter and supply its provider credentials server-side;
+- set matching `GOOGLE_OAUTH_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_CLIENT_ID` values; both are public identifiers and no Google secret belongs in the client;
+- set `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and `WEBAUTHN_ORIGIN` consistently with the final HTTPS application domain.
+
+Omitting Google or leaving the SMS unavailable adapter does not break password-based core Task access, but those provider paths are unavailable and cannot satisfy release smoke. Invalid WebAuthn production-like configuration fails startup.
 
 ## 4. Images and runtime
 
