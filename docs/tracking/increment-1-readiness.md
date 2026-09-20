@@ -2,13 +2,13 @@
 
 > **Original baseline:** 2026-09-08
 >
-> **Reconciled:** 2026-09-19
+> **Reconciled:** 2026-09-20
 >
 > **Audited branch:** `increment`
 >
-> **Implementation baseline before this documentation commit:** `d26e3c3`
+> **Implementation baseline before this documentation commit:** `4485c63`
 >
-> **Status:** **NOT CLOSED.** The repository implementation slice is present. Final hosted verification, real-provider/device/deployment smoke and release publication remain pending.
+> **Status:** **NOT CLOSED.** The repository implementation slice is present. CI targeting now includes `increment`; final hosted verification, real-provider/device/deployment smoke and release publication remain pending.
 
 ## Scope and authority
 
@@ -71,20 +71,20 @@ Historical test counts and hosted runs belong only to the exact commits that pro
 | I1-B02 Folder/List/Column version/idempotency | Resolved in implementation, migrations, OpenAPI and PostgreSQL concurrency/conflict coverage. |
 | I1-B03 product client absent | Resolved; current `apps/client` is the I1 product client. |
 | I1-B04 product E2E absent | Resolved; current Playwright suite contains I1 product acceptance and isolation scenarios. |
-| I1-B05 hosted CI for `increment` | **Open.** Workflow push branches remain `main`, `codex`, and `test`; no final-SHA hosted evidence exists for current `increment`. |
+| I1-B05 hosted CI for `increment` | CI targeting resolved: the workflow push filter includes `increment`. **Final candidate-SHA hosted evidence remains open.** |
 
 ## Remaining closure gates
 
 Increment 1 remains open until all applicable evidence exists:
 
-1. update hosted CI targeting so the active `increment` branch/final I1 SHA runs the full repository gate set, then record a green final-SHA run;
+1. run the full hosted repository gate set on the exact final I1 candidate SHA and record a green result;
 2. configure and smoke-test real target-environment email delivery;
 3. configure and smoke-test the real Google OAuth browser/provider path;
 4. smoke WebAuthn with the target RP ID/origin and a real supported browser/authenticator;
 5. configure and smoke-test phone delivery where enabled;
 6. deploy and verify the shared proxy/CDN `identity-ceremony` rate-limit policy; repository policy variables/tests alone are not enforcement;
 7. perform required supported-device/client smoke;
-8. create the formal Increment 1 release record/publication.
+8. create and publish the formal Increment 1 release.
 
 Mocks, adapter tests, local provider simulations and historical CI runs do not replace these gates. No Git tag, GitHub Release or production deployment is claimed.
 

@@ -1,8 +1,8 @@
 # Increment 1 client review
 
-> **Reconciled:** 2026-09-19
+> **Reconciled:** 2026-09-20
 >
-> **Implementation baseline before this documentation commit:** `d26e3c3`
+> **Implementation baseline before this documentation commit:** `4485c63`
 >
 > **Result:** Usable I1 web/Android product client present; not an Increment 1 release.
 
@@ -24,7 +24,7 @@
 - Additional E2E scenarios cover failed-save draft retention and cross-account resource/operation isolation.
 - The retained I0 Checkpoint browser/API regression is separate compatibility coverage and is not counted as I1 product acceptance.
 
-Historical test counts and hosted runs are not restated as current-HEAD results. Current `increment` lacks final-SHA hosted evidence because the workflow push filter does not include this branch.
+Historical test counts and hosted runs are not restated as current-HEAD results. CI targeting now includes `increment`; an exact final-candidate hosted result is still pending.
 
 ## Deliberate limits
 
@@ -38,4 +38,4 @@ Historical test counts and hosted runs are not restated as current-HEAD results.
 
 Real email, Google, WebAuthn authenticator and phone-delivery smoke remain pending. Deployed edge-rate-limit verification, supported-device smoke, final-SHA hosted CI and formal Increment 1 release publication also remain pending.
 
-See [Increment 1 readiness](increment-1-readiness.md) for the complete closure rule.
+See [Increment 1 readiness](increment-1-readiness.md) for the complete closure rule and [formal Increment 1 review](increment-1-review.md) for the release-candidate status.

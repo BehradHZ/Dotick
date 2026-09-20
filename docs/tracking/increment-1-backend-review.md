@@ -1,8 +1,8 @@
 # Increment 1 backend review
 
-> **Reconciled:** 2026-09-19
+> **Reconciled:** 2026-09-20
 >
-> **Implementation baseline before this documentation commit:** `d26e3c3`
+> **Implementation baseline before this documentation commit:** `4485c63`
 >
 > **Result:** Repository backend slice implemented; not an Increment 1 release.
 
@@ -27,7 +27,7 @@ The repository contains ordinary tests for:
 
 The former strict compatibility gaps for OpenAPI bearer security and Folder/List/Column version/idempotency are resolved; their tests are no longer expected failures.
 
-Historical pass counts and hosted run `35057831342` remain evidence only for their recorded historical SHA. Current `increment` is not covered by the workflow push filter and has no final-SHA hosted result.
+Historical pass counts and hosted run `35057831342` remain evidence only for their recorded historical SHA. CI targeting now includes `increment`; an exact final-candidate hosted result is still pending.
 
 ## Deliberate limits and pending evidence
 
@@ -38,4 +38,4 @@ Historical pass counts and hosted run `35057831342` remain evidence only for the
 - Event, Routine, scheduling, collaboration, full Sync/History/Undo and permanent Trash purge are later-Increment work.
 - Formal I1 release publication remains pending.
 
-See [Increment 1 readiness](increment-1-readiness.md) for closure gates and [Increment 1 client review](increment-1-client-review.md) for current UI scope.
+See [Increment 1 readiness](increment-1-readiness.md) for closure gates, [formal Increment 1 review](increment-1-review.md) for the release-candidate decision and [Increment 1 client review](increment-1-client-review.md) for current UI scope.

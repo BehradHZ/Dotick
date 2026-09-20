@@ -1,9 +1,9 @@
-name: Increment 0 Foundation
+name: Dotick Verification
 
 on:
   pull_request:
   push:
-    branches: [main, codex, test]
+    branches: [main, codex, increment]
 
 permissions:
   contents: read
