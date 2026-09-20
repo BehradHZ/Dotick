@@ -43,4 +43,4 @@ For suspected credential or provider compromise:
 
 ## 5. Evidence and review
 
-Retain deployment configuration review, provider smoke results, edge threshold results, secret-rotation records and incident reports according to the hosting environment's retention policy. Review access to production secret storage and provider consoles before release and after personnel or responsibility changes. Formal I1 release remains blocked on real email, SMS, Google, WebAuthn and edge-enforcement evidence plus release publication.
+Retain deployment configuration review, provider smoke results, edge threshold results, secret-rotation records and incident reports according to the hosting environment's retention policy. Review access to production secret storage and provider consoles before release and after personnel or responsibility changes. Enabled real email/SMS, Google, WebAuthn and edge-enforcement evidence is required for Increment 11 production readiness, not the closed I1 repository release.

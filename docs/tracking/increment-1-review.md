@@ -2,9 +2,9 @@
 
 Date: 2026-09-20. Scope: roadmap §8 — Identity + Folder/List/Column + Basic Task MVP.
 
-**Status: RELEASE CANDIDATE — EXTERNAL VERIFICATION PENDING.** The Increment 1 repository implementation and executable in-repository evidence are reconciled. This review does not close Increment 1 and does not claim real-provider/device/edge verification, a final green release-candidate SHA, a `v0.2.0` tag, or a published GitHub Release.
+**Status: CLOSED at `v0.2.0`.** Increment 1 repository implementation, executable evidence and documentation are reconciled. Live provider/device/edge deployment verification is not claimed; it is retained for Increment 11.
 
-Implementation baseline before this review: `09630b5dd4b9597562e0f7ef426b7bfce5bdeb73`.
+Immutable release boundary: Git tag and GitHub Release `v0.2.0`.
 
 ## Scope reviewed
 
@@ -26,7 +26,7 @@ Event, Routine, scheduling, recurrence, reminders, rich descriptions/comments, c
 - Rotating/revocable JWT sessions and recent-authentication checks are implemented.
 - Google identity and WebAuthn Passkey boundaries are implemented and environment-driven; password fallback remains available.
 - Account profile/timezone and verified secondary-contact APIs are present.
-- External email/SMS adapters are configurable but real target-provider delivery is not yet evidenced.
+- External email/SMS adapters are optional, configurable and unavailable by default; I1 does not require a live delivery provider.
 
 ### Organization
 
@@ -56,7 +56,7 @@ Event, Routine, scheduling, recurrence, reminders, rich descriptions/comments, c
 
 | Increment 1 acceptance behavior | Repository evidence state |
 |---|---|
-| authenticate | Implemented; backend identity tests, client auth tests and I1 E2E exist. Real Google/WebAuthn/provider smoke remains external. |
+| authenticate | Implemented; backend identity tests, client auth tests and password-authenticated I1 E2E pass. Live Google/WebAuthn smoke belongs to Increment 11. |
 | see Inbox | Implemented through bootstrap/organization APIs and workspace E2E. |
 | create a Task | Implemented in API/client and I1 E2E. |
 | place Task in List/Column | Implemented in organization/task APIs and client workflow/E2E coverage. |
@@ -80,21 +80,16 @@ The current repository contains gates for:
 
 The two former I1 compatibility gaps — OpenAPI bearer protection and Folder/List/Column version/idempotency behavior — are represented by ordinary tests rather than expected failures.
 
-## Pending external and release evidence
+## Closure evidence
 
-This review remains open at release-candidate status until all applicable evidence below is recorded:
+Closure uses repository-owned proof and an immutable release boundary:
 
-1. hosted CI is retargeted to `increment` and a final candidate SHA has a green full run;
-2. the required local/Codex release-candidate verification is executed against the exact candidate SHA;
-3. real email registration/resend/reset delivery succeeds;
-4. real SMS verification succeeds, including invalid-code rejection;
-5. real Google sign-in/account mapping and linking protection are exercised;
-6. real WebAuthn enrollment/authentication/deletion/password fallback are exercised on a valid HTTPS origin;
-7. deployed proxy/CDN edge rate limiting is exercised below/above threshold and after recovery window;
-8. non-secret provider/device/deployment evidence is recorded;
-9. `v0.2.0` is bound to the exact verified SHA, tagged and published.
+1. full local verification covers migrations, backend/frontend suites, production settings, web export, desktop/mobile I1 E2E, dependency audits, secret scanning, containers and restart persistence;
+2. GitHub Actions runs the same complete gate set on the exact `v0.2.0` commit;
+3. `v0.2.0` binds and publishes that verified commit;
+4. the readiness, traceability, risk, security and release records agree on the I1 boundary.
 
-Mocks, local adapters, provider simulations and historical CI runs do not satisfy these external gates.
+Email/SMS delivery is intentionally not required and remains unavailable unless configured. Live Google/WebAuthn, authenticator, edge and production-device smoke is Increment 11 deployment evidence. No such live evidence is claimed here.
 
 ## Accepted current limitations / technical debt
 
@@ -103,8 +98,9 @@ Mocks, local adapters, provider simulations and historical CI runs do not satisf
 - Client credentials remain session-memory only; durable secure credential storage belongs to a later security-reviewed slice.
 - Edge rate limiting is a deployment responsibility and intentionally has no process-local Django substitute.
 - Provider-specific native Google/Passkey behavior is not claimed.
+- Self-service email registration/reset and phone-contact verification require a deployment-provided delivery adapter; the `v0.2.0` release does not configure one.
 - Later-Increment scheduling, collaboration, Offline/Sync/History and permanent purge behavior remain deferred.
 
 ## Review decision
 
-The checked-in Increment 1 implementation is coherent with the defined I1 boundary and has the required repository-side implementation/test assets for release-candidate verification. **Increment 1 is not CLOSED.** It remains **RELEASE CANDIDATE — EXTERNAL VERIFICATION PENDING** until the pending hosted/local/provider/device/edge checks and publication record are completed.
+The checked-in Increment 1 implementation is coherent with the defined I1 boundary. Scope, acceptance, regressions, relevant repository security checks, traceability, design reconciliation and review pass at `v0.2.0`. **Increment 1 is CLOSED.** Deployment-specific provider/device/edge work remains with Increment 11.

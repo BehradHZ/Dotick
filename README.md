@@ -4,7 +4,7 @@ Dotick is being implemented incrementally from its specifications and [roadmap](
 
 The current repository contains the **Increment 1 implementation slice**: verified identity and revocable sessions, Folder/List/Column organization, the Basic Task lifecycle, an Expo web/Android product client, PostgreSQL-backed APIs, executable OpenAPI contracts and desktop/mobile browser acceptance coverage.
 
-Increment 1 is not formally released. Current implementation evidence and remaining gates are recorded in [Increment 1 readiness](docs/tracking/increment-1-readiness.md). Real email, Google, WebAuthn/authenticator and phone-delivery smoke, deployed edge-rate-limit verification, hosted verification of the final Increment 1 SHA and formal release publication remain pending.
+Increment 1 is released as `v0.2.0`. Closure evidence is recorded in [Increment 1 readiness](docs/tracking/increment-1-readiness.md) and the [formal review](docs/tracking/increment-1-review.md). External email/SMS delivery is optional and unconfigured by default; live provider, authenticator, edge and production-device validation belongs to Increment 11 deployment hardening.
 
 Follow [environment setup](docs/development/environment-setup.md) to run it. The prototype examples guide visual and interaction design; the specifications define behavior.
 

@@ -36,6 +36,6 @@ Historical test counts and hosted runs are not restated as current-HEAD results.
 
 ## Pending release evidence
 
-Real email, Google, WebAuthn authenticator and phone-delivery smoke remain pending. Deployed edge-rate-limit verification, supported-device smoke, final-SHA hosted CI and formal Increment 1 release publication also remain pending.
+This client review was completed before formal closure. Increment 1 later closed at `v0.2.0`; optional delivery and live Google/WebAuthn, edge and production-device smoke remain assigned to Increment 11.
 
 See [Increment 1 readiness](increment-1-readiness.md) for the complete closure rule and [formal Increment 1 review](increment-1-review.md) for the release-candidate status.

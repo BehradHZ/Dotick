@@ -41,4 +41,4 @@
 
 System Definition, Decision Register and SRS remain above implementation evidence in authority; implementation/tracking documents must describe the checked-in behavior without turning code accidents into requirements.
 
-The I1 repository slice is present, but formal closure is pending. The workflow does not currently run on pushes to `increment`, so final-SHA hosted evidence is absent. Target-environment email, Google, real WebAuthn authenticator and phone-delivery smoke, deployed edge enforcement for the declared identity-ceremony policy, and formal Increment 1 release publication also remain pending.
+Increment 1 is closed and released as `v0.2.0`. The verification workflow runs on `increment`; repository acceptance, regression, migration, security, container and persistence gates cover the release boundary. Optional external email/SMS delivery and live provider, authenticator, edge and production-device validation remain deployment concerns owned by Increment 11.

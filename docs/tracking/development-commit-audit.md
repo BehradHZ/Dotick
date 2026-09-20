@@ -88,7 +88,7 @@ Production-like configuration now requires explicit host, CSRF trusted-origin an
 
 Safe structured request logging keeps a generated request ID and an allowlisted field set while excluding credentials, tokens, bodies and free-form exception content. External providers remain adapters and are not allowed to make core manual task management unavailable.
 
-**Documentation impact:** security, monitoring, deployment and environment docs must treat these as implemented guardrails, while reverse-proxy deployment and configured provider smoke remain release concerns.
+**Documentation impact:** security, monitoring, deployment and environment docs must treat these as implemented guardrails, while reverse-proxy deployment and configured provider smoke remain Increment 11 concerns.
 
 ## Phase 9 — CI, migration and query hardening
 
@@ -96,7 +96,7 @@ The hosted workflow now runs locked dependency installs, Ruff/ESLint/Prettier/Ty
 
 The latest audited HEAD workflow (`35057831342`) completed successfully. Historical numbered Django migrations are now append-only: CI diffs migration history against the appropriate base and rejects modification, deletion or rename of an existing migration; schema changes must be expressed as new migrations. A fresh-database verification path remains in place.
 
-**Documentation impact:** hosted CI is no longer an open I1 engineering gate; configured external email/Google/WebAuthn/phone smoke and formal Increment 1 release/publication remain open.
+**Documentation impact:** hosted CI is no longer an open I1 engineering gate. Optional delivery and live provider/device/edge smoke remain Increment 11 deployment concerns. Formal Increment 1 publication was completed later at `v0.2.0`.
 
 ## Canonical-document conclusion
 
@@ -104,11 +104,11 @@ The audit found no implementation change that requires redefining current produc
 
 Therefore this reconciliation updates implementation/design/quality/operations/tracking status without promoting implementation accidents into product requirements.
 
-## Current status after reconciliation
+## Historical status after this audit
 
 - **Increment 0:** formally closed in repository tracking; hosted CI evidence exists.
 - **Increment 1 backend:** implemented for the defined I1 boundary.
 - **Increment 1 minimal client:** implemented for the account-to-Task workflow.
 - **Increment 1 hosted CI:** green at audited HEAD `7302ca3` (run `35057831342`).
-- **Still open for formal I1 closure:** deployment-specific real email delivery, Google configuration, real WebAuthn browser/authenticator smoke, phone delivery adapter smoke, and the formal Increment 1 release record/publication.
+- **Superseded closure status:** Increment 1 later closed at `v0.2.0`; deployment-specific real delivery, Google, WebAuthn and edge evidence remains assigned to Increment 11.
 - **Not pulled forward:** Event/Routine, rich hierarchy/descriptions/comments/audit, full offline sync/history/undo, collaboration, AI, goals/rings/statistics and other later-Increment scope.

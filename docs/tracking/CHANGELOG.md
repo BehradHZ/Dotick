@@ -17,8 +17,8 @@
 - Added configurable external email and SMS delivery boundaries, shared Google client-ID configuration and validated WebAuthn relying-party settings. Real target-environment delivery/provider/authenticator smoke remains pending.
 - Defined machine-readable `identity-ceremony` edge policy inputs: 10 requests per 60 seconds and 100 requests per 3,600 seconds per verified client IP. Actual shared proxy/CDN enforcement remains a release gate; no process-local limiter is claimed.
 - Enforced append-only Django migration history in CI: existing numbered migrations may not be modified, deleted or renamed; schema changes require new migrations. Fresh-database and schema-drift checks remain active.
-- Historical hosted CI run `35057831342` remains evidence for audited implementation SHA `7302ca3b18a79af35058828102bb62e845a56645`, not for current `increment`. The workflow push filter still excludes `increment`; final-SHA hosted verification remains open.
-- Configured real email delivery, Google browser/provider smoke, real WebAuthn browser/authenticator smoke, phone delivery-adapter smoke, deployed edge-rate-limit verification, supported-device smoke and formal Increment 1 release/publication remain open.
+- Retargeted hosted CI to `increment`, expanded it to the complete repository gate set, and stabilized the Task status workflow test that exposed an asynchronous disabled-button race on Linux.
+- Closed Increment 1 at `v0.2.0`. External email/SMS delivery remains optional and unconfigured by default. Live Google/WebAuthn, edge-rate-limit and production-device smoke are retained as Increment 11 deployment hardening rather than I1 acceptance blockers.
 
 See [the complete post-reset implementation audit](development-commit-audit.md) for the 148-commit reconciliation boundary and documentation-impact rules.
 

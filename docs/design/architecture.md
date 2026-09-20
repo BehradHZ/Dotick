@@ -144,10 +144,10 @@ Hosted CI currently covers locked installs, static checks, traceability, migrati
 
 Audited implementation HEAD `7302ca3b18a79af35058828102bb62e845a56645` passed run `35057831342` before the documentation-reconciliation commits.
 
-## Deferred scope and remaining I1 release gates
+## Deferred scope and deployment gates
 
 Event/Routine, rich hierarchy/descriptions/comments/audit, collaboration/realtime, full offline sync/history/undo, current-scope AI capabilities, and later product capabilities remain in their owning increments. The Future AI Agent/Generative Experience direction adds compatibility guardrails only; it does not add implementation work or acceptance criteria to I1.
 
-Formal I1 closure still requires configured target-environment email, Google, real WebAuthn authenticator and phone-delivery smoke, deployment-edge rate-limit enforcement, and a formal I1 release record/publication. No production deployment or public GitHub Release is claimed.
+Increment 1 is closed at `v0.2.0`. Optional email/SMS delivery plus live Google, WebAuthn authenticator, edge-rate-limit and production-device smoke remain Increment 11 deployment work. No production deployment is claimed by the I1 release.
 
 See [API contracts](api-contracts.md), [security design](security-design.md), [Increment 1 readiness](../tracking/increment-1-readiness.md), [Future AI Agent & Generative Experience Vision](../requirements/future-ai-agent-experience.md), and [the full development commit audit](../tracking/development-commit-audit.md).

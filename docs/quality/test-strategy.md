@@ -86,7 +86,7 @@ The product client is no longer an I0-only workbench. Automated evidence covers 
 
 `e2e/increment-0-checkpoint-regression.spec.ts` is retained only as an I0 foundation regression. It verifies the disposable Checkpoint API and PostgreSQL path in CI; it is not I1 acceptance evidence.
 
-Configured external email/Google/WebAuthn/phone systems are intentionally not called by deterministic E2E; they require target-environment smoke before formal I1 closure.
+Configured external email/SMS, Google and WebAuthn systems are intentionally not called by deterministic E2E. Enabled target-environment provider/device smoke belongs to Increment 11 production readiness and is not claimed by I1.
 
 ## 7. Test data and mocking policy
 

@@ -62,13 +62,13 @@ The 2026-09-16 audit reviewed the complete **148-commit** implementation range f
 
 ### R-017 — identity ceremony abuse
 
-The OpenAPI contract and machine-readable deployment policy identify the protected identity/contact operations and define shared per-verified-client-IP burst and sustained thresholds. This materially narrows the implementation ambiguity, but risk remains open until a target proxy/CDN proves collective enforcement, trusted client-IP derivation, `429`/`Retry-After` behavior and recovery after each window.
+The OpenAPI contract and machine-readable deployment policy identify the protected identity/contact operations and define shared per-verified-client-IP burst and sustained thresholds. Repository security tests cover classification and configuration. Target proxy/CDN enforcement, trusted client-IP derivation, `429`/`Retry-After` behavior and recovery remain open deployment risks owned by Increment 11; no process-local substitute is claimed for I1.
 
 ## Hosted evidence
 
-GitHub Actions run `35057831342` completed successfully against audited implementation HEAD `7302ca3b18a79af35058828102bb62e845a56645` before the documentation-reconciliation commits. The run included locked installs, static checks, traceability, migration/schema checks, backend/Golden Time tests, production settings, frontend tests, web export, desktop/mobile E2E, dependency audits, secret scan, container builds and persistence smoke.
+The `v0.2.0` release boundary is verified by the complete GitHub Actions workflow on its exact tagged commit. The workflow includes locked installs, static checks, traceability, migration/schema checks, backend/Golden Time tests, production settings, frontend tests, web export, desktop/mobile E2E, dependency audits, secret scan, container builds and persistence smoke.
 
-Hosted CI is therefore not an open I1 engineering gate. Formal I1 closure still depends on configured real email/Google/WebAuthn/phone smoke, deployment-edge rate-limit enforcement and release publication.
+Increment 1 is closed. Optional delivery services and target-environment Google/WebAuthn, edge and device smoke do not weaken repository acceptance; they remain explicit Increment 11 deployment risks.
 
 ## Review rule
 

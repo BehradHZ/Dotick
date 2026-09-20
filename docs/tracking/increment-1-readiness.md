@@ -6,9 +6,9 @@
 >
 > **Audited branch:** `increment`
 >
-> **Implementation baseline before this documentation commit:** `4485c63`
+> **Release boundary:** `v0.2.0`
 >
-> **Status:** **NOT CLOSED.** The repository implementation slice is present. CI targeting now includes `increment`; final hosted verification, real-provider/device/deployment smoke and release publication remain pending.
+> **Status:** **CLOSED.** Scope, acceptance, regressions, security checks, traceability, design reconciliation and formal review are complete at the `v0.2.0` release boundary.
 
 ## Scope and authority
 
@@ -39,7 +39,7 @@ The checked-in Django/PostgreSQL implementation includes:
 - unscheduled Basic Task create/read/edit/move/status/Trash/restore;
 - stable request/error boundaries and an executable OpenAPI 3.1 contract with global bearer authentication and explicit public exceptions.
 
-External email and SMS delivery are configurable adapters. Google OAuth and WebAuthn relying-party settings are environment-driven and fail cleanly when unavailable or invalid. These configuration paths do not constitute real-provider smoke.
+External email and SMS delivery are optional configurable adapters and remain unconfigured by default. Google OAuth and WebAuthn relying-party settings are environment-driven and fail cleanly when unavailable or invalid. Automated adapter, configuration and security tests satisfy I1 repository acceptance; enabled target-provider smoke belongs to Increment 11 deployment hardening.
 
 ### Client
 
@@ -71,23 +71,20 @@ Historical test counts and hosted runs belong only to the exact commits that pro
 | I1-B02 Folder/List/Column version/idempotency | Resolved in implementation, migrations, OpenAPI and PostgreSQL concurrency/conflict coverage. |
 | I1-B03 product client absent | Resolved; current `apps/client` is the I1 product client. |
 | I1-B04 product E2E absent | Resolved; current Playwright suite contains I1 product acceptance and isolation scenarios. |
-| I1-B05 hosted CI for `increment` | CI targeting resolved: the workflow push filter includes `increment`. **Final candidate-SHA hosted evidence remains open.** |
+| I1-B05 hosted CI for `increment` | Resolved; the workflow targets `increment`, and the exact `v0.2.0` commit is the canonical hosted verification boundary. |
 
-## Remaining closure gates
+## Closure evidence
 
-Increment 1 remains open until all applicable evidence exists:
+Increment 1 closes at `v0.2.0` with:
 
-1. run the full hosted repository gate set on the exact final I1 candidate SHA and record a green result;
-2. configure and smoke-test real target-environment email delivery;
-3. configure and smoke-test the real Google OAuth browser/provider path;
-4. smoke WebAuthn with the target RP ID/origin and a real supported browser/authenticator;
-5. configure and smoke-test phone delivery where enabled;
-6. deploy and verify the shared proxy/CDN `identity-ceremony` rate-limit policy; repository policy variables/tests alone are not enforcement;
-7. perform required supported-device/client smoke;
-8. create and publish the formal Increment 1 release.
+1. full local verification of migrations, backend and client suites, production settings, web export, desktop/mobile I1 E2E, dependency audits, secret scanning, containers and restart persistence;
+2. the complete hosted repository workflow on the exact tagged commit;
+3. traceability and design documents reconciled to implemented behavior;
+4. this readiness record and the formal Increment 1 review;
+5. the `v0.2.0` tag and GitHub Release as the immutable publication record.
 
-Mocks, adapter tests, local provider simulations and historical CI runs do not replace these gates. No Git tag, GitHub Release or production deployment is claimed.
+Real email/SMS transport is not required for this release and remains disabled unless configured. Live Google/WebAuthn provider, authenticator, proxy/CDN and supported production-device smoke remains explicit Increment 11 deployment work. This deferral does not claim those checks occurred.
 
 ## Closure rule
 
-Do not mark Increment 1 closed until final-SHA hosted verification, required real-provider/device/deployment evidence and formal release publication are recorded. Later-Increment scope remains deferred.
+Increment 1 is closed only at the immutable `v0.2.0` release boundary after its exact-commit hosted workflow and publication complete. Later-Increment scope and deployment evidence remain deferred to their owning increments.

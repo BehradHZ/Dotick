@@ -449,7 +449,7 @@ Review:
 
 > **Implementation checkpoint — 2026-09-06:** scaffold, developer-only client/API/PostgreSQL walking skeleton, time baseline, and verification tooling now exist. See [the foundation review](../tracking/increment-0-foundation-review.md) for evidence and outstanding release gates.
 >
-> **Increment 1 local implementation checkpoint — 2026-09-08:** identity, account, organization and basic Task APIs are implemented, with a minimal Expo client for sign-in, Inbox/Lists, Task create/edit/move/status and Trash/restore. Component tests, web/Android bundles and desktop/mobile client-to-PostgreSQL E2E are green locally. Configured external delivery/provider smoke, hosted CI and release publication remain open; therefore the whole Increment is not closed. See [I1 readiness](../tracking/increment-1-readiness.md) and [client review](../tracking/increment-1-client-review.md).
+> **Increment 1 closure — 2026-09-20:** identity, account, organization and Basic Task APIs plus the Expo product client are implemented and released at `v0.2.0`. Repository acceptance, migrations, security checks, desktop/mobile client-to-PostgreSQL E2E, hosted CI, traceability and formal review pass. Optional delivery and live provider/device/edge deployment smoke remain assigned to Increment 11. See [I1 readiness](../tracking/increment-1-readiness.md) and [formal review](../tracking/increment-1-review.md).
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # Dotick Security Design
 
-> **Status:** Increment 1 security baseline implemented and hosted-CI verified; deployment-specific provider/edge smoke remains open
+> **Status:** Increment 1 security baseline implemented and verified; deployment-specific provider/edge smoke is assigned to Increment 11
 > **Reconciled:** 2026-09-20
 
 This document describes security controls implemented for the current I0/I1 boundary. It does not pull later authorization, offline-sync or collaboration behavior into Increment 1.
@@ -77,12 +77,11 @@ Automated tests replace external provider/delivery boundaries deterministically.
 - Google uses matching public client IDs on server and client. Missing server configuration returns provider unavailable before token verification; missing client configuration hides the Google action.
 - WebAuthn RP ID, display name and origin are environment-driven. Production-like startup rejects blank/invalid RP settings, insecure non-local origins and origins outside the RP ID domain; localhost HTTP remains available for development.
 
-Formal I1 closure still requires target-environment smoke for:
+Increment 11 production readiness requires target-environment smoke for enabled services:
 
-- real email delivery;
+- real email/SMS delivery where configured;
 - configured Google OAuth client/redirect path;
 - WebAuthn with the target RP ID/origins and a real browser/authenticator;
-- phone verification delivery adapter.
 
 Provider failure must remain isolated from core manual Task management.
 
@@ -100,7 +99,7 @@ The classified operations include registration, verification/resend, password-re
 
 The initial deployment baseline applies both limits collectively per verified client IP: 10 requests per 60 seconds and 100 requests per 3,600 seconds. Deployment tooling reads the corresponding `DOTICK_EDGE_IDENTITY_CEREMONY_*` variables. Client IP must come from the trusted proxy/CDN connection metadata, not an untrusted forwarded header supplied by the caller. A rejected request returns `429` and a `Retry-After` header without disclosing account state.
 
-This is an explicit handoff to the deployment edge. Per-process counters would diverge across workers and are not an acceptable substitute. Target-environment enforcement and threshold smoke tests remain required before formal I1 release.
+This is an explicit handoff to the deployment edge. Per-process counters would diverge across workers and are not an acceptable substitute. Target-environment enforcement and threshold smoke tests are Increment 11 deployment gates, not I1 repository acceptance.
 
 ## 9. Database and migration safety
 
@@ -116,8 +115,8 @@ Hosted CI performs locked Python/Node installs, Python dependency audit, npm aud
 
 ## 11. Verification status
 
-Hosted run `35057831342` succeeded against audited implementation HEAD `7302ca3b18a79af35058828102bb62e845a56645` before the documentation reconciliation. The run exercised production settings, API/security/request-boundary tests, dependency/secret checks, containers and persistence alongside the rest of the I1 suite.
+The `v0.2.0` release boundary is covered by the complete hosted workflow, including production settings, API/security/request-boundary tests, dependency/secret checks, containers and persistence.
 
-Remaining security evidence is deployment-specific provider/delivery/edge smoke, not missing core I1 API implementation.
+Remaining provider/delivery/edge smoke is Increment 11 deployment evidence, not missing core I1 API implementation.
 
 See [API Contracts](api-contracts.md), [Authentication Design](authentication-design.md), [Increment 1 readiness](../tracking/increment-1-readiness.md), and [the full development commit audit](../tracking/development-commit-audit.md).

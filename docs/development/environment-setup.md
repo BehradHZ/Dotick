@@ -53,7 +53,7 @@ Passkeys use `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and `WEBAUTHN_ORIGIN`. Local/t
 
 The four `DOTICK_EDGE_IDENTITY_CEREMONY_*` variables define the deployment-edge baseline: 10 requests per 60 seconds and 100 requests per 3,600 seconds, collectively across the operations in [`identity-rate-limit-policy.json`](../operations/identity-rate-limit-policy.json), keyed by verified client IP. Django intentionally does not read these as an in-process limiter. Configure them in the proxy/CDN, use only trusted connection metadata for client IP, and return `429` with `Retry-After` when either threshold is exceeded.
 
-Configured real email, SMS, Google, WebAuthn authenticator and deployment-edge threshold smoke remain formal I1 release inputs.
+Email/SMS services are optional and unconfigured by default. Enabled real delivery, Google, WebAuthn authenticator and deployment-edge threshold smoke are Increment 11 production-readiness inputs, not I1 local setup requirements.
 
 ## Host/origin configuration
 

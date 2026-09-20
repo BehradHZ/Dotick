@@ -36,6 +36,6 @@ Historical pass counts and hosted run `35057831342` remain evidence only for the
 - WebAuthn tests validate relying-party configuration and ceremony boundaries, not a real authenticator.
 - The `identity-ceremony` threshold contract is defined for proxy/CDN enforcement; Django intentionally has no process-local substitute, and deployed enforcement remains unverified.
 - Event, Routine, scheduling, collaboration, full Sync/History/Undo and permanent Trash purge are later-Increment work.
-- Formal I1 release publication remains pending.
+- Formal I1 publication was completed later at `v0.2.0`; this backend review remains its pre-release evidence record.
 
 See [Increment 1 readiness](increment-1-readiness.md) for closure gates, [formal Increment 1 review](increment-1-review.md) for the release-candidate decision and [Increment 1 client review](increment-1-client-review.md) for current UI scope.
