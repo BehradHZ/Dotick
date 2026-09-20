@@ -219,6 +219,8 @@ I2 scheduling و priority را به subtype موجود اضافه می‌کند 
 
 dependency و hierarchy در migrationهای بعدی Increment 2 افزوده می‌شوند. read/edit معمولی status زمانی را دوباره محاسبه نمی‌کند؛ lifecycle transition از application behavior صریح انجام می‌شود.
 
+`python apps/api/manage.py advance_task_lifecycle` behavior صریح زمان‌محور را اجرا می‌کند. runner فقط Taskهای active با state زمانی قابل‌تغییر را lock می‌کند، transitionهای boundary را اعمال می‌کند و همراه status، version مشترک Item را افزایش می‌دهد. deployment scheduler باید این command را با cadence مناسب اجرا کند؛ requestهای read/edit آن را ضمنی فراخوانی نمی‌کنند.
+
 ## 4.4 Initial physical ERD
 
 ```mermaid

@@ -289,6 +289,11 @@ def test_task_update_validates_merged_schedule_and_skipped_is_system_only():
     assert item.version == 1
     assert item.task.status == "todo"
 
+    Task.objects.filter(pk=item.pk).update(status=Task.Status.SKIPPED)
+    reopened = client.patch(url, {"version": 1, "status": "todo"}, format="json")
+    assert reopened.status_code == 200
+    assert reopened.json()["status"] == "todo"
+
 
 def test_task_list_returns_only_owned_active_tasks_in_active_lists_newest_first():
     owner = _user("task-list-owner@example.test")

@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import timedelta
 
 from django.db import IntegrityError, transaction
 from django.db.models import F
@@ -62,6 +63,46 @@ def _validate_schedule(*, due_at, end_at, is_all_day, deadline_at, grace_period_
         errors["grace_period_days"] = "A nonzero grace period requires deadline_at."
     if errors:
         raise ValidationError(errors)
+
+
+def task_time_status(*, task, now):
+    if task.deadline_at is not None and now >= task.deadline_at:
+        grace_ends_at = task.deadline_at + timedelta(days=task.grace_period_days)
+        if task.grace_period_days == 0 or now >= grace_ends_at:
+            return Task.Status.SKIPPED
+        return Task.Status.MISSED
+    if task.due_at is not None and now >= task.due_at:
+        return Task.Status.OVERDUE
+    return Task.Status.TODO
+
+
+@transaction.atomic
+def advance_task_lifecycle(*, now=None):
+    evaluation_time = now or timezone.now()
+    mutable_statuses = [Task.Status.TODO, Task.Status.OVERDUE, Task.Status.MISSED]
+    items = (
+        Item.objects.select_for_update(of=("self",))
+        .select_related("task")
+        .filter(
+            task__status__in=mutable_statuses,
+            is_trashed=False,
+            column__list__is_trashed=False,
+        )
+        .order_by("id")
+    )
+    changed = 0
+    for item in items:
+        task = item.task
+        target = task_time_status(task=task, now=evaluation_time)
+        if target == task.status:
+            continue
+        Task.objects.filter(pk=item.pk).update(status=target)
+        Item.objects.filter(pk=item.pk).update(
+            version=F("version") + 1,
+            updated_at=evaluation_time,
+        )
+        changed += 1
+    return changed
 
 
 def _get_task_by_operation(*, actor_id, operation_id):
