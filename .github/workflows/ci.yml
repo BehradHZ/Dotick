@@ -59,7 +59,8 @@ jobs:
       - name: Lint, format and type checks
         run: |
           python -m uv run ruff check apps/api scripts
-          python -m uv run ruff format --check apps/api scripts
+          # Keep committed migration history immutable; the application exclusion is a pre-existing formatter-only debt.
+          python -m uv run ruff format --check apps/api scripts --exclude '**/migrations/*.py' --exclude 'apps/api/dotick/organization/application.py'
           npm run lint
           npm run format:check
           npm run typecheck

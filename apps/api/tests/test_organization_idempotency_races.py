@@ -69,11 +69,14 @@ def test_two_identical_folder_creates_leave_one_resource_and_operation():
     assert {row.id for row, _ in results} == {results[0][0].id}
     assert sorted(created for _, created in results) == [False, True]
     assert Folder.objects.filter(owner=owner).count() == 1
-    assert OrganizationCreateOperation.objects.filter(
-        owner=owner,
-        resource_type=OrganizationCreateOperation.ResourceType.FOLDER,
-        operation_id=operation_id,
-    ).count() == 1
+    assert (
+        OrganizationCreateOperation.objects.filter(
+            owner=owner,
+            resource_type=OrganizationCreateOperation.ResourceType.FOLDER,
+            operation_id=operation_id,
+        ).count()
+        == 1
+    )
 
 
 def test_two_identical_list_creates_leave_one_resource_default_column_and_operation():
@@ -93,11 +96,14 @@ def test_two_identical_list_creates_leave_one_resource_default_column_and_operat
     assert sorted(created for _, _, created in results) == [False, True]
     assert List.objects.filter(owner=owner).count() == 1
     assert Column.objects.filter(list__owner=owner, is_default=True).count() == 1
-    assert OrganizationCreateOperation.objects.filter(
-        owner=owner,
-        resource_type=OrganizationCreateOperation.ResourceType.LIST,
-        operation_id=operation_id,
-    ).count() == 1
+    assert (
+        OrganizationCreateOperation.objects.filter(
+            owner=owner,
+            resource_type=OrganizationCreateOperation.ResourceType.LIST,
+            operation_id=operation_id,
+        ).count()
+        == 1
+    )
 
 
 def test_two_identical_column_creates_leave_one_resource_and_operation():
@@ -117,11 +123,14 @@ def test_two_identical_column_creates_leave_one_resource_and_operation():
     assert {row.id for row, _ in results} == {results[0][0].id}
     assert sorted(created for _, created in results) == [False, True]
     assert Column.objects.filter(list=parent, is_default=False).count() == 1
-    assert OrganizationCreateOperation.objects.filter(
-        owner=owner,
-        resource_type=OrganizationCreateOperation.ResourceType.COLUMN,
-        operation_id=operation_id,
-    ).count() == 1
+    assert (
+        OrganizationCreateOperation.objects.filter(
+            owner=owner,
+            resource_type=OrganizationCreateOperation.ResourceType.COLUMN,
+            operation_id=operation_id,
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.parametrize(
@@ -147,7 +156,10 @@ def test_concurrent_identical_api_retry_returns_created_and_replayed_result(case
     assert sorted(response.status_code for response in responses) == [200, 201]
     assert responses[0].json() == responses[1].json()
     assert resources.count() == 1
-    assert OrganizationCreateOperation.objects.filter(
-        owner=owner,
-        operation_id=operation_id,
-    ).count() == 1
+    assert (
+        OrganizationCreateOperation.objects.filter(
+            owner=owner,
+            operation_id=operation_id,
+        ).count()
+        == 1
+    )

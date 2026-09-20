@@ -180,10 +180,13 @@ def test_same_list_operation_id_is_independent_across_owners():
     assert first.status_code == 201
     assert second.status_code == 201
     assert first.json()["id"] != second.json()["id"]
-    assert OrganizationCreateOperation.objects.filter(
-        resource_type=OrganizationCreateOperation.ResourceType.LIST,
-        operation_id=operation_id,
-    ).count() == 2
+    assert (
+        OrganizationCreateOperation.objects.filter(
+            resource_type=OrganizationCreateOperation.ResourceType.LIST,
+            operation_id=operation_id,
+        ).count()
+        == 2
+    )
 
 
 def test_list_default_column_and_operation_are_atomic():

@@ -178,8 +178,7 @@ def test_private_i1_operations_inherit_bearer_authentication():
         in contract["paths"]["/api/v1/auth/passkeys/registration/options"]["post"]["responses"]
     )
     assert (
-        "403"
-        in contract["paths"]["/api/v1/auth/passkeys/registration/verify"]["post"]["responses"]
+        "403" in contract["paths"]["/api/v1/auth/passkeys/registration/verify"]["post"]["responses"]
     )
 
 
