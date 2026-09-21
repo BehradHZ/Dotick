@@ -1,0 +1,30 @@
+{
+  "policy": "identity-ceremony",
+  "enforcement": "deployment-edge",
+  "key": "verified-client-ip",
+  "thresholds": {
+    "burst": {
+      "requests_variable": "DOTICK_EDGE_IDENTITY_CEREMONY_BURST_REQUESTS",
+      "requests": 10,
+      "window_seconds_variable": "DOTICK_EDGE_IDENTITY_CEREMONY_BURST_WINDOW_SECONDS",
+      "window_seconds": 60
+    },
+    "sustained": {
+      "requests_variable": "DOTICK_EDGE_IDENTITY_CEREMONY_SUSTAINED_REQUESTS",
+      "requests": 100,
+      "window_seconds_variable": "DOTICK_EDGE_IDENTITY_CEREMONY_SUSTAINED_WINDOW_SECONDS",
+      "window_seconds": 3600
+    }
+  },
+  "operations": [
+    { "method": "POST", "path": "/api/v1/account/contacts" },
+    { "method": "POST", "path": "/api/v1/account/contacts/verify" },
+    { "method": "POST", "path": "/api/v1/auth/email/resend" },
+    { "method": "POST", "path": "/api/v1/auth/email/verify" },
+    { "method": "POST", "path": "/api/v1/auth/passkeys/authentication/options" },
+    { "method": "POST", "path": "/api/v1/auth/passkeys/authentication/verify" },
+    { "method": "POST", "path": "/api/v1/auth/password/reset/confirm" },
+    { "method": "POST", "path": "/api/v1/auth/password/reset/request" },
+    { "method": "POST", "path": "/api/v1/auth/register" }
+  ]
+}

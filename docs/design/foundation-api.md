@@ -21,4 +21,4 @@ Invalid input returns `400`; unsupported content type `415`; missing/invalid cre
 Evidence: Foundation API, boundary, logging, and authorization tests in
 `apps/api/dotick/foundation/tests.py`; identity tests in `apps/api/dotick/identity/tests.py`;
 component network/failure tests in `apps/client/src/App.test.tsx`; and desktop/mobile PostgreSQL
-persistence checks in `e2e/walking-skeleton.spec.ts`.
+persistence checks in `e2e/increment-0-checkpoint-regression.spec.ts`. This scenario is retained as Increment 0 regression evidence and is not counted toward Increment 1 acceptance.

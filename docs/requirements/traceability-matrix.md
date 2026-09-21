@@ -2,13 +2,13 @@
 
 **Document type:** Requirements Traceability Matrix
 
-**Version:** 2.1
+**Version:** 2.3
 
-**Baseline date:** 2026-08-26
+**Baseline date:** 2026-09-20
 
-**Implementation reconciliation:** 2026-09-06 — current SRS includes `SRS-SHARE-034`; total/family coverage is updated to 419 without changing requirement behavior.
+**Implementation reconciliation:** 2026-09-20 — Increment 1 repository implementation and evidence are reconciled against the unchanged Formal SRS v3.1 requirement baseline and released at `v0.2.0`.
 
-**Status:** Reconciled Traceability Baseline for Formal SRS v2.9
+**Status:** Increment 1 closed at `v0.2.0`
 
 **Scope:** Personal V1
 
@@ -16,7 +16,7 @@
 
 # 1. Purpose and authority
 
-این baseline از `docs/requirements/srs.md` نسخه 2.9 و `docs/decision-register.md` فعلی regenerate و با Roadmap جاری reconcile شده است.
+این baseline از `docs/requirements/srs.md` نسخه 3.1 و `docs/decision-register.md` فعلی regenerate و با Roadmap جاری reconcile شده است.
 
 در تعارض درباره behavior یا Scope، ترتیب authority فعلی پروژه چنین است:
 
@@ -48,7 +48,7 @@ Traceability Matrix
 |---|---|---|
 | `SD` | `docs/requirements/system-definition.md` | primary current behavior and Scope authority |
 | `DR` | `docs/decision-register.md` | decision rationale، constraints و design handoff |
-| `SRS` | `docs/requirements/srs.md` | formal atomic requirements؛ baseline این ماتریس: v2.9 |
+| `SRS` | `docs/requirements/srs.md` | formal atomic requirements؛ baseline این ماتریس: v3.1 |
 | `DM` | `docs/design/domain-model.md` | conceptual entities، relations و constraints؛ پایین‌تر از SRS در behavioral authority |
 | `RM` | `docs/planning/increment-roadmap.md` | implementation order و owning Increment only |
 | `TM` | `docs/requirements/traceability-matrix.md` | derived trace record؛ lowest authority in this chain |
@@ -74,18 +74,20 @@ Traceability Matrix
 
 | Check | Reconciled result |
 |---|---|
-| Formal SRS baseline | v2.9، dated 2026-08-26 |
+| Formal SRS baseline | v3.1، dated 2026-09-18 |
 | Normative SRS requirements | **419** |
 | Functional requirements (§3) | **370** |
 | Interface/constraint requirements (§4) | **15** |
 | Nonfunctional requirements (§5) | **34** |
 | Requirement IDs without a family trace below | **0** |
-| Current Decision Register records | **116** |
+| Current Decision Register records | **118** |
 | Decision records with exact `Status: OPEN` | **0** |
 | DRs directly named by normative SRS source preambles | **92** |
 | Intentionally unspecified Current-Scope details | **26** non-normative design/tuning handoffs |
 
-Verification روش هر requirement در همان atomic row از SRS v2.9 نگه‌داری می‌شود و در این سند دوباره copy نشده است؛ این کار از drift میان دو جدول جلوگیری می‌کند. Count و rangeهای زیر تمام 419 ID را پوشش می‌دهند.
+> **Future-direction trace:** DR-145 and DR-146 are intentionally represented in System Definition §12.4, SRS §8.1.1, Roadmap E5/E6/E7, `docs/design/architecture.md`, and `docs/requirements/future-ai-agent-experience.md`. Because these capabilities are outside Personal V1, they intentionally add **no new Personal V1 normative SRS requirement IDs** in this matrix.
+
+Verification روش هر requirement در همان atomic row از SRS v3.1 نگه‌داری می‌شود و در این سند دوباره copy نشده است؛ این کار از drift میان دو جدول جلوگیری می‌کند. Count و rangeهای زیر تمام 419 ID را پوشش می‌دهند.
 
 # 5. Requirement-family traceability
 
@@ -134,17 +136,17 @@ Verification روش هر requirement در همان atomic row از SRS v2.9 نگ
 
 ## 6.1 Current decision status
 
-Decision Register فعلی **116** Decision Record دارد. هیچ record با exact status برابر `OPEN` وجود ندارد. عبارت‌هایی مانند `Open boundary` داخل بعضی DRها design/tuning handoff را نشان می‌دهند و نباید به‌عنوان Product/Domain decision باز یا requirement جدید تفسیر شوند.
+Decision Register فعلی **118** Decision Record دارد. هیچ record با exact status برابر `OPEN` وجود ندارد. عبارت‌هایی مانند `Open boundary` داخل بعضی DRها design/tuning handoff را نشان می‌دهند و نباید به‌عنوان Product/Domain decision باز یا requirement جدید تفسیر شوند.
 
-Normative SRS source preambleها، با expand کردن rangeهایی مانند `DR-002 تا DR-008`، مستقیماً **92** DR را نام می‌برند. 24 DR زیر در preambleهای normative SRS به‌صورت مستقیم نام برده نشده‌اند:
+Normative SRS source preambleها، با expand کردن rangeهایی مانند `DR-002 تا DR-008`، مستقیماً **92** DR را نام می‌برند. 26 DR زیر در preambleهای normative SRS به‌صورت مستقیم نام برده نشده‌اند:
 
-`DR-020`, `DR-022`, `DR-050`, `DR-051`, `DR-052`, `DR-053`, `DR-058`, `DR-059`, `DR-064`, `DR-067`, `DR-069`, `DR-071`, `DR-074`, `DR-075`, `DR-076`, `DR-077`, `DR-078`, `DR-088`, `DR-091`, `DR-092`, `DR-141`, `DR-142`, `DR-143`, `DR-144`.
+`DR-020`, `DR-022`, `DR-050`, `DR-051`, `DR-052`, `DR-053`, `DR-058`, `DR-059`, `DR-064`, `DR-067`, `DR-069`, `DR-071`, `DR-074`, `DR-075`, `DR-076`, `DR-077`, `DR-078`, `DR-088`, `DR-091`, `DR-092`, `DR-141`, `DR-142`, `DR-143`, `DR-144`, `DR-145`, `DR-146`.
 
-نبود direct citation در SRS به‌تنهایی traceability gap نیست. این گروه عمدتاً authority/document governance، product/design direction، scope/future boundary یا rationale کلی را ثبت می‌کند. اگر یکی از این DRها behavior الزام‌آور Current Scope ایجاد کند که در SRS v2.9 requirement متناظر ندارد، آن مورد باید ابتدا به‌عنوان SRS coverage defect ثبت و سپس با ID پایدار formalize شود؛ این ماتریس حق ایجاد requirement جایگزین را ندارد.
+نبود direct citation در normative SRS source preamble به‌تنهایی traceability gap نیست. DR-145/146 future-direction decisions are explicitly traced through the non-normative future-direction artifacts named in §4 above; the other entries in this group عمدتاً authority/document governance، product/design direction، scope/future boundary یا rationale کلی را ثبت می‌کنند. اگر یکی از این DRها behavior الزام‌آور Current Scope ایجاد کند که در SRS v3.1 requirement متناظر ندارد، آن مورد باید ابتدا به‌عنوان SRS coverage defect ثبت و سپس با ID پایدار formalize شود؛ این ماتریس حق ایجاد requirement جایگزین را ندارد.
 
 ## 6.2 Replaced stale OPEN inventory
 
-فهرست `OPEN-001..025` baseline قبلی حذف شده است، چون وضعیت فعلی را نادرست نشان می‌داد. موضوعات Product/Domain آن فهرست در Decision Register جاری بسته یا consolidate شده‌اند. موارد باقی‌مانده design، representation یا tuning هستند و با `UNSPEC-*`های SRS v2.9 trace می‌شوند.
+فهرست `OPEN-001..025` baseline قبلی حذف شده است، چون وضعیت فعلی را نادرست نشان می‌داد. موضوعات Product/Domain آن فهرست در Decision Register جاری بسته یا consolidate شده‌اند. موارد باقی‌مانده design، representation یا tuning هستند و با `UNSPEC-*`های SRS v3.1 trace می‌شوند.
 
 # 7. Intentionally unspecified Current-Scope handoffs
 
@@ -181,7 +183,7 @@ Normative SRS source preambleها، با expand کردن rangeهایی مانن�
 
 این inventory با SRS §7 و DR-144 هم‌مرز است: اگر Design یک سؤال واقعی Product/Domain کشف کند، آن سؤال باید به workflow تصمیم canonical برگردد و نباید با انتخاب implementation ضمنی بسته شود.
 
-# 8. Increment 0 engineering-artifact trace
+# 8. Engineering-artifact trace
 
 | Requirement(s) | Current engineering artifact | Current evidence boundary |
 |---|---|---|
@@ -192,24 +194,25 @@ Normative SRS source preambleها، با expand کردن rangeهایی مانن�
 | Increment 0 verification process | `docs/quality/test-strategy.md` | migration، integration، contract و Walking Skeleton gates |
 | Increment risks | `docs/planning/risk-log.md` | architecture، isolation، reproducibility، recovery و cross-Increment risks |
 
-## 8.1 Implemented foundation evidence — 2026-09-06
+## 8.1 Implemented foundation and Increment 1 evidence — reconciled 2026-09-20
 
-These are foundation-level checks, not completion claims for the full product requirement families.
+These checks are scoped evidence for the owning requirements; they are not claims that pending real-provider/device/deployment verification has occurred.
 
 | Requirement / gate | Implementation and verification |
 |---|---|
-| `SRS-IF-001..003`, I0 §7.5 | `apps/client/src/api.ts`, `apps/api/dotick/foundation/api.py`, `application.py`; `e2e/walking-skeleton.spec.ts` traverses the actual web/API/PostgreSQL stack |
+| `SRS-IF-001..003`, I0 §7.5 | `apps/api/dotick/foundation/api.py`, `application.py`; `e2e/increment-0-checkpoint-regression.spec.ts` retains the Checkpoint API/PostgreSQL path strictly as I0 regression evidence |
 | `SRS-IF-005`, `SRS-CON-004` | loopback-only development ports in `compose.yaml`; secure production settings check; production TLS deployment remains a later gate |
 | `SRS-CON-001` | PostgreSQL identity/foundation migrations and API tests; clean container-database migration and readback |
-| `SRS-CON-002..003` | explicit-composition ADR retained; disposable I0 records are isolated from the unimplemented Item schema |
-| `SRS-NFR-SEC-001..003` foundation | Argon2 user model, owner-scoped queries, strict input and log allowlist; `test_foundation.py`, `test_security_baseline.py` |
+| `SRS-CON-002..003` | explicit-composition ADR retained; disposable I0 records are isolated from the product Item schema |
+| `SRS-NFR-SEC-001..003` foundation | Argon2 user model, owner-scoped queries, strict input and log allowlist; foundation/security tests and deployment checks |
 | `SRS-DAY-013` | `docs/design/time-semantics-spec.md` |
 | `SRS-DAY-014` foundation | `docs/design/time-vectors.json`, `apps/api/tests/test_time.py`, `apps/client/src/time-vectors.test.ts`; I4/I10 scenarios remain assigned, not marked executed |
 | Increment 0 quality gates | `.github/workflows/ci.yml`, `scripts/check_traceability.py`, `docs/tracking/increment-0-foundation-review.md` |
-| `SRS-AUTH-001..015`, I1-AC-01/02/09 backend | `apps/api/dotick/identity/`, migrations `0002..0007`, `docs/design/authentication-design.md`, `docs/design/openapi.json`, `apps/api/tests/test_identity_api.py`, `test_federated_identity_api.py`; configured external delivery/provider smoke remains open |
-| `SRS-ORG-001..005`, `SRS-DAY-002`, I1-AC-03/08 backend | `apps/api/dotick/organization/`, `organization/0001_initial.py`, `apps/api/tests/test_organization_api.py`; atomic concurrent bootstrap, Inbox/default Column, optional Folder, ordering and recoverable container lifecycle |
-| `SRS-ITEM-002..009`, `SRS-TASK-001/014/020`, I1-AC-04..08 | `apps/api/dotick/items/`, `dotick/tasks/`, `apps/client/src/`, API/component tests and `e2e/walking-skeleton.spec.ts`; explicit composition, owner/source identity, optimistic version, idempotency and Task Trash/restore |
-| Increment 1 remaining acceptance | `docs/tracking/increment-1-readiness.md` retains configured provider/delivery, hosted CI and release evidence; local backend/client completion is not whole-increment release completion |
+| `SRS-AUTH-001..015`, I1-AC-01/02/09 | `apps/api/dotick/identity/`; identity migrations; `docs/design/authentication-design.md`; `docs/design/openapi.json`; `apps/api/tests/test_identity_registration_api.py`, `test_identity_session_api.py`, `test_identity_password_reset_api.py`, `test_federated_identity_api.py`, provider/configuration tests; `apps/client/src/AuthScreen.test.tsx`, `provider-signin.test.tsx`; live provider/device verification remains assigned to I11 |
+| `SRS-ORG-001..005`, I1-AC-03/08 | `apps/api/dotick/organization/`; organization migrations; `apps/api/tests/test_account_bootstrap.py`, `test_folder_api.py`, `test_list_api.py`, `test_column_api.py`, idempotency/concurrency/version tests; atomic Inbox/default-Column bootstrap, optional Folder, ordering and recoverable lifecycle |
+| `SRS-ITEM-002..008`, `SRS-TASK-001/014`, I1-AC-04..08 | `apps/api/dotick/items/`, `apps/api/dotick/tasks/`; `apps/api/tests/test_task_api.py`, `test_task_models.py`, Basic Task trace tests; `apps/client/src/task-workflow.test.tsx`, `task-recovery.test.tsx`; `e2e/workspace.spec.ts`, `drafts-and-account-isolation.spec.ts`; explicit composition, owner/source identity, optimistic version, idempotency and Task Trash/restore |
+| `SRS-IF-001..003/005`, `SRS-EXT-001/002/006` I1 boundary | `docs/design/api-contracts.md`, `docs/design/openapi.json`, `apps/api/tests/test_openapi_contract.py`, request/CORS/security/provider configuration tests; live external-provider and HTTPS/RP/deployed-edge verification remains assigned to I11 |
+| Increment 1 review/release gate | `docs/tracking/increment-1-review.md`, `docs/tracking/increment-1-readiness.md`, `releases/v0.2.0.md` and immutable tag `v0.2.0`; local and exact-commit hosted gates complete the I1 closure boundary |
 
 # 9. Update rules
 
@@ -239,4 +242,4 @@ System Definition section / Decision Register rationale
 
 # 10. Baseline status
 
-این نسخه traceability را تا سطح `Canonical Source -> Formal Requirement Family/ID Range -> Planned Increment -> Verification Method in SRS` برای SRS v2.9 کامل می‌کند. Trace به Analysis، Design، Test Case، Code و Release با ایجاد artifactهای واقعی در Increment مالک تکمیل می‌شود.
+This version preserves exact `Canonical Source -> Formal Requirement Family/ID Range -> Planned Increment -> Verification Method in SRS` coverage for all 419 SRS v3.1 requirements and reconciles Increment 1 analysis/design/test/code evidence through the `v0.2.0` release boundary. Live provider/device/deployed-edge evidence remains assigned to Increment 11 and is not claimed as I1 proof.

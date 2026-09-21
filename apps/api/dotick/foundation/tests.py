@@ -6,11 +6,38 @@ from unittest.mock import patch
 
 from config.observability import JsonFormatter
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.db import connection
 from django.test import Client, TestCase, TransactionTestCase, override_settings
 from rest_framework.test import APIClient
 
 from dotick.foundation.models import Checkpoint
+
+
+@override_settings(FOUNDATION_ENABLED=True, IS_LOCAL=True)
+class CreateDeveloperCommandTests(TestCase):
+    password = "Developer-Test-Password-123!"
+
+    @patch.dict("os.environ", {"DOTICK_DEVELOPMENT_PASSWORD": password})
+    def test_creates_a_verified_developer_for_identity_sign_in(self):
+        call_command("create_developer", email="developer@example.test")
+
+        user = get_user_model().objects.get(email="developer@example.test")
+        self.assertTrue(user.is_active)
+        self.assertIsNotNone(user.email_verified_at)
+        self.assertTrue(user.check_password(self.password))
+
+    @patch.dict("os.environ", {"DOTICK_DEVELOPMENT_PASSWORD": password})
+    def test_upgrades_a_legacy_unverified_developer(self):
+        user = get_user_model().objects.create_user(
+            email="developer@example.test",
+            password=self.password,
+        )
+
+        call_command("create_developer", email="developer@example.test")
+
+        user.refresh_from_db()
+        self.assertIsNotNone(user.email_verified_at)
 
 
 class ReadyEndpointTests(TransactionTestCase):
@@ -209,6 +236,7 @@ class FoundationCheckpointAPITests(TestCase):
             {
                 "error": {
                     "code": "internal_error",
+                    "details": {},
                 }
             },
         )

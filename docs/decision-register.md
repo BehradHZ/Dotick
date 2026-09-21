@@ -1899,7 +1899,7 @@ Dotick's domain behavior must remain consistent across clients, while the first 
 - Shared domain data and business semantics must remain client-independent; platform-specific presentation/capabilities may differ without redefining the domain.
 - The PWA uses browser/platform notification/push capabilities where supported; unsupported platform-specific delivery may degrade or be unavailable.
 - Native Android/iOS, desktop-native clients, OS/application widgets and deeper platform-specific integrations remain Future Scope until promoted by a later decision.
-- Current Scope does not include a supported production self-hosting product for arbitrary end users. Source availability or developer-local execution does not create that product commitment.
+- Self-hosting is permitted under AGPL-3.0, including commercial and organizational use. Current Scope does not include guaranteed free production support, managed deployment, SLA, or operational assistance for arbitrary self-hosted instances; those may be offered separately as professional services.
 
 ### Implications
 
@@ -3216,7 +3216,7 @@ A Future/Out-of-Scope section can accidentally turn every missing capability int
 The following are **not Planned Future Capabilities** under the current product direction and may enter Future Scope only through a new canonical decision:
 
 - general public social-network behavior such as follower graphs, public feeds, standalone public profiles or public content/user discovery unrelated to collaboration;
-- supported self-hosting / production deployment by arbitrary end users;
+- guaranteed support, SLA, or professional production deployment for arbitrary self-hosted instances as a Current-Scope product entitlement; self-hosting permission itself is granted by AGPL-3.0;
 - typed-text AI-assisted Item creation as a direct User input mode; typed User input remains ordinary manual creation;
 - a general-purpose public developer API for arbitrary third-party clients;
 - full UI localization to Persian or other languages beyond the confirmed English UI baseline;
@@ -3234,24 +3234,30 @@ External integrations that are promoted in the future must use controlled, permi
 
 ---
 
-## DR-142 — Commercialization is possible but billing/subscription is not yet a product commitment
+## DR-142 — Dotick software is AGPL-3.0 open source; brand identity is separately protected
 
-**Status:** CONFIRMED AS SCOPE BOUNDARY
+**Status:** CONFIRMED
 
 ### Context and previous model
 
-Billing, subscription and payment behavior are outside Current Scope. Describing them simply as Future Scope could imply that Dotick has already committed to a specific commercial model even though pricing, licensing, packaging and monetization have not been decided.
+Earlier documentation deliberately kept licensing and monetization open. The project has now finalized the software-licensing principle: every Dotick software component is intended to remain fully available as open-source code, including for personal, commercial, and organizational use. At the same time, opening the software does not require giving unrestricted rights to the Dotick name, logo, visual identity, official domains, or other identifiers that distinguish the official product from forks and third-party services.
+
+Billing, subscription, payment, managed hosting, support, deployment, and SLA behavior remain separate service/product concerns and must not be confused with permission to use the software.
 
 ### Decision
 
-- Dotick may become a commercial product in the future.
-- The monetization model is currently undecided.
-- Subscription, billing, payment, license enforcement, pricing tiers and related commercial transaction flows are not Current-Scope requirements and are not Planned Future Capabilities until a separate Business/Product decision selects a model.
-- Current architecture must not assume a specific monetization mechanism as a product invariant.
+- All Dotick software source code is licensed under the **GNU Affero General Public License v3.0 (`AGPL-3.0`)**.
+- Individuals and organizations may use, study, modify, redistribute, and self-host Dotick under AGPL-3.0, including for commercial and internal organizational purposes. Dotick does not require a separate commercial software-use license merely because the user is a company or because the software is used commercially.
+- AGPL-3.0 obligations apply according to the license, including its source-availability and network-use provisions for covered modified versions.
+- Dotick may separately charge for official managed hosting, professional deployment, configuration, migration, customization, maintenance, support, training, and SLA-backed services. Payment purchases a service commitment; it does not purchase permission to exercise software rights already granted by AGPL-3.0.
+- The Dotick name, logos, visual marks, and other brand identifiers are **not** licensed under AGPL-3.0. Third parties may not use Dotick branding in a way that presents a fork or service as official, endorsed, sponsored, or operated by Dotick without separate permission.
+- Truthful referential use of the Dotick name, preservation of required legal notices, and accurate statements such as "based on Dotick" or "compatible with Dotick" are not intended to be prohibited by the brand policy, subject to applicable law.
+- Current architecture must not add software-license payment gates or commercial-user entitlement checks merely to distinguish business users from personal users.
+- Exact hosted-service pricing, subscription packaging, billing/payment flows, support tiers, and SLA terms remain separate Business/Product decisions.
 
 ### Implications
 
-Commercial strategy can evolve without rewriting core productivity semantics. If billing or licensing becomes real scope, its account, entitlement, payment-provider and failure semantics require their own canonical decisions.
+Dotick follows a **fully open-source software + separately protected brand + optional paid services** model. Forks are permitted by the software license, but they must remain distinguishable from the official Dotick identity. Commercial-service packaging can evolve without rewriting core productivity semantics or converting software-use rights into paid entitlements.
 
 ---
 
@@ -3309,6 +3315,75 @@ If a genuine Current-Scope Product/Domain question appears, the alternatives/rat
 - Future and Enterprise details do not clutter the Current-Scope unspecified-detail inventory.
 
 ---
+
+---
+
+## DR-145 — Generative Experience is a Future presentation/runtime layer over a stable Dotick core
+
+**Status:** CONFIRMED AS FUTURE CAPABILITY
+
+### Context and previous model
+
+Current Dotick theming is intentionally conventional: Increment 5 retains several predefined visual directions implemented from shared tokens/components. A broader Future vision now allows the User to describe an experience that may range from a simple recolor to a substantially reimagined interface with different layout, motion, navigation presentation, and interaction metaphors.
+
+Allowing a model to generate and execute arbitrary client code would make authorization, capability reachability, accessibility, recovery, deterministic behavior, and data integrity difficult to guarantee. Conversely, hard-coding every future visual concept would defeat the purpose of a generative experience system. Continuous LLM inference on every ordinary interaction would also add unnecessary cost, latency, nondeterminism, and online dependency.
+
+### Decision
+
+- Generative Experience is a **Planned Future Capability** and is not a Personal V1 implementation requirement.
+- The User controls transformation distance through four conceptual levels: `Recolor`, `Restyle`, `Transform`, and `Reimagine`. Natural-language constraints may further restrict what changes.
+- A generated experience may change visual tokens, component presentation/composition, motion, sound, layout, navigation presentation, responsive behavior, and restricted interaction metaphors, provided required Dotick capabilities remain reachable.
+- Generated presentation must never redefine the meaning of Task/Event/Routine operations, authorization, recurrence, Sync, History/Undo, deletion, persistence, or other core domain rules.
+- The AI output for this capability is a constrained **declarative Experience Specification/DSL** interpreted by Dotick. Unrestricted AI-generated JavaScript, React/native code, unrestricted CSS, or other arbitrary executable client code is not the theme/runtime contract.
+- Ordinary UI interaction does not require a model round-trip. Experience versions are generated/edited/repaired/adapted, validated, persisted/versioned, and then interpreted by the runtime deterministically.
+- Before Apply on a device, a generated/adapted version passes a validation pipeline that includes deterministic schema/primitive/action checks, required-capability reachability checks, functional simulation against representative synthetic Dotick state, applicable accessibility checks for the release, AI UX review for non-rule-based quality concerns, and an interactive synthetic-data Preview.
+- Preview is interactive, not merely a screenshot. The User can traverse representative product surfaces and exercise important workflows without changing real Account data.
+- A generated experience created on one device does not automatically replace the active experience on another device. The target device offers explicit adaptation; adaptation reuses the existing specification where practical and again requires validation, Preview, and User Apply.
+- A protected recovery path to a known-good/default experience and previous valid version must remain reachable independently of the generated experience.
+- Experience packages may be shareable through a controlled link/file/package mechanism. A received experience is not trusted merely because it was shared and must pass local validation before Apply.
+- Generated, User-provided, or externally sourced assets may be supported under Future asset-provenance, licensing/IP, integrity, safety, caching, and trust policy.
+- A later capability may add bounded `Extension State`, `Extension Events`, `Extension UI`, and `Extension Rules`, but this is separate from the initial Generative Experience Runtime. Current implementation must not create a general arbitrary-code extension engine in anticipation of it.
+
+### Implications
+
+- Increment 5's predefined themes remain Current-Scope presentation work; they are not replaced by a Generative Experience engine.
+- Current UI architecture should favor shared tokens/primitives/components and presentation-independent application actions so later generated presentation does not require extracting business logic from theme-specific components.
+- The full Experience DSL, renderer, validators, synthetic test workspace, Preview isolation, device adaptation, sharing format, asset policy, and extension sandbox remain Future Design Gates.
+- The current accessibility decision remains unchanged: exact conformance is Future. The future Generative Experience release must select and enforce its measurable accessibility baseline before shipping.
+
+---
+
+## DR-146 — Built-in AI Agent uses User-selected authority profiles and the ordinary Dotick capability boundary
+
+**Status:** CONFIRMED AS FUTURE CAPABILITY
+
+### Context and previous model
+
+Dotick already anticipates future external agents and Trusted Automation, but an internal Dotick Agent is a distinct product capability. The desired UX is similar to modern coding agents: the User chooses how much authority the Agent receives instead of approving every operation unconditionally or granting unrestricted access.
+
+A separate privileged Agent mutation path would duplicate business rules and risk divergence from ordinary UI behavior. A large low-level permission matrix exposed directly to ordinary Users would also make authority difficult to understand.
+
+### Decision
+
+- A built-in Dotick AI Agent is a **Planned Future Capability** distinct from external-agent integrations.
+- The ordinary User-facing authority model uses four conceptual presets: `Observe`, `Ask`, `Assist`, and `Autonomous`.
+- `Observe` is read-only within permitted context.
+- `Ask` may prepare/propose state changes but requires User confirmation before writes.
+- `Assist` may execute low-risk operations in granted scope while sensitive/destructive/protected actions follow confirmation policy.
+- `Autonomous` may act without per-action confirmation within the explicitly granted capability scope; non-overridable authorization, integrity, and safety constraints remain active.
+- Where applicable, authority may be granted for `Once`, `This session`, or persistently until revoked (`Always`). Persistent grants are revocable.
+- The exact low-level capability matrix and classification of low-risk/sensitive/destructive operations belong to Future Agent Design rather than being hard-coded by this decision.
+- Agent operations must use the same authoritative application/domain capability path as equivalent User operations. Agent execution must not directly mutate persistence, bypass authorization, skip domain validation, or create alternate Task/Event/Routine semantics.
+- History/Audit may record Agent origin, but caller origin does not change the business meaning of an operation.
+- Core Undo is origin-neutral. If a planning/productivity mutation is undoable when performed by the User, the equivalent Agent-initiated operation remains subject to the same Undo/recovery semantics.
+- User-selected confirmation policy may relax confirmations only where Future Agent policy permits. It does not disable non-overridable safeguards required by authorization, atomicity, data integrity, or other product invariants.
+
+### Implications
+
+- Current application/domain services should remain actor-aware and presentation-independent; UI code must not become the only place where important mutation rules exist.
+- Current increments do not need Agent tables, Agent permission persistence, an Agent tool protocol, or a general Capability Gateway merely to anticipate this Future capability.
+- Before Agent implementation, Future Design must define the capability map, sensitive/destructive classification, grant persistence/revocation, Once/Session/Always lifecycle, confirmation UX, origin/audit representation, failure behavior, and privacy/external-AI context rules.
+- External agents remain governed by their separate integration boundary; confirming a built-in Agent does not create a public general-purpose API.
 
 # Decision coverage and remaining design handoff
 

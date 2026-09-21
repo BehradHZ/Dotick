@@ -10,9 +10,20 @@ STATUS_ERROR_CODES = {
     404: "not_found",
     405: "method_not_allowed",
     406: "not_acceptable",
+    409: "conflict",
     415: "unsupported_media_type",
     429: "throttled",
+    503: "provider_unavailable",
 }
+
+
+def _error_payload(code, details):
+    return {
+        "error": {
+            "code": code,
+            "details": details,
+        }
+    }
 
 
 def _get_error_code(error, status_code):
@@ -22,7 +33,7 @@ def _get_error_code(error, status_code):
     if hasattr(error, "get_codes"):
         codes = error.get_codes()
 
-        if isinstance(codes, str):
+        if isinstance(codes, str) and codes != "error":
             return codes
 
     return STATUS_ERROR_CODES.get(status_code, "api_error")
@@ -33,52 +44,41 @@ def api_exception_handler(error, context):
 
     if response is None:
         return Response(
-            {
-                "error": {
-                    "code": "internal_error",
-                }
-            },
+            _error_payload("internal_error", {}),
             status=500,
         )
 
-    response.data = {
-        "error": {
-            "code": _get_error_code(error, response.status_code),
-            "details": response.data,
+    details = response.data
+    if hasattr(error, "current"):
+        details = {
+            "message": response.data["detail"],
+            "current": error.current,
         }
-    }
+
+    response.data = _error_payload(
+        _get_error_code(error, response.status_code),
+        details,
+    )
 
     return response
 
 
 def bad_request(request, exception):
     return JsonResponse(
-        {
-            "error": {
-                "code": "bad_request",
-            }
-        },
+        _error_payload("bad_request", {}),
         status=400,
     )
 
 
 def not_found(request, exception):
     return JsonResponse(
-        {
-            "error": {
-                "code": "not_found",
-            }
-        },
+        _error_payload("not_found", {}),
         status=404,
     )
 
 
 def server_error(request):
     return JsonResponse(
-        {
-            "error": {
-                "code": "internal_error",
-            }
-        },
+        _error_payload("internal_error", {}),
         status=500,
     )

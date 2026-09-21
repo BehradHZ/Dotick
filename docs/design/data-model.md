@@ -128,6 +128,7 @@ custom Django user model باید پیش از اولین migration ساخته ش
 | `title` | varchar | trimmed, non-empty |
 | `position` | integer | non-negative |
 | `is_trashed` / `trashed_at` | recoverable Folder lifecycle |
+| `version` | bigint | not null, positive, server-owned optimistic-concurrency token |
 | `created_at` / `updated_at` | timestamptz | not null |
 
 ### `lists`
@@ -141,6 +142,7 @@ custom Django user model باید پیش از اولین migration ساخته ش
 | `position` | integer | non-negative |
 | `is_inbox` | boolean | partial unique constraint gives at most one per owner; write transaction supplies exactly one |
 | `is_trashed` / `trashed_at` | recoverable List lifecycle |
+| `version` | bigint | not null, positive, server-owned optimistic-concurrency token |
 | `created_at` / `updated_at` | timestamptz | not null |
 
 ### `columns`
@@ -152,6 +154,7 @@ custom Django user model باید پیش از اولین migration ساخته ش
 | `title` | varchar | trimmed, non-empty |
 | `position` | integer | non-negative |
 | `is_default` | boolean | not null, default false |
+| `version` | bigint | not null, positive, server-owned optimistic-concurrency token |
 | `created_at` / `updated_at` | timestamptz | not null |
 
 یک partial unique constraint باید حداکثر یک default Column در هر List را تضمین کند. ساخت List و default Column در یک transaction انجام می‌شود تا قاعده‌ی «دقیقاً یک default» در write path حفظ شود.
@@ -163,6 +166,22 @@ column -> list -> owner_user_id
 ```
 
 Group scope تا Increment 7 به این tableها اضافه نمی‌شود؛ migration آن Increment ownership model را بازنگری می‌کند.
+
+### `organization_create_operations`
+
+| Column | Type | Constraint / note |
+|---|---|---|
+| `id` | uuid | PK |
+| `owner_user_id` | uuid | FK users, not null; idempotency namespace owner |
+| `resource_type` | varchar | one of `folder`, `list`, `column` |
+| `operation_id` | uuid | client-generated create-attempt identity |
+| `intent_digest` | char(64) | non-empty SHA-256 digest of normalized immutable create intent |
+| `resource_id` | uuid | created Folder/List/Column ID; polymorphic result reference |
+| `created_at` | timestamptz | immutable operation creation time |
+
+`UNIQUE(owner_user_id, resource_type, operation_id)` guarantees one result per create namespace. `(owner_user_id, resource_type, resource_id)` is indexed for result lookup. `resource_id` cannot be a single relational FK because it targets one of three tables; the model write boundary validates that the result exists and belongs to the recorded owner/type, and operation rows are immutable after insertion.
+
+The resource row and operation row are committed in one transaction. Transaction-scoped PostgreSQL advisory locking on the same owner/type/operation scope serializes concurrent first use. A matching retry resolves the original resource; a different normalized intent returns `idempotency_conflict` and never mutates the stored operation.
 
 ## 4.3 Items and placement
 
@@ -206,6 +225,7 @@ erDiagram
     USER ||--o{ ACCOUNT_CONTACT : owns
     USER ||--o{ FOLDER : owns
     USER ||--o{ LIST : owns
+    USER ||--o{ ORGANIZATION_CREATE_OPERATION : scopes
     FOLDER o|--o{ LIST : groups
     LIST ||--|{ COLUMN : contains
     COLUMN ||--o{ ITEM : places
@@ -235,9 +255,13 @@ Exactly-one subtype/source/default-Column invariants are completed by transactio
 حداقل indexهای Increment 1:
 
 - `folders(owner_user_id, position)`
+- `lists(owner_user_id, folder_id, position)`
 - `lists(folder_id, position)`
 - `columns(list_id, position)`
 - partial unique روی `columns(list_id) WHERE is_default`
+- partial unique روی `lists(owner_user_id) WHERE is_inbox`
+- unique روی `organization_create_operations(owner_user_id, resource_type, operation_id)`
+- `organization_create_operations(owner_user_id, resource_type, resource_id)`
 - `items(owner_user_id, is_trashed, updated_at desc)`
 - `items(column_id, is_trashed, updated_at desc)`
 - `items(owner_user_id, kind, is_trashed)`
@@ -253,13 +277,16 @@ Exactly-one subtype/source/default-Column invariants are completed by transactio
 - AuditLog در I2 اضافه می‌شود؛ تا آن زمان API منتشرشده نباید وعده‌ی undo/history بدهد.
 - auth/session cleanup و retention عملیاتی جدا از business soft-delete است.
 
-# 7. Concurrency
+# 7. Concurrency and retry identity
 
-- `version` برای optimistic concurrency foundation نگه‌داری می‌شود.
-- mutation باید version را atomically افزایش دهد.
-- contract دقیق conflict response در Increment 1 API design تعریف می‌شود.
+- `folders.version`, `lists.version`, `columns.version` و `items.version` همیشه مثبت و server-owned هستند.
+- update/Trash/delete/restore باید owned row را در transaction lock کند، version فعلی را با precondition مقایسه کند و mutation پذیرفته‌شده را همراه با افزایش atomic version ثبت کند.
+- stale precondition با `409 version_conflict` و current resource ID/version پاسخ داده می‌شود؛ client باید refetch/reconcile کند و نباید mutation را کورکورانه با version جدید تکرار کند.
+- create Folder/List/Column از `operation_id` اجباری و namespace `(owner_user_id, resource_type, operation_id)` استفاده می‌کند.
+- replay با intent یکسان همان resource را با `200` برمی‌گرداند؛ first commit `201` است؛ reuse با intent متفاوت `409 idempotency_conflict` می‌دهد.
+- resource و create-operation record در یک transaction نوشته می‌شوند. PostgreSQL advisory transaction lock فقط scope همان operation را serialize می‌کند؛ lock سراسری ممنوع است.
 - transactionهای ایجاد List/default Column و Item/subtype atomic هستند.
-- `select_for_update` فقط برای invariantهای واقعاً concurrent به کار می‌رود؛ lock سراسری ممنوع است.
+- I1 `version` و `operation_id` foundation سازگار با Sync آینده‌اند، اما خودشان History/Sync/Undo نیستند.
 
 # 8. Migration policy
 

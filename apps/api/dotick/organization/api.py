@@ -1,0 +1,350 @@
+import re
+
+from rest_framework import serializers
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from dotick.identity.validators import validate_iana_timezone
+from dotick.organization import application, idempotency
+from dotick.organization.concurrency import EXPECTED_VERSION_ERROR, validate_expected_version
+
+
+class BootstrapInput(serializers.Serializer):
+    timezone = serializers.CharField(
+        max_length=64,
+        validators=[validate_iana_timezone],
+    )
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and set(data) - set(self.fields):
+            raise serializers.ValidationError({"input": "Unknown fields are not accepted."})
+        return super().to_internal_value(data)
+
+
+class AccountBootstrap(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        serializer = BootstrapInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        preferences, inbox, default_column = application.bootstrap_account(
+            actor_id=request.user.id,
+            **serializer.validated_data,
+        )
+        return Response(
+            {
+                "preferences": {"timezone": preferences.timezone},
+                "inbox": {
+                    "id": inbox.id,
+                    "title": inbox.title,
+                    "is_inbox": inbox.is_inbox,
+                    "default_column": {
+                        "id": default_column.id,
+                        "is_default": default_column.is_default,
+                    },
+                },
+            }
+        )
+
+
+class StrictInput(serializers.Serializer):
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and set(data) - set(self.fields):
+            raise serializers.ValidationError({"input": "Unknown fields are not accepted."})
+        return super().to_internal_value(data)
+
+
+class FolderCreateInput(StrictInput):
+    title = serializers.CharField(max_length=240, trim_whitespace=True)
+    operation_id = serializers.UUIDField()
+
+
+class FolderUpdateInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
+    title = serializers.CharField(
+        max_length=240,
+        trim_whitespace=True,
+        required=False,
+    )
+    position = serializers.IntegerField(min_value=0, required=False)
+
+    def validate(self, attrs):
+        if set(attrs) == {"version"}:
+            raise serializers.ValidationError("Provide at least one Folder change.")
+        return attrs
+
+
+class FolderRestoreInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
+
+
+class ListCreateInput(StrictInput):
+    title = serializers.CharField(max_length=240, trim_whitespace=True)
+    operation_id = serializers.UUIDField()
+    folder_id = serializers.UUIDField(required=False, allow_null=True)
+    position = serializers.IntegerField(min_value=0, required=False)
+
+
+class ListUpdateInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
+    title = serializers.CharField(
+        max_length=240,
+        trim_whitespace=True,
+        required=False,
+    )
+    folder_id = serializers.UUIDField(required=False, allow_null=True)
+    position = serializers.IntegerField(min_value=0, required=False)
+
+    def validate(self, attrs):
+        if set(attrs) == {"version"}:
+            raise serializers.ValidationError("Provide at least one List change.")
+        return attrs
+
+
+class ListRestoreInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
+
+
+class ColumnCreateInput(StrictInput):
+    title = serializers.CharField(max_length=240, trim_whitespace=True)
+    operation_id = serializers.UUIDField()
+
+
+class ColumnUpdateInput(StrictInput):
+    version = serializers.IntegerField(validators=[validate_expected_version])
+    title = serializers.CharField(
+        max_length=240,
+        trim_whitespace=True,
+        required=False,
+    )
+    position = serializers.IntegerField(min_value=0, required=False)
+
+    def validate(self, attrs):
+        if set(attrs) == {"version"}:
+            raise serializers.ValidationError("Provide at least one Column change.")
+        return attrs
+
+
+def _parse_if_match_version(request):
+    value = request.headers.get("If-Match", "").strip()
+    if re.fullmatch(r'(?:[1-9][0-9]*|"[1-9][0-9]*")', value) is None:
+        raise serializers.ValidationError({"if_match": [EXPECTED_VERSION_ERROR]})
+    return validate_expected_version(int(value.strip('"')))
+
+
+def _serialize_folder(row):
+    return {
+        "id": row.id,
+        "title": row.title,
+        "position": row.position,
+        "version": row.version,
+        "is_trashed": row.is_trashed,
+        "trashed_at": row.trashed_at,
+    }
+
+
+def _serialize_list(row):
+    default_column = next(column for column in row.columns.all() if column.is_default)
+    return {
+        "id": row.id,
+        "title": row.title,
+        "folder_id": row.folder_id,
+        "is_inbox": row.is_inbox,
+        "position": row.position,
+        "version": row.version,
+        "is_trashed": row.is_trashed,
+        "trashed_at": row.trashed_at,
+        "default_column": {
+            "id": default_column.id,
+            "is_default": True,
+        },
+    }
+
+
+def _serialize_column(row):
+    return {
+        "id": row.id,
+        "list_id": row.list_id,
+        "title": row.title,
+        "position": row.position,
+        "version": row.version,
+        "is_default": row.is_default,
+    }
+
+
+class Folders(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rows = application.list_folders(actor_id=request.user.id)
+        return Response({"results": [_serialize_folder(row) for row in rows]})
+
+    def post(self, request):
+        serializer = FolderCreateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row, created = application.create_folder_idempotent(
+            actor_id=request.user.id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_folder(row), status=201 if created else 200)
+
+
+class FolderDetail(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, folder_id):
+        row = application.get_folder(actor_id=request.user.id, folder_id=folder_id)
+        return Response(_serialize_folder(row))
+
+    def patch(self, request, folder_id):
+        serializer = FolderUpdateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.update_folder(
+            actor_id=request.user.id,
+            folder_id=folder_id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_folder(row))
+
+    def delete(self, request, folder_id):
+        application.trash_folder(
+            actor_id=request.user.id,
+            folder_id=folder_id,
+            version=_parse_if_match_version(request),
+            item_resolution=request.query_params.get("items"),
+        )
+        return Response(status=204)
+
+
+class FolderRestore(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, folder_id):
+        serializer = FolderRestoreInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.restore_folder(
+            actor_id=request.user.id,
+            folder_id=folder_id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_folder(row))
+
+
+class TrashedFolders(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rows = application.list_trashed_folders(actor_id=request.user.id)
+        return Response({"results": [_serialize_folder(row) for row in rows]})
+
+
+class Lists(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rows = application.list_lists(actor_id=request.user.id)
+        return Response({"results": [_serialize_list(row) for row in rows]})
+
+    def post(self, request):
+        serializer = ListCreateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row, _, created = idempotency.create_list(
+            actor_id=request.user.id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_list(row), status=201 if created else 200)
+
+
+class ListDetail(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, list_id):
+        row = application.get_list(actor_id=request.user.id, list_id=list_id)
+        return Response(_serialize_list(row))
+
+    def patch(self, request, list_id):
+        serializer = ListUpdateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.update_list(
+            actor_id=request.user.id,
+            list_id=list_id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_list(row))
+
+    def delete(self, request, list_id):
+        application.trash_list(
+            actor_id=request.user.id,
+            list_id=list_id,
+            version=_parse_if_match_version(request),
+            item_resolution=request.query_params.get("items"),
+        )
+        return Response(status=204)
+
+
+class ListRestore(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, list_id):
+        serializer = ListRestoreInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.restore_list(
+            actor_id=request.user.id,
+            list_id=list_id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_list(row))
+
+
+class TrashedLists(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rows = application.list_trashed_lists(actor_id=request.user.id)
+        return Response({"results": [_serialize_list(row) for row in rows]})
+
+
+class Columns(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, list_id):
+        rows = application.list_columns(actor_id=request.user.id, list_id=list_id)
+        return Response({"results": [_serialize_column(row) for row in rows]})
+
+    def post(self, request, list_id):
+        serializer = ColumnCreateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row, created = idempotency.create_column(
+            actor_id=request.user.id,
+            list_id=list_id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_column(row), status=201 if created else 200)
+
+
+class ColumnDetail(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, column_id):
+        row = application.get_column(actor_id=request.user.id, column_id=column_id)
+        return Response(_serialize_column(row))
+
+    def patch(self, request, column_id):
+        serializer = ColumnUpdateInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = application.update_column(
+            actor_id=request.user.id,
+            column_id=column_id,
+            **serializer.validated_data,
+        )
+        return Response(_serialize_column(row))
+
+    def delete(self, request, column_id):
+        application.delete_column(
+            actor_id=request.user.id,
+            column_id=column_id,
+            version=_parse_if_match_version(request),
+            item_resolution=request.query_params.get("items"),
+        )
+        return Response(status=204)

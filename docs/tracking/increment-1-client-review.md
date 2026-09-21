@@ -1,34 +1,41 @@
 # Increment 1 client review
 
-Date: 2026-09-08. Result: usable minimal client locally verified; not an Increment 1 release.
+> **Reconciled:** 2026-09-20
+>
+> **Implementation baseline before this documentation commit:** `4485c63`
+>
+> **Result:** Usable I1 web/Android product client present; not an Increment 1 release.
 
-## Delivered boundary
+## Implemented product surface
 
-- Expo client targets Android, iOS and web while retaining the approved comic-inspired paper/ink/orange visual direction.
-- Email/password sign-in uses revocable JWT access/refresh sessions; credentials and tokens remain in memory.
-- Account registration, six-digit email verification/resend and password reset/confirmation are available from the signed-out client.
-- Configured web builds can hand a Google ID credential to the backend and perform a browser WebAuthn Passkey ceremony. Provider-specific native builds remain a release input.
-- First sign-in bootstraps the account Inbox/default Column and IANA timezone.
-- Users can open Inbox/Lists, create Lists and Tasks, edit title, choose Todo/Done/Won't_Do, move a Task between Lists, refresh and sign out.
-- Ordinary Task deletion uses the current version and remains recoverable through Trash/restore.
-- Phone startup derives the API address from Expo's LAN host and keeps it editable for local-network correction.
-- I0 `foundation_checkpoints` no longer power the product UI.
+- Expo configuration targets web and Android.
+- Signed-out flows provide registration, email verification/resend, password reset/confirmation and password sign-in.
+- Configured web builds provide Google ID credential and browser Passkey sign-in; missing provider configuration preserves password fallback.
+- First authentication bootstraps timezone preferences, Inbox and default Column.
+- Workspace UI provides Inbox/List navigation, List creation and Basic Task creation, title/status changes, movement between loaded Columns, Trash and restore.
+- Session access/refresh credentials remain in memory. Sign-out removes private workspace state, drafts and response cache before completing server revocation.
+- Network failures preserve drafts; version/conflict paths refresh authoritative resources rather than silently overwriting them.
+- Local-network API address discovery remains available for Android development.
 
-## Local verification evidence
+## Current executable evidence
 
-- 11 Vitest auth/component/time-vector tests passed, including registration/verification, password recovery, safe validation errors, sign-in/bootstrap, persisted Inbox rendering, draft retention after network failure, versioned status update and sign-out privacy.
-- TypeScript, ESLint and Prettier checks passed.
-- Expo web export and Android native bundle passed under SDK 57.
-- Playwright desktop and mobile workflows passed against the real Django API and PostgreSQL: sign in, bootstrap Inbox, create, reload/reauthenticate, retrieve, complete and trash.
-- Backend CORS preflight now explicitly permits the required `If-Match` Task deletion precondition; its trusted/untrusted origin behavior is tested.
-- Local developer provisioning produces an active, email-verified product account without weakening the non-local workbench guard.
+- Component/network tests cover signed-out identity flows, Google/Passkey availability, session rotation/privacy, API response validation, workspace/list/task behavior, bilingual input, draft retention, conflicts and recovery.
+- Playwright desktop/mobile projects exercise the real client-to-Django-to-PostgreSQL I1 path: sign-in, bootstrap, List/Task creation, status mutation, Trash/restore, reload persistence and sign-out.
+- Additional E2E scenarios cover failed-save draft retention and cross-account resource/operation isolation.
+- The retained I0 Checkpoint browser/API regression is separate compatibility coverage and is not counted as I1 product acceptance.
+
+Historical test counts and hosted runs are not restated as current-HEAD results. CI targeting now includes `increment`; an exact final-candidate hosted result is still pending.
 
 ## Deliberate limits
 
-- UI exposes complete signed-out email identity flows plus configured web Google/Passkey sign-in. Passkey enrollment, Google linking, profile/contact/session management, Folder management and custom Column management still use API boundaries only.
-- Tokens are intentionally session-memory only; app restart requires sign-in. Durable secure credential storage belongs to a later security-reviewed client slice.
-- Permanent deletion, 30-day purge execution, scheduling, Events/Routines, comments, audit/history, offline synchronization and collaboration retain later roadmap ownership.
-- Real email, Google, WebAuthn authenticator and phone delivery require configured environment smoke evidence.
-- Hosted CI, release packaging/publication and the existing Increment 0 hosted gates remain open.
+- Folder management and full custom-Column management are not complete product UI surfaces, although backend APIs and client API bindings exist.
+- Passkey enrollment, Google linking, profile/contact/session management and delivery configuration remain API-first boundaries.
+- Provider-specific native Google/Passkey behavior is not claimed.
+- Tokens intentionally remain session-memory only; durable secure credential storage needs a later security-reviewed client slice.
+- Permanent deletion, purge execution, scheduling, Event/Routine, comments, collaboration and full Offline/Sync/History remain outside I1.
 
-The client is sufficient for initial local product use and closes the missing local account-to-Task UI evidence. Increment 1 closes only after remaining provider, hosted CI and release gates pass.
+## Pending release evidence
+
+This client review was completed before formal closure. Increment 1 later closed at `v0.2.0`; optional delivery and live Google/WebAuthn, edge and production-device smoke remain assigned to Increment 11.
+
+See [Increment 1 readiness](increment-1-readiness.md) for the complete closure rule and [formal Increment 1 review](increment-1-review.md) for the release-candidate status.

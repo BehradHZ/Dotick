@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,29 +11,49 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { ApiError, type Checkpoint, type Credentials, foundationApi } from './api';
+
+import AuthScreen from './AuthScreen';
+import {
+  type ApiSession,
+  ApiError,
+  type Bootstrap,
+  type ColumnRecord,
+  createOperationId,
+  type ListRecord,
+  ReauthenticationRequiredError,
+  type Task,
+  type TaskStatus,
+} from './api';
 
 const colors = {
   paper: '#fffdf7',
-  background: '#f4f1e8',
-  ink: '#151515',
+  background: '#f2eee3',
+  ink: '#171717',
   muted: '#69675f',
   orange: '#ff7a00',
-  soft: '#ffe2bf',
-  green: '#daf4e2',
   red: '#b42318',
+  redSoft: '#ffe5df',
 };
-
-function Button({
+function localTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+function errorMessage(error: unknown) {
+  if (error instanceof ReauthenticationRequiredError) return error.message;
+  if (error instanceof Error) return error.message;
+  return 'Could not load your workspace. Please try again.';
+}
+function Action({
   title,
   onPress,
   disabled = false,
-  secondary = false,
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
-  secondary?: boolean;
 }) {
   return (
     <Pressable
@@ -40,434 +62,763 @@ function Button({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        secondary && styles.secondary,
-        disabled && styles.disabled,
-        pressed && styles.pressed,
-      ]}
+      style={[styles.action, disabled && styles.disabled]}
     >
-      <Text style={styles.buttonText}>{title}</Text>
+      <Text style={styles.actionText}>{title}</Text>
     </Pressable>
   );
 }
 
-function errorMessage(error: unknown) {
-  return error instanceof ApiError
-    ? error.message
-    : 'Connection interrupted. Your text is still here. Try again when the API is available.';
-}
-
 export default function App() {
   const { width } = useWindowDimensions();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [credentials, setCredentials] = useState<Credentials | null>(null);
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
-  const [text, setText] = useState('');
+  const compact = width < 720;
+  const [session, setSession] = useState<ApiSession | null>(null);
+  const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
+  const [lists, setLists] = useState<ListRecord[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [trash, setTrash] = useState<Task[]>([]);
+  const [columnsByList, setColumnsByList] = useState<Record<string, ColumnRecord[]>>({});
+  const [view, setView] = useState<'tasks' | 'trash'>('tasks');
+  const [selectedListId, setSelectedListId] = useState('');
+  const [listDraft, setListDraft] = useState('');
+  const [listTitleDraft, setListTitleDraft] = useState('');
+  const listCreateAttempt = useRef<{ intent: string; operationId: string } | null>(null);
+  const [taskDraft, setTaskDraft] = useState('');
+  const taskCreateAttempt = useRef<{ intent: string; operationId: string } | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [taskTitleDraft, setTaskTitleDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const activeSession = useRef<ApiSession | null>(null);
+  const sessionGeneration = useRef(0);
+  const workspaceRequest = useRef(0);
 
-  async function signIn() {
+  const clearWorkspace = useCallback((invalidateRequests = true) => {
+    if (invalidateRequests) {
+      sessionGeneration.current += 1;
+      workspaceRequest.current += 1;
+      activeSession.current = null;
+    }
+    setBootstrap(null);
+    setLists([]);
+    setTasks([]);
+    setTrash([]);
+    setColumnsByList({});
+    setView('tasks');
+    setSelectedListId('');
+    setListDraft('');
+    setListTitleDraft('');
+    listCreateAttempt.current = null;
+    setTaskDraft('');
+    taskCreateAttempt.current = null;
+    setEditingTaskId(null);
+    setTaskTitleDraft('');
     setError('');
+  }, []);
+
+  const loadWorkspace = useCallback(
+    async (requestedSession: ApiSession, preferredListId?: string) => {
+      const generation = sessionGeneration.current;
+      const request = ++workspaceRequest.current;
+      const [nextBootstrap, listResult, taskResult] = await Promise.all([
+        requestedSession.bootstrap(localTimezone()),
+        requestedSession.lists(),
+        requestedSession.tasks(),
+      ]);
+      if (
+        generation !== sessionGeneration.current ||
+        request !== workspaceRequest.current ||
+        requestedSession !== activeSession.current
+      )
+        return null;
+      setBootstrap(nextBootstrap);
+      setLists(listResult.results);
+      setTasks(taskResult.results);
+      setTrash([]);
+      setColumnsByList({});
+      setSelectedListId((current) => {
+        const requested = preferredListId ?? current;
+        if (requested && listResult.results.some((list) => list.id === requested)) return requested;
+        if (listResult.results.some((list) => list.id === nextBootstrap.inbox.id))
+          return nextBootstrap.inbox.id;
+        return listResult.results[0]?.id ?? '';
+      });
+      setError('');
+      return { bootstrap: nextBootstrap, lists: listResult.results, tasks: taskResult.results };
+    },
+    [],
+  );
+
+  const handleSessionFailure = useCallback(
+    (failure: unknown) => {
+      if (failure instanceof ReauthenticationRequiredError) {
+        setSession(null);
+        clearWorkspace();
+        return true;
+      }
+      return false;
+    },
+    [clearWorkspace],
+  );
+
+  const reloadWorkspace = useCallback(
+    async (activeSession: ApiSession) => {
+      setBusy(true);
+      const generation = sessionGeneration.current;
+      try {
+        await loadWorkspace(activeSession);
+      } catch (failure) {
+        if (generation === sessionGeneration.current && !handleSessionFailure(failure))
+          setError(errorMessage(failure));
+      } finally {
+        if (generation === sessionGeneration.current) setBusy(false);
+      }
+    },
+    [handleSessionFailure, loadWorkspace],
+  );
+
+  useEffect(() => {
+    if (!session) return undefined;
+    const unregister = session.onPrivateStateClear(() => {
+      setSession(null);
+      clearWorkspace();
+    });
+    return () => {
+      unregister();
+    };
+  }, [clearWorkspace, session]);
+  useEffect(() => {
+    if (!session) return undefined;
+    let previous = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (next) => {
+      const returning = previous !== 'active' && next === 'active';
+      previous = next;
+      if (returning) void reloadWorkspace(session);
+    });
+    return () => subscription.remove();
+  }, [reloadWorkspace, session]);
+  useEffect(() => {
+    if (!session || Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
+    const onFocus = () => void reloadWorkspace(session);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [reloadWorkspace, session]);
+
+  const selectedList = useMemo(
+    () => lists.find((list) => list.id === selectedListId) ?? null,
+    [lists, selectedListId],
+  );
+  const selectedColumns = useMemo(
+    () => (selectedList ? (columnsByList[selectedList.id] ?? []) : []),
+    [columnsByList, selectedList],
+  );
+  const selectedColumnIds = useMemo(() => {
+    if (!selectedList) return new Set<string>();
+    const ids =
+      selectedColumns.length > 0
+        ? selectedColumns.map((column) => column.id)
+        : [selectedList.default_column.id];
+    return new Set(ids);
+  }, [selectedColumns, selectedList]);
+  const selectedTasks = useMemo(
+    () => tasks.filter((task) => selectedColumnIds.has(task.column_id)),
+    [selectedColumnIds, tasks],
+  );
+  useEffect(() => {
+    setListTitleDraft(selectedList?.title ?? '');
+  }, [selectedList?.id, selectedList?.title, selectedList?.version]);
+
+  function changeListDraft(value: string) {
+    setListDraft(value);
+    const nextIntent = value.trim();
+    if (listCreateAttempt.current && listCreateAttempt.current.intent !== nextIntent)
+      listCreateAttempt.current = null;
+  }
+  async function createList() {
+    const intent = listDraft.trim();
+    if (!session || !intent || busy) return;
+    if (!listCreateAttempt.current || listCreateAttempt.current.intent !== intent)
+      listCreateAttempt.current = { intent, operationId: createOperationId() };
+    const operationId = listCreateAttempt.current.operationId;
     setBusy(true);
-    const candidate = { email: email.trim(), password };
+    setError('');
     try {
-      const response = await foundationApi(candidate).list();
-      setCheckpoints(response.results);
-      setCredentials(candidate);
-      setPassword('');
+      const created = await session.createList({ title: intent, operation_id: operationId });
+      setLists((current) => [...current.filter((list) => list.id !== created.id), created]);
+      setSelectedListId(created.id);
+      setView('tasks');
+      setListDraft('');
+      listCreateAttempt.current = null;
     } catch (failure) {
-      setError(errorMessage(failure));
+      if (failure instanceof ApiError && failure.code === 'idempotency_conflict')
+        listCreateAttempt.current = null;
+      if (!handleSessionFailure(failure)) setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function renameSelectedList() {
+    const title = listTitleDraft.trim();
+    if (
+      !session ||
+      !selectedList ||
+      selectedList.is_inbox ||
+      !title ||
+      title === selectedList.title ||
+      busy
+    )
+      return;
+    setBusy(true);
+    setError('');
+    try {
+      const updated = await session.updateList(selectedList.id, {
+        version: selectedList.version,
+        title,
+      });
+      setLists((current) => current.map((list) => (list.id === updated.id ? updated : list)));
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.code === 'version_conflict') {
+        const snapshot = await loadWorkspace(session, selectedList.id);
+        const authoritative = snapshot?.lists.find((list) => list.id === selectedList.id);
+        if (authoritative) setListTitleDraft(authoritative.title);
+        setError(failure.message);
+      } else if (!handleSessionFailure(failure)) setError(errorMessage(failure));
     } finally {
       setBusy(false);
     }
   }
 
-  async function save() {
-    if (!credentials || !text.trim() || busy) return;
-    setError('');
-    setNotice('');
+  function replaceTask(updated: Task) {
+    setTasks((current) => current.map((task) => (task.id === updated.id ? updated : task)));
+  }
+  function changeTaskDraft(value: string) {
+    setTaskDraft(value);
+    const columnId = selectedList?.default_column.id ?? '';
+    const nextIntent = `${columnId}::${value.trim()}`;
+    if (taskCreateAttempt.current && taskCreateAttempt.current.intent !== nextIntent)
+      taskCreateAttempt.current = null;
+  }
+  async function createTask() {
+    const title = taskDraft.trim();
+    const columnId = selectedList?.default_column.id;
+    if (!session || !columnId || !title || busy) return;
+    const intent = `${columnId}::${title}`;
+    if (!taskCreateAttempt.current || taskCreateAttempt.current.intent !== intent)
+      taskCreateAttempt.current = { intent, operationId: createOperationId() };
     setBusy(true);
+    setError('');
     try {
-      const record = await foundationApi(credentials).create(text.trim());
-      setCheckpoints((existing) => [record, ...existing].slice(0, 100));
-      setText('');
-      setNotice('Checkpoint saved.');
+      const created = await session.createTask({
+        title,
+        column_id: columnId,
+        operation_id: taskCreateAttempt.current.operationId,
+      });
+      setTasks((current) => [created, ...current.filter((task) => task.id !== created.id)]);
+      setTaskDraft('');
+      taskCreateAttempt.current = null;
     } catch (failure) {
-      setError(errorMessage(failure));
+      if (failure instanceof ApiError && failure.code === 'idempotency_conflict')
+        taskCreateAttempt.current = null;
+      if (!handleSessionFailure(failure)) setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function refreshAfterTaskConflict(activeSession: ApiSession, message: string) {
+    await loadWorkspace(activeSession, selectedListId);
+    if (view === 'trash') {
+      const trashResult = await activeSession.trashedTasks();
+      setTrash(trashResult.results);
+    }
+    setError(message);
+  }
+  async function updateTask(
+    task: Task,
+    change: { title?: string; status?: TaskStatus; column_id?: string },
+  ) {
+    if (!session || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const updated = await session.updateTask(task.id, { version: task.version, ...change });
+      replaceTask(updated);
+      if (editingTaskId === task.id) {
+        setTaskTitleDraft(updated.title);
+        setEditingTaskId(null);
+      }
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.code === 'version_conflict')
+        await refreshAfterTaskConflict(session, failure.message);
+      else if (!handleSessionFailure(failure)) setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function loadColumns() {
+    if (!session || !selectedList || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await session.columns(selectedList.id);
+      setColumnsByList((current) => ({ ...current, [selectedList.id]: result.results }));
+    } catch (failure) {
+      if (!handleSessionFailure(failure)) setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  function destinationColumn(columnId: string) {
+    for (const list of lists) {
+      if (list.default_column.id === columnId) return { columnId, listId: list.id };
+      const loaded = columnsByList[list.id]?.find((column) => column.id === columnId);
+      if (loaded) return { columnId: loaded.id, listId: loaded.list_id };
+    }
+    return null;
+  }
+  async function moveTask(task: Task, columnId: string) {
+    const destination = destinationColumn(columnId);
+    if (!session || busy) return;
+    if (!destination || !lists.some((list) => list.id === destination.listId)) {
+      setError('The destination is no longer available. Reload the workspace and try again.');
+      return;
+    }
+    await updateTask(task, { column_id: destination.columnId });
+  }
+  async function trashTask(task: Task) {
+    if (!session || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await session.trashTask(task.id, task.version);
+      await loadWorkspace(session, selectedListId);
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.code === 'version_conflict')
+        await refreshAfterTaskConflict(session, failure.message);
+      else if (!handleSessionFailure(failure)) setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function openTrash() {
+    if (!session || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await session.trashedTasks();
+      setTrash(result.results);
+      setView('trash');
+    } catch (failure) {
+      if (!handleSessionFailure(failure)) setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function restoreTask(task: Task) {
+    if (!session || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const restored = await session.restoreTask(task.id, task.version);
+      setTrash((current) => current.filter((record) => record.id !== task.id));
+      setTasks((current) => [restored, ...current.filter((record) => record.id !== restored.id)]);
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.code === 'version_conflict') {
+        const [, result] = await Promise.all([
+          loadWorkspace(session, selectedListId),
+          session.trashedTasks(),
+        ]);
+        setTrash(result.results);
+        setError(failure.message);
+      } else if (!handleSessionFailure(failure)) setError(errorMessage(failure));
     } finally {
       setBusy(false);
     }
   }
 
-  async function reload() {
-    if (!credentials) return;
-    setError('');
-    setNotice('');
-    setBusy(true);
-    try {
-      setCheckpoints((await foundationApi(credentials).list()).results);
-      setNotice('Checkpoints refreshed.');
-    } catch (failure) {
-      setError(errorMessage(failure));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function signOut() {
-    setCredentials(null);
-    setCheckpoints([]);
-    setText('');
-    setError('');
-    setNotice('');
-    setPassword('');
-  }
+  if (!session)
+    return (
+      <AuthScreen
+        onAuthenticated={async (nextSession) => {
+          const generation = sessionGeneration.current + 1;
+          sessionGeneration.current = generation;
+          activeSession.current = nextSession;
+          setBusy(true);
+          try {
+            const snapshot = await loadWorkspace(nextSession);
+            if (
+              snapshot &&
+              generation === sessionGeneration.current &&
+              activeSession.current === nextSession
+            )
+              setSession(nextSession);
+          } catch (failure) {
+            if (generation === sessionGeneration.current) {
+              clearWorkspace();
+              throw failure;
+            }
+          } finally {
+            if (generation === sessionGeneration.current) setBusy(false);
+          }
+        }}
+      />
+    );
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.pageContent}>
+    <View style={styles.page}>
       <View style={styles.topbar}>
-        <View style={styles.brand}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>✓</Text>
-          </View>
-          <View>
-            <Text style={styles.brandName}>Dotick</Text>
-            <Text style={styles.muted}>A little structure. A little momentum.</Text>
-          </View>
+        <View>
+          <Text style={styles.brand}>Dotick</Text>
+          <Text style={styles.muted}>{session.user.email}</Text>
         </View>
-        {credentials && <Button title="Sign out" secondary disabled={busy} onPress={signOut} />}
-      </View>
-      <View style={styles.badge}>
-        <Text style={styles.eyebrow}>INCREMENT 0 · DEVELOPMENT WORKBENCH</Text>
-      </View>
-      <View style={[styles.workspace, width < 800 && styles.stacked]}>
-        <View style={[styles.intro, width < 800 && styles.introCompact]}>
-          <Text accessibilityRole="header" style={styles.headline}>
-            Good things{'\n'}start small.
-          </Text>
-          <Text style={styles.introText}>
-            The first working piece of Dotick. Save a checkpoint, reload it, and keep building from
-            a solid foundation.
-          </Text>
-          <View style={styles.roadmapCard}>
-            <Text style={styles.eyebrow}>THE PATH AHEAD</Text>
-            <View style={styles.step}>
-              <Text style={styles.stepNumber}>00</Text>
-              <View style={styles.stepBody}>
-                <Text style={styles.stepTitle}>Make it work</Text>
-                <Text style={styles.muted}>Engineering foundation · current</Text>
-              </View>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.step}>
-              <Text style={[styles.stepNumber, styles.future]}>01</Text>
-              <View style={styles.stepBody}>
-                <Text style={styles.stepTitle}>Make it useful</Text>
-                <Text style={styles.muted}>Identity, organization & basic tasks</Text>
-              </View>
-            </View>
-          </View>
-          <Text style={styles.caption}>
-            This isolated workbench verifies persistence. Checkpoints are development data; Task,
-            Event, and Routine flows follow their roadmap increments.
-          </Text>
+        <View style={styles.topActions}>
+          <Action
+            title="Reload server state"
+            disabled={busy}
+            onPress={() => void reloadWorkspace(session)}
+          />
+          <Action
+            title="Sign out"
+            onPress={() => {
+              clearWorkspace();
+              setSession(null);
+              void session.signOut().catch(() => undefined);
+            }}
+          />
         </View>
-        <View style={styles.panel}>
-          <View style={styles.panelHeader}>
-            <Text style={styles.eyebrow}>
-              {credentials ? 'YOUR WORKSPACE' : 'LET’S GET STARTED'}
+      </View>
+      <ScrollView contentContainerStyle={[styles.content, compact && styles.contentCompact]}>
+        <View style={[styles.sidebar, compact && styles.compactPane]}>
+          <Text style={styles.eyebrow}>LISTS</Text>
+          {lists.map((list) => (
+            <Pressable
+              key={list.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${list.title}`}
+              onPress={() => {
+                setSelectedListId(list.id);
+                setView('tasks');
+              }}
+              style={[
+                styles.listItem,
+                view === 'tasks' && selectedListId === list.id && styles.listItemActive,
+              ]}
+            >
+              <Text style={styles.listItemText}>
+                {list.is_inbox ? '⌂ ' : ''}
+                {list.title}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Trash"
+            onPress={() => void openTrash()}
+            style={[styles.listItem, view === 'trash' && styles.listItemActive]}
+          >
+            <Text style={styles.listItemText}>
+              ⌫ Trash{trash.length > 0 ? ` (${trash.length})` : ''}
             </Text>
-            <Text accessibilityRole="header" style={styles.panelTitle}>
-              {credentials ? 'Checkpoints' : 'Open your workbench'}
-            </Text>
+          </Pressable>
+          <TextInput
+            accessibilityLabel="New list"
+            value={listDraft}
+            onChangeText={changeListDraft}
+            placeholder="New list"
+            maxLength={240}
+            editable={!busy}
+            style={styles.input}
+          />
+          <Action
+            title="Add list"
+            disabled={busy || !listDraft.trim()}
+            onPress={() => void createList()}
+          />
+          <Text style={styles.muted}>Timezone: {bootstrap?.preferences.timezone ?? '—'}</Text>
+        </View>
+        <View style={[styles.main, compact && styles.compactPane]}>
+          <Text accessibilityRole="header" style={styles.title}>
+            {view === 'trash'
+              ? 'Trash'
+              : (selectedList?.title ?? bootstrap?.inbox.title ?? 'Inbox')}
+          </Text>
+          {view === 'tasks' && (
             <Text style={styles.muted}>
-              {credentials
-                ? 'Your latest 100 saved checkpoints.'
-                : 'Sign in with your local developer account.'}
+              {lists.length} {lists.length === 1 ? 'list' : 'lists'} loaded from the server
             </Text>
-          </View>
-          <View style={styles.panelBody}>
-            {!credentials ? (
-              <View style={styles.form}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  accessibilityLabel="Email"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  style={styles.input}
-                  placeholder="you@example.test"
-                  editable={!busy}
-                />
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  accessibilityLabel="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoComplete="current-password"
-                  style={styles.input}
-                  placeholder="Your developer password"
-                  editable={!busy}
-                  onSubmitEditing={() => {
-                    if (email && password && !busy) void signIn();
-                  }}
-                />
-                <Button
-                  title="Open workbench"
-                  disabled={busy || !email.trim() || !password}
-                  onPress={() => void signIn()}
-                />
-                <Text style={styles.caption}>
-                  Use the account created during local setup. Credentials are kept only for this
-                  open session.
-                </Text>
+          )}
+          {view === 'trash' ? (
+            trash.length === 0 ? (
+              <View style={styles.placeholder}>
+                <Text style={styles.placeholderTitle}>Trash is empty.</Text>
               </View>
             ) : (
-              <>
-                <Text style={styles.label}>New checkpoint</Text>
-                <TextInput
-                  accessibilityLabel="New checkpoint"
-                  value={text}
-                  onChangeText={setText}
-                  maxLength={240}
-                  multiline
-                  editable={!busy}
-                  style={[styles.input, styles.composer]}
-                  placeholder="What would you like to remember?"
-                />
-                <View style={styles.actions}>
-                  <Text style={styles.caption}>{text.length}/240</Text>
-                  <Button
-                    title="Save checkpoint"
-                    disabled={busy || !text.trim()}
-                    onPress={() => void save()}
+              trash.map((task) => (
+                <View key={task.id} style={styles.taskCard}>
+                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  <Action
+                    title={`Restore ${task.title}`}
+                    disabled={busy}
+                    onPress={() => void restoreTask(task)}
                   />
                 </View>
-                <View style={styles.listHeader}>
-                  <Text style={styles.eyebrow}>SAVED CHECKPOINTS</Text>
-                  <Button title="Refresh" secondary disabled={busy} onPress={() => void reload()} />
+              ))
+            )
+          ) : (
+            <>
+              <Text style={styles.muted}>
+                {selectedTasks.length} {selectedTasks.length === 1 ? 'task' : 'tasks'} loaded from
+                the server
+              </Text>
+              <View style={styles.composerRow}>
+                <TextInput
+                  accessibilityLabel="New task"
+                  value={taskDraft}
+                  onChangeText={changeTaskDraft}
+                  onSubmitEditing={() => void createTask()}
+                  placeholder="Add a task"
+                  returnKeyType="done"
+                  maxLength={240}
+                  editable={!busy}
+                  style={[styles.input, styles.flexInput]}
+                />
+                <Action
+                  title="Add task"
+                  disabled={busy || !taskDraft.trim() || !selectedList}
+                  onPress={() => void createTask()}
+                />
+              </View>
+              {!selectedList?.is_inbox && selectedList && (
+                <View style={styles.inlineEditor}>
+                  <TextInput
+                    accessibilityLabel="List title"
+                    value={listTitleDraft}
+                    onChangeText={setListTitleDraft}
+                    maxLength={240}
+                    editable={!busy}
+                    style={[styles.input, styles.flexInput]}
+                  />
+                  <Action
+                    title="Rename list"
+                    disabled={
+                      busy || !listTitleDraft.trim() || listTitleDraft.trim() === selectedList.title
+                    }
+                    onPress={() => void renameSelectedList()}
+                  />
                 </View>
-                {checkpoints.length === 0 ? (
-                  <View style={styles.empty}>
-                    <Text style={styles.emptyIcon}>✦</Text>
-                    <Text style={styles.stepTitle}>A fresh start.</Text>
-                    <Text style={styles.muted}>Your first checkpoint belongs here.</Text>
-                  </View>
-                ) : (
-                  checkpoints.map((record) => (
-                    <View key={record.id} style={styles.record}>
-                      <View style={styles.recordDot}>
-                        <Text>✓</Text>
+              )}
+              {selectedTasks.length === 0 ? (
+                <View style={styles.placeholder}>
+                  <Text style={styles.placeholderTitle}>No tasks here yet.</Text>
+                  <Text style={styles.muted}>Create the first Task for this List.</Text>
+                </View>
+              ) : (
+                selectedTasks.map((task) => (
+                  <View key={task.id} style={styles.taskCard}>
+                    {editingTaskId === task.id ? (
+                      <View style={styles.inlineEditor}>
+                        <TextInput
+                          accessibilityLabel="Task title"
+                          value={taskTitleDraft}
+                          onChangeText={setTaskTitleDraft}
+                          maxLength={240}
+                          editable={!busy}
+                          style={[styles.input, styles.flexInput]}
+                        />
+                        <Action
+                          title="Save task"
+                          disabled={
+                            busy || !taskTitleDraft.trim() || taskTitleDraft.trim() === task.title
+                          }
+                          onPress={() => void updateTask(task, { title: taskTitleDraft.trim() })}
+                        />
                       </View>
-                      <View style={styles.stepBody}>
-                        <Text style={styles.recordText}>{record.text}</Text>
-                        <Text style={styles.caption}>
-                          {new Date(record.created_at).toLocaleString()}
-                        </Text>
+                    ) : (
+                      <View style={[styles.taskHeader, compact && styles.stackOnCompact]}>
+                        <View style={styles.flexInput}>
+                          <Text style={styles.taskTitle}>{task.title}</Text>
+                          <Text style={styles.muted}>
+                            {task.status === 'wont_do'
+                              ? "Won't do"
+                              : task.status === 'done'
+                                ? 'Done'
+                                : 'Todo'}
+                          </Text>
+                        </View>
+                        <Action
+                          title={`Edit ${task.title}`}
+                          disabled={busy}
+                          onPress={() => {
+                            setEditingTaskId(task.id);
+                            setTaskTitleDraft(task.title);
+                          }}
+                        />
                       </View>
+                    )}
+                    <View style={[styles.statusRow, compact && styles.stackOnCompact]}>
+                      <Action
+                        title={`Mark ${task.title} Todo`}
+                        disabled={busy || task.status === 'todo'}
+                        onPress={() => void updateTask(task, { status: 'todo' })}
+                      />
+                      <Action
+                        title={`Mark ${task.title} Done`}
+                        disabled={busy || task.status === 'done'}
+                        onPress={() => void updateTask(task, { status: 'done' })}
+                      />
+                      <Action
+                        title={`Mark ${task.title} Won't do`}
+                        disabled={busy || task.status === 'wont_do'}
+                        onPress={() => void updateTask(task, { status: 'wont_do' })}
+                      />
                     </View>
-                  ))
-                )}
-              </>
-            )}
-            {busy && (
-              <ActivityIndicator
-                accessibilityLabel="Working"
-                color={colors.orange}
-                style={styles.spinner}
-              />
-            )}
-            {error !== '' && (
-              <Text accessibilityRole="alert" style={styles.error}>
-                {error}
-              </Text>
-            )}
-            {notice !== '' && (
-              <Text accessibilityLiveRegion="polite" style={styles.notice}>
-                {notice}
-              </Text>
-            )}
-          </View>
+                    <View style={[styles.statusRow, compact && styles.stackOnCompact]}>
+                      {lists
+                        .filter((list) => list.id !== selectedList?.id)
+                        .map((list) => (
+                          <Action
+                            key={list.id}
+                            title={`Move ${task.title} to ${list.title}`}
+                            disabled={busy}
+                            onPress={() => void moveTask(task, list.default_column.id)}
+                          />
+                        ))}
+                      {selectedColumns.length > 1 &&
+                        selectedColumns
+                          .filter((column) => !column.is_default && column.id !== task.column_id)
+                          .map((column) => (
+                            <Action
+                              key={column.id}
+                              title={`Move ${task.title} to column ${column.title}`}
+                              disabled={busy}
+                              onPress={() => void moveTask(task, column.id)}
+                            />
+                          ))}
+                      <Action
+                        title={`Trash ${task.title}`}
+                        disabled={busy}
+                        onPress={() => void trashTask(task)}
+                      />
+                    </View>
+                  </View>
+                ))
+              )}
+              {selectedList && (
+                <Action title="Load columns" disabled={busy} onPress={() => void loadColumns()} />
+              )}
+              {selectedColumns.length > 1 && (
+                <Text style={styles.muted}>Multiple columns are available for Task movement.</Text>
+              )}
+            </>
+          )}
+          {busy && <ActivityIndicator accessibilityLabel="Working" color={colors.orange} />}
+          {error !== '' && (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {error}
+            </Text>
+          )}
         </View>
-      </View>
-      <Text style={styles.footer}>DOTICK / ONE VERIFIED STEP AT A TIME</Text>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: 'transparent' },
-  pageContent: {
-    padding: 24,
-    paddingBottom: 40,
-    maxWidth: 1200,
-    width: '100%',
-    alignSelf: 'center',
-    gap: 28,
-  },
+  page: { flex: 1, backgroundColor: colors.background },
   topbar: {
+    minHeight: 72,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.paper,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 16,
-    flexWrap: 'wrap',
+    gap: 12,
   },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  logo: {
-    width: 44,
-    height: 44,
-    backgroundColor: colors.orange,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 12,
-    boxShadow: '3px 3px 0 #151515',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-3deg' }],
-  },
-  logoText: { fontSize: 26, fontWeight: '900' },
-  brandName: { fontSize: 23, fontWeight: '900', color: colors.ink },
-  muted: { color: colors.muted, fontSize: 13, lineHeight: 20 },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    borderRadius: 8,
-    backgroundColor: colors.soft,
-  },
-  eyebrow: { fontSize: 10, letterSpacing: 1.3, fontWeight: '800', color: colors.ink },
-  workspace: { flexDirection: 'row', gap: 48, alignItems: 'flex-start' },
-  stacked: { flexDirection: 'column-reverse', gap: 28 },
-  intro: { flex: 1, gap: 24, paddingTop: 10 },
-  introCompact: { width: '100%', flex: undefined },
-  headline: {
-    fontSize: 52,
-    fontWeight: '900',
-    letterSpacing: -2,
-    color: colors.ink,
-    lineHeight: 56,
-  },
-  introText: { fontSize: 17, lineHeight: 28, color: colors.muted, maxWidth: 400 },
-  roadmapCard: {
+  brand: { fontSize: 22, fontWeight: '900', color: colors.ink },
+  muted: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+  topActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' },
+  content: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: 1180,
+    alignSelf: 'center',
     padding: 20,
+    gap: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  contentCompact: { flexDirection: 'column', padding: 12 },
+  compactPane: { width: '100%' },
+  sidebar: {
+    width: 250,
+    padding: 18,
+    gap: 10,
     borderWidth: 2,
     borderColor: colors.ink,
     borderRadius: 14,
     backgroundColor: colors.paper,
-    gap: 18,
   },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  stepNumber: {
-    fontSize: 17,
-    fontWeight: '900',
-    backgroundColor: colors.soft,
-    padding: 9,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  future: { backgroundColor: colors.background, color: colors.muted },
-  stepBody: { flex: 1, gap: 4 },
-  stepTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
-  divider: { height: 1, backgroundColor: '#dedbd1' },
-  caption: { color: colors.muted, fontSize: 12, lineHeight: 19 },
-  panel: {
-    flex: 1.35,
-    width: '100%',
+  main: {
+    flex: 1,
+    minHeight: 360,
+    padding: 22,
+    gap: 14,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 14,
     backgroundColor: colors.paper,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 18,
-    boxShadow: '5px 5px 0 #151515',
-    overflow: 'hidden',
   },
-  panelHeader: { padding: 24, borderBottomWidth: 2, borderColor: colors.ink, gap: 8 },
-  panelTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.8, color: colors.ink },
-  panelBody: { padding: 24, gap: 12 },
-  form: { gap: 12 },
-  label: { fontSize: 13, fontWeight: '800', color: colors.ink },
-  input: {
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    padding: 13,
-    fontSize: 15,
-    color: colors.ink,
-    minHeight: 48,
-  },
-  composer: { minHeight: 104, textAlignVertical: 'top' },
-  button: {
-    borderWidth: 2,
-    borderColor: colors.ink,
-    backgroundColor: colors.orange,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '2px 2px 0 #151515',
-  },
-  buttonText: { fontSize: 13, fontWeight: '800', color: colors.ink },
-  secondary: { backgroundColor: colors.paper },
-  disabled: { opacity: 0.45 },
-  pressed: { transform: [{ translateX: 2 }, { translateY: 2 }], boxShadow: '0 0 0 #151515' },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  listHeader: {
-    marginTop: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderColor: '#dedbd1',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  empty: { paddingVertical: 28, gap: 8, alignItems: 'center' },
-  emptyIcon: { fontSize: 36, color: colors.orange },
-  record: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 14,
+  eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2, color: colors.ink },
+  title: { fontSize: 30, fontWeight: '900', color: colors.ink },
+  placeholder: {
+    marginTop: 14,
+    padding: 18,
+    gap: 8,
     borderWidth: 1.5,
-    borderColor: '#c5c1b7',
+    borderColor: '#cfc9bb',
+    borderRadius: 12,
+    backgroundColor: '#f8f4e9',
+  },
+  placeholderTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
+  listItem: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 8 },
+  listItemActive: { backgroundColor: '#ffe2bf' },
+  listItemText: { fontSize: 13, fontWeight: '800', color: colors.ink },
+  input: {
+    minHeight: 42,
+    paddingHorizontal: 10,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    color: colors.ink,
+  },
+  inlineEditor: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  composerRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  flexInput: { flex: 1 },
+  taskCard: {
+    padding: 12,
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: '#cfc9bb',
     borderRadius: 10,
     backgroundColor: '#f8f4e9',
   },
-  recordDot: {
-    width: 27,
-    height: 27,
-    backgroundColor: colors.green,
+  taskHeader: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  taskTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
+  statusRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  stackOnCompact: { flexDirection: 'column', alignItems: 'stretch' },
+  action: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: colors.ink,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 9,
+    backgroundColor: colors.paper,
   },
-  recordText: { fontSize: 15, lineHeight: 23, fontWeight: '700', color: colors.ink },
-  spinner: { marginTop: 8 },
-  error: {
-    color: colors.red,
-    fontSize: 13,
-    lineHeight: 20,
-    padding: 12,
-    backgroundColor: '#ffe6df',
-    borderRadius: 8,
-  },
-  notice: { color: '#245e37', fontSize: 13, paddingVertical: 8 },
-  footer: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: 20,
-  },
+  actionText: { fontSize: 12, fontWeight: '800', color: colors.ink },
+  disabled: { opacity: 0.45 },
+  error: { padding: 10, borderRadius: 8, color: colors.red, backgroundColor: colors.redSoft },
 });

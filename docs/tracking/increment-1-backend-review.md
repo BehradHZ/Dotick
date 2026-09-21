@@ -1,35 +1,41 @@
 # Increment 1 backend review
 
-Date: 2026-09-08. Result: locally complete backend checkpoint; not an Increment 1 release. Client work completed later the same day is recorded separately in [Increment 1 client review](increment-1-client-review.md).
+> **Reconciled:** 2026-09-20
+>
+> **Implementation baseline before this documentation commit:** `4485c63`
+>
+> **Result:** Repository backend slice implemented; not an Increment 1 release.
 
-## Delivered boundary
+## Implemented boundary
 
-- product identity: verified email/password/reset, rotating revocable JWT sessions, Google ID assertion/linking, discoverable user-verified Passkeys, independent password fallback and verified secondary contacts;
-- account: UUID identity, mutable unique handle, display name, optional profile-picture reference and shared IANA timezone;
-- organization: concurrent-idempotent Inbox/default-Column bootstrap, optional Folder, List and Column CRUD/manual ordering, explicit owner scope and recoverable Folder/List deletion;
-- Task: explicit Item/Task/Source composition, stable UUID, manual provenance, create/read/edit/move, Todo/Done/Won't_Do, optimistic version conflict, idempotent create and Trash/restore;
-- contract: every published I1 backend route and stable failure class is represented in the validated OpenAPI 3.1 artifact.
+- **Identity:** custom UUID account, verified email/password registration and recovery, rotating/revocable JWT sessions, Google identity, Passkeys, password fallback and verified secondary contacts.
+- **Account:** unique mutable handle, display name, profile-picture reference, IANA timezone and authentication-method reporting.
+- **Organization:** concurrent-idempotent bootstrap, one Inbox per account, one default Column per List, optional Folder, owner-scoped Folder/List/Column CRUD and ordering, version conflicts, retry-safe creation and recoverable deletion.
+- **Task:** Item/Task/Source composition, manual provenance, unscheduled Basic Task create/read/edit/move/status/Trash/restore, optimistic versions and idempotent creation.
+- **Contract:** validated OpenAPI 3.1 route equality, global bearer security with explicit public exceptions, stable errors, JSON/request-size boundaries and identity-ceremony edge classification.
+- **Configuration:** environment-driven external email/SMS adapters, Google client IDs, WebAuthn RP settings and machine-readable edge-rate-limit policy thresholds.
 
-## Local verification evidence
+## Current executable evidence
 
-- `pytest`: 65 API/domain tests passed against PostgreSQL, including concurrent bootstrap, cross-account denial, stale-version/idempotency conflicts, provider simulations and WebAuthn option generation;
-- `ruff check` and `ruff format --check`: passed for API and scripts;
-- `makemigrations --check --dry-run`: no model/migration drift;
-- development database migration: identity `0004..0007`, organization, items and tasks applied successfully;
-- production Django deploy check with production-mode settings: no warnings;
-- OpenAPI 3.1 validation and exact published-route-set check: passed;
-- traceability checker: 419 unique requirements, exact family coverage and valid decision references;
-- `pip-audit`: no known Python dependency vulnerabilities;
-- API container built from the frozen lock and the container reported no pending migrations;
-- unchanged client regression gates: ESLint, Prettier, TypeScript, 8 component tests and Expo web export passed;
-- existing I0 Walking Skeleton: desktop and mobile Playwright runs passed using the documented installed-Chrome fallback.
+The repository contains ordinary tests for:
 
-## Explicit non-claims and remaining gates
+- identity/account/provider behavior and disclosure-safe failures;
+- owner isolation, concurrency, stale versions and idempotent replay/conflict behavior;
+- OpenAPI validity, reviewed hash, exact route equality and authentication/rate-limit metadata;
+- append-only migrations, schema drift and clean PostgreSQL reconstruction;
+- production host/origin/HTTPS, Google, WebAuthn, delivery-adapter and edge-policy configuration.
 
-- The product Expo client still uses the I0 workbench; it does not yet exercise the I1 product identity/organization/Task API.
-- Google credentials, real WebAuthn browser/authenticator registration, real email transport and phone delivery require deployment-specific configuration and smoke evidence.
-- The existing E2E proves the I0 checkpoint path, not I1-AC-04/05/10 product-client acceptance.
-- Hosted CI, Increment review/release publication and the pre-existing I0 hosted gates remain open.
-- Scheduling, Event/Routine, Audit/History, full Offline/Sync, collaboration and permanent Trash purge retain their later owning increments.
+The former strict compatibility gaps for OpenAPI bearer security and Folder/List/Column version/idempotency are resolved; their tests are no longer expected failures.
 
-The backend can now be committed as a bounded milestone. Increment 1 closes only after the remaining client, configured-provider and release evidence is green.
+Historical pass counts and hosted run `35057831342` remain evidence only for their recorded historical SHA. CI targeting now includes `increment`; an exact final-candidate hosted result is still pending.
+
+## Deliberate limits and pending evidence
+
+- Email and SMS have configurable delivery boundaries, not proven target-environment delivery.
+- Google tests validate configuration and provider-boundary behavior, not a real Google account/browser flow.
+- WebAuthn tests validate relying-party configuration and ceremony boundaries, not a real authenticator.
+- The `identity-ceremony` threshold contract is defined for proxy/CDN enforcement; Django intentionally has no process-local substitute, and deployed enforcement remains unverified.
+- Event, Routine, scheduling, collaboration, full Sync/History/Undo and permanent Trash purge are later-Increment work.
+- Formal I1 publication was completed later at `v0.2.0`; this backend review remains its pre-release evidence record.
+
+See [Increment 1 readiness](increment-1-readiness.md) for closure gates, [formal Increment 1 review](increment-1-review.md) for the release-candidate decision and [Increment 1 client review](increment-1-client-review.md) for current UI scope.

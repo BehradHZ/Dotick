@@ -1,10 +1,42 @@
 import uuid
+from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import identify_hasher
-from django.core.exceptions import FieldDoesNotExist
+from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.utils import timezone
+
+from dotick.identity.challenges import (
+    CHALLENGE_TTL,
+    ChallengeIssuanceBlocked,
+    InvalidChallenge,
+    consume_challenge,
+    issue_challenge,
+)
+from dotick.identity.contact_challenges import (
+    CONTACT_CHALLENGE_TTL,
+    InvalidContactChallenge,
+    consume_contact_challenge,
+    issue_contact_challenge,
+)
+from dotick.identity.models import (
+    AccountContact,
+    AuthSession,
+    ContactVerificationChallenge,
+    ExternalIdentity,
+    PasskeyChallenge,
+    PasskeyCredential,
+    UserPreferences,
+    VerificationChallenge,
+)
+from dotick.identity.passkeys import (
+    PASSKEY_CHALLENGE_BYTES,
+    PASSKEY_CHALLENGE_TTL,
+    issue_passkey_challenge,
+)
 
 
 class CustomUserTests(TestCase):
@@ -25,6 +57,17 @@ class CustomUserTests(TestCase):
 
         self.assertEqual(user.email, "developer@example.test")
 
+    def test_direct_save_normalizes_email_to_lowercase(self):
+        user = get_user_model()(
+            email="  Direct@Example.TEST  ",
+            handle="direct_user",
+            display_name="Direct User",
+        )
+
+        user.save()
+
+        self.assertEqual(user.email, "direct@example.test")
+
     def test_user_primary_key_is_uuid(self):
         user = get_user_model().objects.create_user(
             email="uuid@example.test",
@@ -38,13 +81,104 @@ class CustomUserTests(TestCase):
 
         user_model.objects.create(
             email="CaseSensitive@Example.TEST",
+            handle="first_case_user",
+            display_name="First Case User",
         )
 
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 user_model.objects.create(
                     email="casesensitive@example.test",
+                    handle="second_case_user",
+                    display_name="Second Case User",
                 )
+
+    def test_database_rejects_email_that_bypasses_normalization(self):
+        user = get_user_model().objects.create_user(
+            email="normalized@example.test",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                get_user_model().objects.filter(pk=user.pk).update(
+                    email=" Not-Normalized@Example.TEST "
+                )
+
+    def test_account_fields_preserve_uuid_identity_and_lifecycle(self):
+        user = get_user_model().objects.create_user(
+            email="account@example.test",
+            password="Strong-Test-Password-123!",
+            handle="Account_User",
+            display_name="Account User",
+            profile_picture_url="https://example.test/profile.png",
+            is_active=False,
+        )
+
+        account_id = user.id
+        verified_at = timezone.now()
+        user.email_verified_at = verified_at
+        user.is_active = True
+        user.save(update_fields=["email_verified_at", "is_active"])
+        user.refresh_from_db()
+
+        self.assertEqual(user.id, account_id)
+        self.assertEqual(user.handle, "Account_User")
+        self.assertEqual(user.display_name, "Account User")
+        self.assertEqual(user.profile_picture_url, "https://example.test/profile.png")
+        self.assertEqual(user.email_verified_at, verified_at)
+        self.assertTrue(user.is_active)
+
+    def test_handle_is_case_insensitively_unique(self):
+        user_model = get_user_model()
+        user_model.objects.create_user(
+            email="first-handle@example.test",
+            handle="Shared_Handle",
+            display_name="First User",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                user_model.objects.create_user(
+                    email="second-handle@example.test",
+                    handle="shared_handle",
+                    display_name="Second User",
+                )
+
+    def test_handle_validator_enforces_public_format(self):
+        user = get_user_model()(
+            email="invalid-handle@example.test",
+            handle="no-hyphens",
+            display_name="Invalid Handle",
+        )
+
+        with self.assertRaises(ValidationError):
+            user.full_clean()
+
+    def test_framework_created_user_gets_required_identity_fields(self):
+        user = get_user_model().objects.create_user(
+            email="generated.identity@example.test",
+        )
+
+        self.assertRegex(user.handle, r"^[A-Za-z0-9_]{3,30}$")
+        self.assertEqual(user.display_name, "generated.identity")
+        self.assertIsNone(user.profile_picture_url)
+
+    def test_display_name_is_not_unique(self):
+        get_user_model().objects.create_user(
+            email="first-name@example.test",
+            handle="first_name_user",
+            display_name="Shared Name",
+        )
+        get_user_model().objects.create_user(
+            email="second-name@example.test",
+            handle="second_name_user",
+            display_name="Shared Name",
+        )
+
+        self.assertEqual(
+            get_user_model().objects.filter(display_name="Shared Name").count(),
+            2,
+        )
 
     def test_password_is_hashed_with_argon2(self):
         password = "Strong-Test-Password-123!"
@@ -66,3 +200,530 @@ class CustomUserTests(TestCase):
         found = get_user_model().objects.get_by_natural_key("LOOKUP@EXAMPLE.TEST")
 
         self.assertEqual(found, user)
+
+
+class UserPreferencesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = get_user_model().objects.create_user(
+            email="preferences@example.test",
+            password="Strong-Test-Password-123!",
+        )
+
+    def test_preferences_use_account_uuid_and_store_iana_timezone(self):
+        preferences = UserPreferences.objects.create(
+            user=self.user,
+            timezone="Europe/Berlin",
+        )
+
+        self.assertEqual(preferences.pk, self.user.id)
+        self.assertEqual(preferences.timezone, "Europe/Berlin")
+
+    def test_preferences_reject_unknown_timezone(self):
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Enter a valid IANA timezone identifier.",
+        ):
+            UserPreferences.objects.create(
+                user=self.user,
+                timezone="Mars/Olympus_Mons",
+            )
+
+        self.assertFalse(UserPreferences.objects.filter(user=self.user).exists())
+
+    def test_preferences_do_not_include_day_boundary_behavior(self):
+        field_names = {field.name for field in UserPreferences._meta.get_fields()}
+
+        self.assertNotIn("day_boundary_offset_minutes", field_names)
+
+
+class AuthSessionTests(TestCase):
+    def test_session_has_uuid_identity_and_belongs_to_user(self):
+        user = get_user_model().objects.create_user(
+            email="session@example.test",
+            password="Strong-Test-Password-123!",
+        )
+
+        session = AuthSession.objects.create(
+            user=user,
+            refresh_jti=uuid.uuid4().hex,
+            user_agent="Dotick test client",
+        )
+
+        self.assertIsInstance(session.pk, uuid.UUID)
+        self.assertEqual(session.user, user)
+        self.assertEqual(list(user.auth_sessions.all()), [session])
+        self.assertIsNone(session.revoked_at)
+
+
+class ExternalIdentityTests(TestCase):
+    def test_external_identity_belongs_to_internal_user(self):
+        user = get_user_model().objects.create_user(
+            email="external@example.test",
+            password=None,
+        )
+
+        identity = ExternalIdentity.objects.create(
+            user=user,
+            provider=ExternalIdentity.Provider.GOOGLE,
+            subject="google-subject-123",
+        )
+
+        self.assertIsInstance(identity.pk, uuid.UUID)
+        self.assertEqual(identity.user, user)
+        self.assertEqual(list(user.external_identities.all()), [identity])
+
+    def test_only_google_provider_is_allowed(self):
+        user = get_user_model().objects.create_user(
+            email="unsupported-provider@example.test",
+            password=None,
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ExternalIdentity.objects.create(
+                    user=user,
+                    provider="github",
+                    subject="unsupported-subject",
+                )
+
+    def test_provider_subject_is_globally_unique(self):
+        first_user = get_user_model().objects.create_user(
+            email="first-google-subject@example.test",
+            password=None,
+        )
+        second_user = get_user_model().objects.create_user(
+            email="second-google-subject@example.test",
+            password=None,
+        )
+        ExternalIdentity.objects.create(
+            user=first_user,
+            provider=ExternalIdentity.Provider.GOOGLE,
+            subject="global-google-subject",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ExternalIdentity.objects.create(
+                    user=second_user,
+                    provider=ExternalIdentity.Provider.GOOGLE,
+                    subject="global-google-subject",
+                )
+
+
+class PasskeyCredentialTests(TestCase):
+    def test_passkey_credential_belongs_to_internal_user(self):
+        user = get_user_model().objects.create_user(
+            email="passkey@example.test",
+            password=None,
+        )
+
+        passkey = PasskeyCredential.objects.create(
+            user=user,
+            credential_id=b"credential-id",
+            public_key=b"credential-public-key",
+            sign_count=4,
+            device_type="multi_device",
+            backed_up=True,
+            transports=["internal"],
+            name="Laptop passkey",
+        )
+
+        self.assertIsInstance(passkey.pk, uuid.UUID)
+        self.assertEqual(passkey.user, user)
+        self.assertEqual(list(user.passkey_credentials.all()), [passkey])
+        self.assertEqual(bytes(passkey.credential_id), b"credential-id")
+        self.assertEqual(bytes(passkey.public_key), b"credential-public-key")
+        self.assertEqual(passkey.sign_count, 4)
+        self.assertEqual(passkey.device_type, "multi_device")
+        self.assertTrue(passkey.backed_up)
+        self.assertEqual(passkey.transports, ["internal"])
+        self.assertEqual(passkey.name, "Laptop passkey")
+
+    def test_credential_id_is_globally_unique(self):
+        first_user = get_user_model().objects.create_user(
+            email="first-passkey@example.test",
+            password=None,
+        )
+        second_user = get_user_model().objects.create_user(
+            email="second-passkey@example.test",
+            password=None,
+        )
+        PasskeyCredential.objects.create(
+            user=first_user,
+            credential_id=b"shared-credential-id",
+            public_key=b"first-public-key",
+            name="First passkey",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PasskeyCredential.objects.create(
+                    user=second_user,
+                    credential_id=b"shared-credential-id",
+                    public_key=b"second-public-key",
+                    name="Second passkey",
+                )
+
+
+class PasskeyChallengeTests(TestCase):
+    def test_challenge_supports_registration_and_discoverable_authentication(self):
+        user = get_user_model().objects.create_user(
+            email="passkey-challenge@example.test",
+            password=None,
+        )
+        now = timezone.now()
+        registration = PasskeyChallenge.objects.create(
+            user=user,
+            purpose=PasskeyChallenge.Purpose.REGISTRATION,
+            challenge=b"registration-challenge",
+            name="Laptop passkey",
+            expires_at=now + timedelta(minutes=5),
+        )
+        authentication = PasskeyChallenge.objects.create(
+            user=None,
+            purpose=PasskeyChallenge.Purpose.AUTHENTICATION,
+            challenge=b"authentication-challenge",
+            expires_at=now + timedelta(minutes=5),
+        )
+
+        self.assertEqual(registration.user, user)
+        self.assertIsNone(authentication.user)
+        self.assertIsNone(registration.consumed_at)
+        self.assertIsNone(authentication.consumed_at)
+
+    def test_challenge_uses_32_secure_random_bytes_and_expires_in_five_minutes(self):
+        issued_at = timezone.now()
+        random_bytes = b"x" * PASSKEY_CHALLENGE_BYTES
+
+        with (
+            patch("dotick.identity.passkeys.timezone.now", return_value=issued_at),
+            patch(
+                "dotick.identity.passkeys.secrets.token_bytes",
+                return_value=random_bytes,
+            ) as secure_random,
+        ):
+            challenge = issue_passkey_challenge(
+                purpose=PasskeyChallenge.Purpose.AUTHENTICATION,
+            )
+
+        secure_random.assert_called_once_with(32)
+        self.assertEqual(bytes(challenge.challenge), random_bytes)
+        self.assertEqual(challenge.expires_at, issued_at + PASSKEY_CHALLENGE_TTL)
+
+
+class AccountContactTests(TestCase):
+    def test_contact_belongs_to_internal_user(self):
+        user = get_user_model().objects.create_user(
+            email="contact-owner@example.test",
+            password=None,
+        )
+
+        contact = AccountContact.objects.create(
+            user=user,
+            kind=AccountContact.Kind.EMAIL,
+            value="secondary@example.test",
+        )
+
+        self.assertIsInstance(contact.pk, uuid.UUID)
+        self.assertEqual(contact.user, user)
+        self.assertEqual(list(user.account_contacts.all()), [contact])
+        self.assertIsNone(contact.verified_at)
+        self.assertFalse(AccountContact.objects.filter(verified_at__isnull=False).exists())
+
+    def test_duplicate_unverified_contacts_remain_independent_pending_records(self):
+        first_user = get_user_model().objects.create_user(
+            email="first-pending-contact@example.test",
+            password=None,
+        )
+        second_user = get_user_model().objects.create_user(
+            email="second-pending-contact@example.test",
+            password=None,
+        )
+
+        first = AccountContact.objects.create(
+            user=first_user,
+            kind=AccountContact.Kind.EMAIL,
+            value=" Pending@Example.TEST ",
+        )
+        second = AccountContact.objects.create(
+            user=second_user,
+            kind=AccountContact.Kind.EMAIL,
+            value="pending@example.test",
+        )
+
+        self.assertEqual(first.value, second.value)
+        self.assertIsNone(first.verified_at)
+        self.assertIsNone(second.verified_at)
+
+    def test_phone_is_trimmed_and_validated_as_e164(self):
+        user = get_user_model().objects.create_user(
+            email="phone-contact@example.test",
+            password=None,
+        )
+
+        contact = AccountContact.objects.create(
+            user=user,
+            kind=AccountContact.Kind.PHONE,
+            value="  +4915112345678  ",
+        )
+
+        self.assertEqual(contact.value, "+4915112345678")
+
+    def test_non_e164_phone_values_are_rejected(self):
+        user = get_user_model().objects.create_user(
+            email="invalid-phone-contact@example.test",
+            password=None,
+        )
+
+        for value in ("015112345678", "+01", "+49 151 12345678", "+" + "1" * 16):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                AccountContact.objects.create(
+                    user=user,
+                    kind=AccountContact.Kind.PHONE,
+                    value=value,
+                )
+
+
+class ContactVerificationChallengeTests(TestCase):
+    def setUp(self):
+        user = get_user_model().objects.create_user(
+            email="contact-challenge@example.test",
+            password=None,
+        )
+        self.contact = AccountContact.objects.create(
+            user=user,
+            kind=AccountContact.Kind.PHONE,
+            value="+4915112345678",
+        )
+
+    def test_code_is_hmac_backed_and_expires_in_ten_minutes(self):
+        issued_at = timezone.now()
+        with (
+            patch("dotick.identity.contact_challenges.timezone.now", return_value=issued_at),
+            patch(
+                "dotick.identity.contact_challenges.secrets.randbelow",
+                return_value=42,
+            ),
+        ):
+            code = issue_contact_challenge(contact=self.contact)
+
+        challenge = ContactVerificationChallenge.objects.get()
+        self.assertEqual(code, "000042")
+        self.assertNotEqual(challenge.code_digest, code)
+        self.assertEqual(len(challenge.code_digest), 64)
+        self.assertEqual(challenge.expires_at, issued_at + CONTACT_CHALLENGE_TTL)
+
+    def test_challenge_is_single_use(self):
+        code = issue_contact_challenge(contact=self.contact)
+
+        consume_contact_challenge(contact=self.contact, code=code)
+
+        with self.assertRaises(InvalidContactChallenge):
+            consume_contact_challenge(contact=self.contact, code=code)
+
+    def test_failed_attempts_are_tracked_and_fifth_failure_consumes_challenge(self):
+        code = issue_contact_challenge(contact=self.contact)
+        wrong_code = "000000" if code != "000000" else "111111"
+
+        for _ in range(5):
+            with self.assertRaises(InvalidContactChallenge):
+                consume_contact_challenge(contact=self.contact, code=wrong_code)
+
+        challenge = ContactVerificationChallenge.objects.get()
+        self.assertEqual(challenge.failed_attempts, 5)
+        self.assertIsNotNone(challenge.consumed_at)
+        with self.assertRaises(InvalidContactChallenge):
+            consume_contact_challenge(contact=self.contact, code=code)
+
+    def test_expired_challenge_is_rejected(self):
+        code = issue_contact_challenge(contact=self.contact)
+        ContactVerificationChallenge.objects.update(expires_at=timezone.now())
+
+        with self.assertRaises(InvalidContactChallenge):
+            consume_contact_challenge(contact=self.contact, code=code)
+
+
+class VerificationChallengeTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = get_user_model().objects.create_user(
+            email="challenge@example.test",
+            password="Strong-Test-Password-123!",
+        )
+
+    def test_code_is_six_digits_and_only_hmac_digest_is_persisted(self):
+        issued_at = timezone.now()
+
+        with (
+            patch(
+                "dotick.identity.challenges.timezone.now",
+                return_value=issued_at,
+            ),
+            patch(
+                "dotick.identity.challenges.secrets.randbelow",
+                return_value=42,
+            ) as secure_random,
+        ):
+            code = issue_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            )
+
+        challenge = VerificationChallenge.objects.get()
+        secure_random.assert_called_once_with(1_000_000)
+        self.assertEqual(code, "000042")
+        self.assertNotEqual(challenge.code_digest, code)
+        self.assertEqual(len(challenge.code_digest), 64)
+        self.assertNotIn(code, str(challenge.__dict__))
+        self.assertEqual(challenge.expires_at, issued_at + CHALLENGE_TTL)
+
+    def test_challenge_is_single_use(self):
+        code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+
+        consume_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            code=code,
+        )
+
+        with self.assertRaises(InvalidChallenge):
+            consume_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+                code=code,
+            )
+
+    def test_expired_challenge_is_rejected(self):
+        issued_at = timezone.now()
+
+        with patch("dotick.identity.challenges.timezone.now", return_value=issued_at):
+            code = issue_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            )
+
+        with (
+            patch(
+                "dotick.identity.challenges.timezone.now",
+                return_value=issued_at + CHALLENGE_TTL,
+            ),
+            self.assertRaises(InvalidChallenge),
+        ):
+            consume_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+                code=code,
+            )
+
+    def test_new_challenge_consumes_previous_challenge_for_same_purpose(self):
+        first_code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+        first = VerificationChallenge.objects.get()
+        VerificationChallenge.objects.filter(pk=first.pk).update(
+            created_at=timezone.now() - timedelta(minutes=2)
+        )
+
+        second_code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+        first.refresh_from_db()
+
+        self.assertIsNotNone(first.consumed_at)
+        with self.assertRaises(InvalidChallenge):
+            consume_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+                code=first_code,
+            )
+        consume_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            code=second_code,
+        )
+
+    def test_fifth_failed_attempt_consumes_challenge(self):
+        code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+        )
+        wrong_code = "000000" if code != "000000" else "111111"
+
+        for _ in range(5):
+            with self.assertRaises(InvalidChallenge):
+                consume_challenge(
+                    user=self.user,
+                    purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+                    code=wrong_code,
+                )
+
+        challenge = VerificationChallenge.objects.get()
+        self.assertEqual(challenge.failed_attempts, 5)
+        self.assertIsNotNone(challenge.consumed_at)
+        with self.assertRaises(InvalidChallenge):
+            consume_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+                code=code,
+            )
+
+    def test_issuance_has_sixty_second_cooldown(self):
+        issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+
+        with self.assertRaises(ChallengeIssuanceBlocked):
+            issue_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            )
+
+        self.assertEqual(VerificationChallenge.objects.count(), 1)
+
+    def test_issuance_is_limited_to_five_per_hour(self):
+        now = timezone.now()
+        for minutes_ago in (2, 4, 6, 8, 10):
+            VerificationChallenge.objects.create(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+                code_digest="a" * 64,
+                expires_at=now + timedelta(minutes=10),
+                consumed_at=now,
+                created_at=now - timedelta(minutes=minutes_ago),
+            )
+
+        with self.assertRaises(ChallengeIssuanceBlocked):
+            issue_challenge(
+                user=self.user,
+                purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            )
+
+        self.assertEqual(VerificationChallenge.objects.count(), 5)
+
+    def test_limits_and_invalidation_are_scoped_by_purpose(self):
+        email_code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+        )
+        reset_code = issue_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+        )
+
+        consume_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.EMAIL_VERIFICATION,
+            code=email_code,
+        )
+        consume_challenge(
+            user=self.user,
+            purpose=VerificationChallenge.Purpose.PASSWORD_RESET,
+            code=reset_code,
+        )

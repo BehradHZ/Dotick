@@ -1,97 +1,161 @@
 # Dotick Deployment Baseline
 
-> **Status:** Increment 0 baseline
-> **Date:** 2026-08-17
-> **Primary target:** reproducible developer-local and CI execution; no supported end-user self-hosting product
+> **Status:** Increment 0 deployment baseline implemented and hosted-CI verified; Increment 1 product slice verified in CI; configured external-provider/release deployment remains open
+> **Reconciled:** 2026-09-20
+> **Primary target:** reproducible developer-local and CI execution; self-hosting is permitted under AGPL-3.0, while guaranteed production deployment/support is a separate professional-service boundary
 
-# 1. Deployment units
+## 1. Deployment units
 
-I0 implemented topology: `compose.yaml` runs PostgreSQL, an unprivileged ASGI API, and an unprivileged server for the Expo web export. Published ports bind only to `127.0.0.1`. See [environment setup](../development/environment-setup.md). TLS/reverse-proxy and production recovery remain later deployment gates; the topology below is prospective, not a claim of a shipped production runtime.
-
-Baseline Compose topology:
+The implemented local/CI topology uses `compose.yaml` with PostgreSQL, an unprivileged ASGI API and an unprivileged server for the Expo web export. Published development ports bind to loopback.
 
 ```text
-reverse-proxy (production-like/local-hosted)
-  +-- /api and /ws -> api (ASGI)
+reverse proxy / TLS termination (production-like, not yet a shipped deployment)
+  +-- /api -> Django ASGI API
   +-- / -> client web build
 
-api -> postgres
+api -> PostgreSQL
 ```
 
-Development می‌تواند client dev server و Django dev server را جدا اجرا کند. PostgreSQL همچنان باید implementation واقعی integration tests باشد.
+Realtime/WebSocket infrastructure is not part of the current I1 deployment and remains owned by later increments.
 
-# 2. Environments
+## 2. Environments
 
-| Environment | Purpose | Data |
+| Environment | Purpose | Data/evidence |
 |---|---|---|
 | local-dev | fast edit/test | disposable developer data |
-| test/CI | deterministic verification | ephemeral database |
-| developer-local | private engineering runtime | disposable/persistent development volume |
-| production-like | TLS/config/migration rehearsal | non-production data |
+| test/CI | deterministic automated verification | ephemeral PostgreSQL |
+| developer-local | private engineering runtime | persistent/disposable development volume |
+| production-like | HTTPS/config/migration/provider rehearsal | non-production data |
+| production | future Personal V1 release | not claimed by current branch |
 
-# 3. Configuration
+## 3. Configuration and fail-closed production settings
 
-- config از environment variables می‌آید.
-- `.env.example` فقط نام و توضیح variableها را دارد، نه secret.
-- required variable در startup validate می‌شود.
-- حداقل: database URL/parts، Django secret، allowed hosts/origins، public API URL، environment name و log level.
-- secure default برای محیط ناشناخته؛ debug به‌صورت پیش‌فرض خاموش.
+Configuration comes from environment variables; `.env.example` contains names/default guidance, not real secrets.
 
-# 4. Images and runtime
+Outside local/test, the application requires explicit:
 
-- imageها multi-stage و با version pin ساخته می‌شوند.
-- container runtime با user غیرroot اجرا می‌شود.
-- source development bind mount در local-hosted استفاده نمی‌شود.
-- dependency install فقط از lockfile انجام می‌شود.
-- image یک immutable artifact است؛ config در runtime تزریق می‌شود.
+- allowed hosts;
+- CSRF trusted origins;
+- CORS origins;
+- JWT signing key;
+- WebAuthn RP ID, RP name and HTTPS origin.
 
-# 5. Database lifecycle
+Wildcard host/origin trust is rejected. Production trusted/CORS/WebAuthn origins must use HTTPS. Secure redirect, secure cookies, HSTS and trusted proxy HTTPS-header handling are enabled in production-like settings.
 
-- PostgreSQL volume مسیر صریح و backupپذیر دارد.
-- migration یک step کنترل‌شده پیش از rollout است، نه side effect هر replica startup.
-- deployment قبل از migration پرریسک backup می‌گیرد.
-- restore procedure باید حداقل یک بار پیش از Personal V1 release تمرین شود.
-- downgrade با migration کور فرض نمی‌شود؛ rollback می‌تواند restore + previous image باشد.
+The Expo bundle may contain public configuration such as a Google client ID or public API URL, but never client secrets or server signing material.
 
-# 6. Health and readiness
+Identity delivery/provider configuration is deployment-owned:
 
-- `/health`: process زنده است؛ dependency detail فاش نمی‌کند.
-- `/ready`: database و dependency ضروری قابل استفاده‌اند.
-- external AI readiness برای core API شرط نیست.
-- container healthcheck باید timeout و interval محدود داشته باشد.
+- configure SMTP through the `DJANGO_EMAIL_*` variables and keep the host password in secret storage;
+- replace the default unavailable `DOTICK_SMS_DELIVERY_ADAPTER` with a tested deployment adapter and supply its provider credentials server-side;
+- set matching `GOOGLE_OAUTH_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_CLIENT_ID` values; both are public identifiers and no Google secret belongs in the client;
+- set `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME` and `WEBAUTHN_ORIGIN` consistently with the final HTTPS application domain.
 
-# 7. TLS and networking
+Omitting Google or leaving the SMS unavailable adapter does not break password-based core Task access, but those provider paths are unavailable and cannot satisfy release smoke. Invalid WebAuthn production-like configuration fails startup.
 
-- local-hosted روی interface قابل دسترسی شبکه از reverse proxy TLS می‌گذرد.
-- HTTP exception فقط برای loopback development است.
-- database به public interface publish نمی‌شود.
-- proxy header trust فقط برای proxy شناخته‌شده فعال می‌شود.
+## 4. Images and runtime
 
-# 8. Logging and operations
+- dependency installation is lockfile-driven;
+- deployment containers run as non-root users;
+- runtime config is injected rather than baked as secrets into images;
+- source development bind mounts are not the release artifact;
+- hosted CI builds the deployment containers and runs smoke/persistence checks.
 
-- application log روی stdout/stderr ساخت‌یافته است.
-- request id از proxy تا API propagate می‌شود.
-- log rotation مسئول runtime/host است.
-- backup failure، migration failure و readiness failure باید visible و actionable باشند.
-- monitoring stack کامل تا نیاز عملی اضافه نمی‌شود، ولی health و structured logs از I0 حاضرند.
+## 5. Database lifecycle and migration policy
 
-# 9. Clean-clone verification
+- PostgreSQL is the server-side system of record.
+- Migrations are an explicit controlled deployment step, not a side effect of every API replica startup.
+- Fresh-database migration/schema-drift verification runs in CI.
+- Historical numbered migrations are append-only: existing migration files may not be modified, deleted or renamed. CI compares migration history against the relevant base ref and requires schema evolution to add a new migration.
+- High-risk/destructive production evolution still requires backup, restore rehearsal and upgrade-path review.
+- Rollback does not assume blind reverse migrations; restore plus the previous image may be the safe path.
 
-Increment 0 زمانی از منظر deployment کامل است که روی clone تمیز بتوان:
+## 6. Health and readiness
 
-1. dependencyها را از lockfile نصب کرد؛
-2. PostgreSQL را بالا آورد؛
-3. migration را اجرا کرد؛
-4. API و client را build/start کرد؛
-5. `/health` و `/ready` را بررسی کرد؛
-6. Walking Skeleton را از client تا database اجرا کرد؛
-7. test suite را با commandهای مستند اجرا کرد.
+- `/health` is process liveness and does not expose dependency detail.
+- `/ready` verifies PostgreSQL availability required by the API.
+- external Google/WebAuthn/email/phone availability is not a core manual-Task readiness dependency.
+- container health checks use bounded timeout/interval behavior.
 
-# 10. Deferred deployment choices
+## 7. Network boundary
 
-- cloud provider و managed services؛
-- horizontal scaling؛
-- Redis/channel layer؛
-- worker scheduler؛
-- mobile store release؛
-- enterprise HA/SLA.
+Local loopback/LAN development may use HTTP only in explicitly trusted development scenarios. Non-local deployment is HTTPS-only at the configured origin boundary.
+
+CORS is an explicit allowlist, does not permit wildcard origins or cross-origin credentials, and permits `If-Match` for versioned mutations for configured trusted origins.
+
+Database ports are not intended for public exposure. Reverse-proxy trust is explicit through the configured forwarded-protocol handling.
+
+## 8. API edge controls
+
+Versioned `/api/v1/` write requests are constrained before view dispatch:
+
+- JSON-only non-empty request bodies;
+- 16 KiB maximum request body;
+- stable errors for malformed/unsupported/oversized requests.
+
+Sensitive identity operations are annotated in OpenAPI with `x-edge-rate-limit-policy: identity-ceremony`. [`identity-rate-limit-policy.json`](identity-rate-limit-policy.json) is the deployment contract: it lists every protected operation and defines a per-verified-client-IP burst limit of 10 requests per 60 seconds plus a sustained limit of 100 requests per 3,600 seconds. The four `DOTICK_EDGE_IDENTITY_CEREMONY_*` environment variables configure those edge thresholds.
+
+The proxy/CDN must apply both limits collectively across the listed operations, derive client IP only from trusted connection metadata, and return `429` with `Retry-After` when either threshold is exceeded. Multi-instance enforcement needs edge/shared state. Django intentionally has no process-local substitute. Increment 11 production deployment must configure and smoke-test the policy before production release.
+
+## 9. Logging and operations
+
+- application/request logs are structured and include a correlation/request ID;
+- only allowlisted request metadata is logged;
+- credentials, tokens, request bodies and secrets are excluded from the ordinary structured request log;
+- runtime/host owns log rotation/retention until a production monitoring stack is selected;
+- backup, migration and readiness failures must be visible and actionable.
+
+## 10. Hosted verification
+
+Current CI verifies:
+
+1. locked dependency installs;
+2. static formatting/type checks;
+3. traceability;
+4. migration/schema drift, append-only migration history and fresh DB reconstruction;
+5. backend/API/Golden Time tests against PostgreSQL;
+6. production Django/security settings;
+7. frontend tests and web export;
+8. desktop/mobile product E2E;
+9. dependency audits and secret scan;
+10. non-root container builds;
+11. container smoke and persistence after API restart.
+
+Audited implementation HEAD `7302ca3b18a79af35058828102bb62e845a56645` passed hosted run `35057831342` before the documentation-reconciliation commits.
+
+## 11. Increment 0 closure
+
+Increment 0's deployment/verification baseline is formally closed in repository tracking. `releases/v0.1.0.md` is the repository release record for that foundation checkpoint. No public GitHub Release, public tag or production deployment is implied by that record.
+
+## 12. Remaining Increment 1 release gates
+
+Formal I1 release still requires target-environment evidence for:
+
+- real email delivery;
+- configured Google OAuth client/redirect flow;
+- WebAuthn with the target RP ID/origins and a real browser/authenticator;
+- phone verification delivery adapter;
+- deployed edge rate limits matching the declared identity-ceremony policy;
+- formal Increment 1 release record/publication.
+
+Hosted CI itself is no longer an open engineering gate.
+
+## 13. Deferred deployment choices
+
+- production cloud/provider topology;
+- horizontal scaling and HA/SLA;
+- Redis/channel layer and realtime topology;
+- worker/scheduler infrastructure until an owning use case exists;
+- mobile store release;
+- full production monitoring/alerting stack.
+
+See [environment setup](../development/environment-setup.md), [security design](../design/security-design.md), [Increment 1 readiness](../tracking/increment-1-readiness.md), and [the full post-reset commit audit](../tracking/development-commit-audit.md).
+
+
+## 14. AGPL-3.0 self-hosting and professional-services boundary
+
+The software in this repository may be self-hosted under AGPL-3.0. That permission is distinct from an operational support commitment.
+
+The project does not guarantee free installation assistance, production architecture review, migrations, incident response, upgrades, monitoring, backup operation, security hardening, SLA, or troubleshooting for arbitrary third-party environments. Any of those may be offered separately as paid professional services or managed hosting.
+
+A paid services agreement changes service obligations between the parties; it does not remove or narrow software rights already granted by AGPL-3.0. The Dotick name, logos, domains, and product identity are governed separately and are not granted by the software license.

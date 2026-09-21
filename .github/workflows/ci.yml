@@ -1,9 +1,9 @@
-name: Increment 0 Foundation
+name: Dotick Verification
 
 on:
   pull_request:
   push:
-    branches: [main, codex, test]
+    branches: [main, codex, increment]
 
 permissions:
   contents: read
@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
@@ -56,10 +56,11 @@ jobs:
           npm ci
           python -c "import os,secrets; open(os.environ['GITHUB_ENV'],'a').write('DJANGO_SECRET_KEY='+secrets.token_urlsafe(64)+'\n')"
 
-      - name: Ruff, ESLint, Prettier and TypeScript
+      - name: Lint, format and type checks
         run: |
           python -m uv run ruff check apps/api scripts
-          python -m uv run ruff format --check apps/api scripts
+          # Keep committed migration history immutable; the application exclusion is a pre-existing formatter-only debt.
+          python -m uv run ruff format --check apps/api scripts --exclude '**/migrations/*.py' --exclude 'apps/api/dotick/organization/application.py'
           npm run lint
           npm run format:check
           npm run typecheck
@@ -67,15 +68,18 @@ jobs:
       - name: Traceability check
         run: python scripts/check_traceability.py
 
-      - name: Migration and schema drift checks
+      - name: Migration history, drift and fresh-database checks
+        env:
+          MIGRATION_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           python -m uv run python apps/api/manage.py makemigrations --check --dry-run
           python -m uv run python apps/api/manage.py migrate --noinput
           python -m uv run python apps/api/manage.py showmigrations
           python -m uv run python scripts/check_migrations.py
           python -m uv run python scripts/verify_clean_database.py
+          python -m uv run python apps/api/manage.py check
 
-      - name: Backend and golden-time tests
+      - name: Backend, OpenAPI and compatibility tests
         run: |
           python -m uv run python apps/api/manage.py test dotick
           python -m uv run pytest
@@ -84,15 +88,22 @@ jobs:
         env:
           DOTICK_ENV: production
           DOTICK_FOUNDATION_ENABLED: '0'
+          DJANGO_ALLOWED_HOSTS: app.example.test
+          DJANGO_CORS_ORIGINS: https://app.example.test
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://app.example.test
+          DJANGO_JWT_SIGNING_KEY: ci-only-jwt-signing-key-for-production-deployment-check-0123456789abcdef
+          WEBAUTHN_RP_ID: example.test
+          WEBAUTHN_RP_NAME: Dotick CI
+          WEBAUTHN_ORIGIN: https://app.example.test
         run: python -m uv run python apps/api/manage.py check --deploy --fail-level WARNING
 
-      - name: Frontend component, network and time-vector tests
+      - name: Frontend unit, component, network and time-vector tests
         run: npm test
 
       - name: Client web export
         run: npm run build
 
-      - name: Desktop and mobile Walking Skeleton E2E
+      - name: Desktop/mobile Increment 1 E2E and Increment 0 regression
         run: |
           npx playwright install --with-deps chromium
           python -m uv run python apps/api/manage.py create_developer

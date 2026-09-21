@@ -23,7 +23,7 @@
 - تعریف positioning اولیه‌ی Dotick؛
 - ثبت محدودیت‌های تحلیل و مواردی که هنوز نیازمند اعتبارسنجی بازار هستند.
 
-قیمت‌گذاری، مدل درآمد، licensing، packaging تجاری و SLA در این نسخه نهایی نشده‌اند و باید در مراحل بعدی Business Track تکمیل شوند.
+مدل licensing نرم‌افزار نهایی شده است: تمام کد Dotick تحت AGPL-3.0 منتشر می‌شود و استفاده شخصی، تجاری، سازمانی و self-hosting طبق این license رایگان است. نام، لوگو و هویت برند Dotick جزو license نرم‌افزار نیستند. درآمد احتمالی می‌تواند از managed hosting، deployment، configuration، migration، customization، maintenance، support، training و SLA حاصل شود. قیمت‌گذاری، packaging، subscription و جزئیات SLA همچنان تصمیم‌های جداگانه‌ی Business Track هستند.
 
 ## 0.3 Evidence Rule
 
@@ -153,16 +153,48 @@ Google Calendar مرجع مهمی برای مسئله‌ی زمان‌بندی،
 
 # 6. Packaging, Pricing & Commercial Model
 
-در وضعیت فعلی، packaging، pricing، licensing و مدل درآمدی Dotick نهایی نشده‌اند. هیچ نتیجه‌ای از تحلیل رقبا در این سند نباید به‌صورت ضمنی به یک مدل قیمت‌گذاری تبدیل شود.
+## 6.1 Final software licensing model
 
-مواردی که در مرحله‌ی بعد باید بررسی شوند:
+Dotick adopts a **fully open-source software + protected official brand + optional paid services** model.
 
-- Personal / Free tier
-- Subscription model
-- Per-user vs per-organization pricing
-- Enterprise contract
-- Feature packaging
-- Support and SLA model
+- All Dotick software source code is licensed under **GNU AGPLv3 (`AGPL-3.0`)**.
+- Personal, commercial, and organizational use is permitted under AGPL-3.0 without a separate commercial-use fee.
+- Users and organizations may modify, redistribute, fork, and self-host the software subject to AGPL-3.0.
+- There is no closed "Enterprise code edition" in the licensing model: features that are part of Dotick's software code remain under AGPL-3.0.
+- A company may operate Dotick internally without purchasing a software license from Dotick, provided it complies with AGPL-3.0.
+- The Dotick name, logo, visual marks, and official product identity are not granted under the software license. Forks and third-party services must remain distinguishable from the official Dotick product and must not imply official endorsement or affiliation without permission.
+
+## 6.2 Revenue boundary
+
+Commercial revenue, if pursued, is based on **services rather than permission to use the code**. Possible paid offerings include:
+
+- official managed hosting / Dotick Cloud;
+- professional installation and deployment;
+- environment configuration and migration;
+- customization and integrations;
+- maintenance and upgrades;
+- support and incident assistance;
+- training and onboarding;
+- SLA-backed operations.
+
+A services agreement purchases professional work, operational responsibility, convenience, or service guarantees. It does not reduce the software rights already granted by AGPL-3.0.
+
+## 6.3 Brand and identity boundary
+
+Open-source code does not make the official Dotick identity a free branding asset. The project retains control over the `Dotick` name, logos, visual marks, domains, and other identifiers of the official product. Third parties may accurately describe a fork as being based on or compatible with Dotick, but may not brand an independent fork/service in a manner that reasonably implies that it is the official Dotick product, an endorsed distribution, or an officially operated service without separate permission.
+
+## 6.4 Still undecided
+
+The following remain separate Business/Product decisions:
+
+- pricing of an official hosted service;
+- hosted Free/Pro/Teams/Enterprise packaging, if any;
+- subscription mechanics and billing/payment providers;
+- support tiers and SLA response targets;
+- professional-services pricing;
+- operational limits of the official hosted service.
+
+None of these future decisions may convert AGPL-3.0 software-use rights into a company-only or commercial-use fee requirement for code already released under that license.
 
 ---
 

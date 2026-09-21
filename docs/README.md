@@ -20,11 +20,25 @@
 - [`development/`](development/) — راه‌اندازی و رویه‌های محیط توسعه
 - [`quality/`](quality/) — راهبرد و شواهد کیفیت و آزمون
 - [`operations/`](operations/) — استقرار، مشاهده‌پذیری، بازیابی و عملیات امنیت
-- [`tracking/`](tracking/) — تاریخچهٔ تغییرات و مرور Incrementها
+- [`tracking/`](tracking/) — تاریخچهٔ تغییرات، audit پیاده‌سازی و مرور Incrementها
 - [`reference/`](reference/) — اسناد مرجع مشتق‌شده یا قدیمی که منبع نهایی تصمیم نیستند
+- [`licensing.md`](licensing.md) — مدل AGPL-3.0، مرز self-hosting/support و سیاست هویت/برند Dotick
 
 تصمیم‌های تثبیت‌شده و باز در [`decision-register.md`](decision-register.md) ثبت می‌شوند و تصمیم‌های معماری تفصیلی در [`design/adr/`](design/adr/) قرار می‌گیرند.
 
 نام فایل‌ها و پوشه‌ها از قرارداد `lowercase-kebab-case` پیروی می‌کند؛ نام‌های قراردادی مانند `README.md` و `CHANGELOG.md` استثنا هستند.
 
-Current implementation: [I0 verification](tracking/increment-0-foundation-review.md), [I1 backend review](tracking/increment-1-backend-review.md), [I1 client review](tracking/increment-1-client-review.md), [Authentication Design](design/authentication-design.md) and the full backend [OpenAPI contract](design/openapi.json). Remaining provider/release scope stays in the [I1 readiness and acceptance plan](tracking/increment-1-readiness.md).
+## Current implementation evidence
+
+- [Increment 0 verification](tracking/increment-0-foundation-review.md) — formally closed foundation checkpoint.
+- [Increment 1 readiness](tracking/increment-1-readiness.md) — current implemented boundary, acceptance evidence and remaining formal release gates.
+- [Increment 1 backend review](tracking/increment-1-backend-review.md) — current implemented backend boundary and remaining external evidence.
+- [Increment 1 client review](tracking/increment-1-client-review.md) — current web/Android product-client boundary and deliberate UI limits.
+- [Development commit audit](tracking/development-commit-audit.md) — historical post-reset implementation audit.
+- [API contract](design/openapi.json) and [API contract rules](design/api-contracts.md) — executable published I1 backend contract.
+- [Security design](design/security-design.md) — current I1 API/origin/identity/migration hardening.
+- [Test strategy](quality/test-strategy.md) — verification gates, historical hosted evidence and migration-history policy.
+
+System Definition, Decision Register and SRS remain above implementation evidence in authority; implementation/tracking documents must describe the checked-in behavior without turning code accidents into requirements.
+
+Increment 1 is closed and released as `v0.2.0`. The verification workflow runs on `increment`; repository acceptance, regression, migration, security, container and persistence gates cover the release boundary. Optional external email/SMS delivery and live provider, authenticator, edge and production-device validation remain deployment concerns owned by Increment 11.
