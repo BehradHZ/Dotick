@@ -4,20 +4,18 @@
 
 ## مسیر پیشنهادی مطالعه
 
-1. [`planning/vision-and-charter.md`](planning/vision-and-charter.md)
-2. [`planning/scope-statement.md`](planning/scope-statement.md)
-3. [`requirements/system-definition.md`](requirements/system-definition.md)
-4. [`decision-register.md`](decision-register.md)
-5. [`requirements/srs.md`](requirements/srs.md)
-6. [`design/domain-model.md`](design/domain-model.md)
-7. [`planning/increment-roadmap.md`](planning/increment-roadmap.md)
+- **قواعد Agent و فرایند توسعه:** [`../AGENTS.md`](../AGENTS.md) → [`development/engineering-process.md`](development/engineering-process.md) (مرجع اصلی SDLC، Vertical Slice و Definition of Done).
+- **معنای محصول:** [`requirements/system-definition.md`](requirements/system-definition.md) → [`decision-register.md`](decision-register.md) → [`requirements/srs.md`](requirements/srs.md)، تا زمانی که بازنگری محصول جانشین مصوب آن‌ها را تعیین کند.
+- **طراحی:** [`design/domain-model.md`](design/domain-model.md)، [`design/architecture.md`](design/architecture.md) و اسناد تخصصی مرتبط.
+- **تحویل و کیفیت:** [`planning/increment-roadmap.md`](planning/increment-roadmap.md) → [`quality/test-strategy.md`](quality/test-strategy.md).
+- [`planning/vision-and-charter.md`](planning/vision-and-charter.md) و [`planning/scope-statement.md`](planning/scope-statement.md) هنوز نیازمند بازنگری و تکمیل‌اند؛ Placeholderها تصمیم مصوب محصول نیستند.
 
 ## ساختار مستندات
 
 - [`planning/`](planning/) — چشم‌انداز، محدوده، نقشهٔ راه و ریسک‌ها
 - [`requirements/`](requirements/) — تعریف سیستم، نیازمندی‌ها و ردیابی آن‌ها
 - [`design/`](design/) — طراحی دامنه، معماری، داده، API، امنیت و تجربهٔ کاربری
-- [`development/`](development/) — راه‌اندازی و رویه‌های محیط توسعه
+- [`development/`](development/) — فرایند مهندسی مصوب، راه‌اندازی و رویه‌های محیط توسعه
 - [`quality/`](quality/) — راهبرد و شواهد کیفیت و آزمون
 - [`operations/`](operations/) — استقرار، مشاهده‌پذیری، بازیابی و عملیات امنیت
 - [`tracking/`](tracking/) — تاریخچهٔ تغییرات، audit پیاده‌سازی و مرور Incrementها
@@ -28,7 +26,7 @@
 
 نام فایل‌ها و پوشه‌ها از قرارداد `lowercase-kebab-case` پیروی می‌کند؛ نام‌های قراردادی مانند `README.md` و `CHANGELOG.md` استثنا هستند.
 
-## Current implementation evidence
+## Historical implementation evidence (I0/I1)
 
 - [Increment 0 verification](tracking/increment-0-foundation-review.md) — formally closed foundation checkpoint.
 - [Increment 1 readiness](tracking/increment-1-readiness.md) — current implemented boundary, acceptance evidence and remaining formal release gates.
@@ -41,4 +39,4 @@
 
 System Definition, Decision Register and SRS remain above implementation evidence in authority; implementation/tracking documents must describe the checked-in behavior without turning code accidents into requirements.
 
-Increment 1 is closed and released as `v0.2.0`. The verification workflow runs on `increment`; repository acceptance, regression, migration, security, container and persistence gates cover the release boundary. Optional external email/SMS delivery and live provider, authenticator, edge and production-device validation remain deployment concerns owned by Increment 11.
+Increment 1 was closed and released as `v0.2.0` under the previous process. These records describe that historical release, not requirements or mandatory gates for the rebuild. The existing CI and security/data-integrity checks remain in place until a separately verified, risk-based change is approved. Optional external email/SMS and live-provider/device/edge checks were previously deferred to deployment.
