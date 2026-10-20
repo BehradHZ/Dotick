@@ -1,447 +1,66 @@
 # Dotick — Development Roadmap
 
-> **Status:** Updated Roadmap based on the canonical project documents  
-> **Process:** Incremental + Iterative + Test-Driven Development (TDD)  
-> **Canonical sources used by this roadmap:**  
-> `docs/requirements/system-definition.md` — current system behavior, scope and product rules
->
-> `docs/design/domain-model.md` — current conceptual domain model
->
-> `docs/decision-register.md` — consolidated decision rationale, constraints and design handoffs aligned to System Definition
->
-> `docs/requirements/srs.md` اکنون **Formal SRS Baseline v3.1** است. این سند requirementهای رسمی را نگه می‌دارد، ولی در تعارض رفتاری همچنان پایین‌تر از منابع canonical قرار دارد. `docs/reference/class-fields.md` یک derived reference غیرcanonical باقی می‌ماند. See DR-052.
+> **Status:** Transition to the approved engineering process (2026-10-20). Product scope and revised release boundaries remain subject to individual Product Owner review.
+> **Process authority:** [Engineering Process](../development/engineering-process.md). This roadmap owns outcomes, order and dependencies—not the SDLC, verification policy, or product meaning.
+> **Behavior authority:** [System Definition](../requirements/system-definition.md) → [Decision Register](../decision-register.md) → [Formal SRS](../requirements/srs.md) until explicitly revised.
 
 ---
 
-# 0. Purpose of This Roadmap
+# 0. Purpose and transition
 
-این فایل مشخص می‌کند:
+The previously completed Increment 0/1 implementation and its v0.2.0 evidence remain historical facts, not proof that a Rust rebuild has been implemented. The rebuild itself has **not** started.
 
-- پروژه با چه ترتیب Incrementهایی ساخته می‌شود.
-- هر Increment دقیقاً چه Scopeی دارد.
-- چه تصمیم‌هایی باید قبل از هر Increment بسته شوند.
-- در هر Increment چه مراحل مهندسی نرم‌افزار تکرار می‌شوند.
-- خروجی هر مرحله سند جدید است یا Update سند قبلی.
-- هر Feature و Entity فعلی در کدام Increment طراحی/پیاده‌سازی می‌شود.
-- کدام قابلیت‌ها در Personal V1 هستند و کدام‌ها Future/Enterprise.
-- چگونه Requirement → Analysis → Design → Code → Test → Release قابل Trace باشد.
+The old implementation-oriented Increment 0–11 sequence, future-track descriptions and feature/entity matrices are retained **verbatim below as a legacy scope inventory** while we review product decisions. They are **not** the active engineering workflow, mandatory document-production plan, or automatically approved new release order. No historical behavior, feature or verification obligation is silently discarded. Product behavior can change only by a deliberate product decision, reflected in its canonical documents.
 
-این Roadmap جایگزین Specification یا Domain Model نیست.
+# 1. Delivery model
 
-```text
-System Definition       = سیستم چه رفتاری دارد؟
-Domain Model            = مفاهیم و Entityهای سیستم چیست؟
-Decision Register       = چه تصمیم‌هایی قطعی/باز/منسوخ هستند؟
-Formal SRS              = Requirementهای رسمی و قابل تست
-Design Specifications   = چگونه ساخته می‌شود؟
-Roadmap                  = چه زمانی و با چه ترتیب ساخته می‌شود؟
-```
+- Define release boundaries by **user-visible outcomes**, fulfilled through one or more end-to-end vertical slices.
+- Each slice identifies outcome/non-goals, testable acceptance criteria, critical dependencies/risks and independently verified delivery evidence. Keep these close to the work rather than multiplying stand-alone reports.
+- Apply **Define → Analyze/Design → Build → Verify → Review/Deliver** at risk-proportionate depth; see [Engineering Process](../development/engineering-process.md).
+- An engineering baseline covers consequential product/domain and early cross-cutting design choices, but **is not** an independent, open-ended implementation release. The first technical result must exercise a real user journey.
+- Do not require universal TDD, one report per stage, per-increment risk/traceability edits, full repeated document sets, or a fixed number of commits. Preserve real contract, data-integrity, security and user-flow checks.
+- Review known later constraints (authorization, offline/sync, history/undo, time and data ownership) before choosing an early incompatible API/schema. Implementation of the full later feature may be deferred.
+- The roadmap remains provisional where product decisions are under review; agents must not treat candidate features as permission to implement them.
 
----
+# 2. Proposed outcome boundaries — **not yet approved product scope**
 
-# 1. Source-of-Truth and Document Authority
+These replace the old *type-of-entity* sequencing **only after** scope review and approval. They are planning candidates, not implementation authorization.
 
-اگر درباره‌ی behavior/Scope میان اسناد تعارض وجود داشته باشد، این ترتیب مبناست:
+| Candidate | Demonstrable outcome | Material dependency / note |
+| --- | --- | --- |
+| R1 — Personal Planner | A person can authenticate and manage a useful Inbox/Task/Event/Today workflow via real client/API/PostgreSQL | Establish Rust modular monolith and core contract; consider local persistence/versioning without claiming complete sync |
+| R2 — Goals & First Recommendation | Goals connect to activities; the app can suggest useful next actions and capture feedback | Deliver a simple measurable baseline; keep normal Todo operation independent of the research model |
+| R3 — Routines & Scheduling | Track routines, recurrence, reminders and relevant scheduling constraints | Specify calendar/day boundaries and recurrence invariants when implementing |
+| R4 — Motivation | Progress, Daily Rings, streaks and scoring reinforce actual work | Verify derived state, finalization and user feedback |
+| R5 — Offline & Recovery | Durable offline edits, sync/conflict resolution, history/undo and recovery work across real devices | High-risk integrity/authorization checks; baseline compatibility decided earlier |
+| R6 — Collaboration | Users safely share/assign/manage work together | High-risk permission, revocation and cross-user negative scenarios |
+| R7 — Production Release | System can be installed, operated, monitored, backed up and recovered | Deployment/security/performance validation and target-environment evidence |
 
-```text
-System Definition
-        ↓
-Decision Register
-        ↓
-Formal SRS
-        ↓
-Domain Model / Design Documents
-        ↓
-Roadmap / reconciled non-canonical references
-```
+**Coverage to explicitly place during product review:** rich description, hierarchy/references, comments/tags, AI-assisted item input, account/data export and deletion, notification controls, personalization, presentation/accessibility, privacy, and documented future/enterprise capabilities. A capability's absence from a candidate row does **not** remove it from the accepted product scope. Avoid claiming that the legacy roadmap has already been replaced by these candidates.
 
-Roadmap مالک **ترتیب اجرا** است، نه behavior. هیچ Increment یا Design Gate نمی‌تواند برای ساده‌سازی اجرا، رفتار متفاوتی از System Definition ایجاد کند.
+**Parallel recommendation research track:** define the research question, baseline, consent/data boundaries, reproducible evaluation and comparative metrics. Product acceptance and research claims are separate.
 
-نکته:
+# 3. Implementation and verification status
 
-- `docs/decision-register.md` rationale و مرزهای تصمیم را نگه می‌دارد؛ وقتی یک مفهوم در ادامه کامل می‌شود، متن current Register در یک DR canonical ادغام می‌شود و wordingهای قبلی در repository revision history باقی می‌مانند.
-- `docs/requirements/system-definition.md` رفتار و Scope محصول را نگه می‌دارد.
-- `docs/design/domain-model.md` مدل مفهومی است و نباید با PostgreSQL schema یکی فرض شود.
-- Database inheritance/storage strategy هنوز یک Design Decision است.
+- **Existing historical release:** v0.2.0 (I0/I1), Django/Expo/PostgreSQL, recorded in `docs/tracking/`.
+- **Rebuild:** planning and document reconciliation only; Rust architecture/implementation is not yet accepted as delivered.
+- **Actual CI:** existing workflows/checks remain unchanged by this documentation update. Any reduction must follow an evidence-based review, not the mere change of process text.
+- **Branch/Git:** work only on the explicitly designated existing branch. No branch/PR creation, merge, force-push, destructive reset or history rewrite without explicit authorization.
 
----
+# 4. Document and acceptance authority
 
-# 2. Project Development Model
-
-مدل پروژه:
-
-```text
-Specification / Engineering Baseline
-        ↓
-Increment 1
-        ↓
-Feedback + controlled refinement
-        ↓
-Increment 2
-        ↓
-...
-        ↓
-Personal V1
-        ↓
-Enterprise / Integration / Native evolution
-```
-
-هر Increment خودش یک mini-SDLC دارد:
-
-```text
-1. Scope & Readiness
-2. Requirements Refinement
-3. Analysis
-4. Just-enough Design
-5. Test Design
-6. TDD + Implementation
-7. Integration
-8. Acceptance / System Validation
-9. Review + Refactor
-10. Documentation Update
-11. Increment Release / Feedback
-```
-
-بنابراین پروژه Waterfall نیست.
-
-Architecture، Data Design، API، UI، Security و Test Design در ابتدای پروژه فقط **baseline** می‌گیرند و در Incrementهای مربوطه refine می‌شوند.
+- **Current behavior/scope:** System Definition, then Decision Register and testable SRS, until revised.
+- **Core designs:** Domain Model, Architecture/ADRs and relevant data/API/security/time contracts.
+- **Workflow and DoD:** [Engineering Process](../development/engineering-process.md) Sections 3–6.
+- **Detailed testing/CI evidence:** [Test Strategy](../quality/test-strategy.md).
+- **This roadmap:** reviewed delivery outcomes/order/dependencies/status. Modify it when these actually change; do not duplicate SDLC rules in every release.
+- Existing traceability and historical review artifacts stay intact; extend them selectively when they provide actual audit/acceptance value, not as a per-slice paperwork gate.
 
 ---
 
-# 3. Document Lifecycle Rules
+# Legacy increment/feature inventory (historical, not active process)
 
-## 3.1 Canonical Working Documents
-
-این سه فایل از قبل وجود دارند و فقط در صورت تغییر واقعی فهم سیستم Update می‌شوند.
-
-| Document | Role | Rule |
-|---|---|---|
-| `docs/requirements/system-definition.md` | Product/system behavior and scope | **Update only when behavior/scope changes** |
-| `docs/design/domain-model.md` | Conceptual entities, relations, constraints | **Update when domain understanding changes** |
-| `docs/decision-register.md` | Decision rationale/constraints aligned to System Definition | **Consolidate evolved same-concept decisions; repository revision history preserves prior wording** |
-| `docs/planning/increment-roadmap.md` | Increment plan | **Update after scope/order/decision changes** |
-
----
-
-## 3.2 Formal Engineering Documents
-
-این اسناد در زمان لازم ایجاد می‌شوند.
-
-| Document | First Creation | Afterwards |
-|---|---|---|
-| `docs/requirements/srs.md` | Increment 0 formalization | **Replace/rewrite the reconciled derived reference into Formal SRS, then Update** |
-| `docs/requirements/traceability-matrix.md` | Increment 0 | **Update every Increment** |
-| `docs/planning/risk-log.md` | Increment 0 | **Update every Increment** |
-| `docs/design/architecture.md` | Increment 0 | **Update when architecture evolves** |
-| `docs/design/data-model.md` | Increment 0/1 | **Update** |
-| `ERD.md` / ERD source | Increment 1 | **Update** |
-| `docs/design/api-contracts.md` / `openapi.yaml` | Increment 1 | **Update Increment-by-Increment** |
-| `docs/design/ui-ux/` | Increment 1 | **Update** |
-| `docs/design/security-design.md` | Increment 0/1 | **Update every security-relevant Increment** |
-| `docs/quality/test-strategy.md` | Increment 0 | **Update only when strategy changes** |
-| `docs/design/time-semantics-spec.md` | Increment 0 baseline | **Refine in Increments 2/4/10 as time behavior expands** |
-| `RECURRENCE_SPEC.md` | Increment 4 | **New, then Update** |
-| `SYNC_AUDIT_SPEC.md` | Increment 6 | **New, then Update** |
-| `AUTHORIZATION_MODEL.md` | Increment 7 | **New, then Update** |
-| `AI_ITEM_CREATION_SPEC.md` | Increment 8 | **New, then Update** |
-| `AI_GOAL_SPEC.md` | Increment 9 | **New, then Update** |
-| `GAMIFICATION_SCORING_SPEC.md` | Increment 10 | **New, then Update** |
-| `docs/operations/release-deployment.md` | Increment 0 | **Update** |
-| `BUSINESS.md` | Parallel Business Track | **Update** |
-
----
-
-## 3.3 New Artifact vs Update Existing Artifact
-
-قاعده:
-
-### Update existing document
-
-وقتی «وضعیت فعلی سیستم» تغییر کرده:
-
-- requirement changes
-- domain model changes
-- API contract changes
-- architecture changes
-- security design changes
-- deployment reality changes
-
-### Create a new artifact
-
-وقتی یک رخداد تاریخی یا تصمیم مستقل ایجاد شده:
-
-- ADR
-- database migration
-- release note
-- Increment review
-- benchmark report
-- security review report
-- test execution report
-
-نمونه:
-
-```text
-DB schema changed
-    → docs/design/data-model.md update
-    → ERD update
-    → new migration
-
-Architectural decision made
-    → docs/design/architecture.md may update
-    → new ADR
-
-Requirement behavior changed
-    → Decision Register entry
-    → System Definition update
-    → Formal SRS update
-    → Traceability update
-```
-
----
-
-# 4. Global Definition of Ready
-
-یک Feature وارد Implementation نمی‌شود مگر اینکه:
-
-- Scope آن برای Increment مشخص باشد.
-- رفتار مورد انتظار در Specification روشن باشد.
-- Acceptance Criteria قابل نوشتن باشد.
-- Product/Domain behavior آن در System Definition/Decision Register بسته و سازگار باشد؛ اگر طی refinement سؤال محصولی واقعاً جدیدی کشف شد، پیش از Implementation باید canonical شود.
-- Dependencyها مشخص باشند.
-- Domain impact مشخص باشد.
-- Data/API/UI impact در حد لازم بررسی شده باشد.
-- Security impact بررسی شده باشد.
-- تست Happy Path و مهم‌ترین Error/Edge Pathها قابل تعریف باشند.
-
-در baseline فعلی Product/Domain OPEN شناخته‌شده‌ای باقی نمانده است. اگر در آینده سؤال محصولی جدیدی کشف شود، فقط همان سؤال blocking باید پیش از Implementation feature مربوط canonical شود؛ Design/Tuning Gateها طبق schedule مالک خود تکمیل می‌شوند.
-
----
-
-# 5. Global Definition of Done
-
-Feature فقط وقتی Done است که:
-
-- behavior مورد انتظار پیاده شده باشد.
-- Acceptance Criteria پاس شده باشد.
-- Unit tests پاس شوند.
-- Integration/contract tests مرتبط پاس شوند.
-- Regression tests پاس شوند.
-- security checks مرتبط انجام شوند.
-- migrations در صورت نیاز موجود و تست شده باشند.
-- API/UI documentation در صورت تغییر Update شده باشد.
-- Domain/Specification فقط در صورت تغییر واقعی Update شده باشند.
-- Traceability Update شده باشد.
-- CI سبز باشد.
-- Code review یا Self-review انجام شده باشد.
-- intentional technical debt ثبت شده باشد.
-
----
-
-# 6. Repeated Stages Inside Every Increment
-
----
-
-## Stage A — Increment Scope & Readiness
-
-### Work
-
-- انتخاب Featureهای Increment
-- تعریف Increment Goal
-- تعریف Out-of-Scope
-- بررسی dependency
-- بررسی consistency با تصمیم‌های canonical و Design/Specification Gateهای owning Increment
-- بررسی risks
-
-### Documents
-
-- `docs/planning/increment-roadmap.md` → **Update if scope/order changes**
-- `docs/planning/risk-log.md` → **Update**
-- `docs/requirements/traceability-matrix.md` → **Update**
-
-### Output
-
-`Increment Scope Baseline`
-
----
-
-## Stage B — Requirements Refinement
-
-### Work
-
-- استخراج Requirementهای قابل تست از System Definition
-- clarification فقط برای رفتارهای همان Increment
-- Happy / Alternate / Error Flow
-- Acceptance Criteria
-- NFRهای مرتبط
-- بازگرداندن هر Product/Domain question جدید و blocking به System Definition/Decision workflow؛ تکمیل Design Gateهای همان Increment
-
-### Documents
-
-اگر clarification فقط Formalization است:
-
-- `docs/requirements/srs.md` → **Update**
-
-اگر رفتار محصول واقعاً تغییر کرد:
-
-- `docs/decision-register.md` → **New/updated decision entry**
-- `docs/requirements/system-definition.md` → **Update**
-- `docs/requirements/srs.md` → **Update**
-
-### Output
-
-Refined testable requirements
-
----
-
-## Stage C — Analysis
-
-### Work
-
-بر اساس نیاز Increment:
-
-- Use Case Specification
-- Activity Diagram
-- Sequence Diagram
-- State Diagram
-- Domain relationship refinement
-- conceptual data flow
-
-### Documents
-
-- `docs/reference/analysis/...` → **New or Update**
-- `docs/design/domain-model.md` → **Update only if domain understanding changes**
-- `docs/requirements/traceability-matrix.md` → **Update**
-
-### Output
-
-Analysis sufficient for Design
-
----
-
-## Stage D — Just-enough Design
-
-### Work
-
-- architecture impact
-- module boundaries
-- database design
-- indexes
-- API contract
-- UI flow
-- permission/security rules
-- concurrency behavior
-- external integration design
-
-### Documents
-
-- `docs/design/architecture.md` → **Update if needed**
-- `docs/design/data-model.md` → **Update**
-- ERD → **Update**
-- API/OpenAPI → **Update**
-- `docs/design/ui-ux/` → **Update**
-- `docs/design/security-design.md` → **Update**
-- relevant specialized spec → **New/Update**
-- ADR → **New for significant decision**
-
-### Output
-
-Implementable design
-
----
-
-## Stage E — Test Design
-
-### Work
-
-- Acceptance tests
-- Unit tests
-- Integration tests
-- API contract tests
-- failure tests
-- security tests
-- performance tests where applicable
-
-### Rule
-
-Acceptance Criteria باید قبل از کامل شدن Implementation قابل ارزیابی باشند.
-
-### Documents
-
-- `docs/quality/test-strategy.md` → **usually unchanged**
-- test code/cases → **New/Update**
-- `docs/requirements/traceability-matrix.md` → **Update**
-
----
-
-## Stage F — TDD + Implementation
-
-```text
-RED
-↓
-GREEN
-↓
-REFACTOR
-```
-
-### Artifacts
-
-- production code
-- automated tests
-- migration
-- config
-- fixtures
-- schemas/contracts
-
----
-
-## Stage G — Integration & Acceptance
-
-### Work
-
-- DB integration
-- frontend/backend integration
-- auth/permission integration
-- external service simulation
-- System/E2E workflow
-- regression suite
-- failure/recovery flows
-
----
-
-## Stage H — Review & Refactor
-
-Review:
-
-- cohesion
-- coupling
-- duplication
-- naming
-- unnecessary abstraction
-- query quality
-- security
-- performance
-- architecture boundary violations
-- technical debt
-
----
-
-## Stage I — Documentation, Release & Feedback
-
-### Update
-
-- Traceability
-- API
-- Data Design
-- Architecture
-- UI/UX
-- Security
-- specialized spec
-- Roadmap/backlog where needed
-
-### Created in Increment 0 baseline
-
-- `releases/vX.Y.Z.md`
-- `reviews/increment-N.md`
+**Sections 7–32 below are retained to prevent loss of prior scope analysis and detail.** Their old deadlines, 11-step repeated SDLC, blanket DoR/DoD, fixed document schedules, test mandates, and references to Django/old implementation are superseded by the current Engineering Process and risk-based Test Strategy. Old implementation status is historical; candidate new release placement must be reviewed against product decisions. Do not execute a legacy "Decision Gate" solely because it appears below.
 
 ---
 
@@ -3523,61 +3142,12 @@ This revision intentionally changes earlier planning assumptions:
 
 ---
 
-# 33. Completion Rule for Each Increment
+# 33. Current completion rule
 
-An Increment closes when:
-
-1. Scope is implemented.
-2. Blocking decisions are resolved.
-3. Acceptance Criteria pass.
-4. regression suite passes.
-5. relevant security checks pass.
-6. Traceability is current.
-7. design docs match implementation.
-8. canonical docs match actual product behavior.
-9. technical debt is recorded.
-10. Increment review is written.
-11. next Increment is re-planned using learned information.
+The Definition of Done and release evidence policy are owned by [Engineering Process](../development/engineering-process.md#6-definition-of-done) and the applicable [Test Strategy](../quality/test-strategy.md). The historical 11-item per-increment checklist is not a current gate. Demonstrate the accepted user outcome, run relevant checks with fresh evidence, disclose unrun checks/residual risk, and obtain Product Owner acceptance when required. Keep critical permission/data integrity/recovery assurance.
 
 ---
 
-# 34. Core Principle
+# 34. Core principle
 
-Dotick should evolve as a sequence of usable, verified increments.
-
-```text
-Understand current scope
-↓
-Resolve only blocking decisions
-↓
-Specify enough
-↓
-Analyze enough
-↓
-Design enough
-↓
-Write tests
-↓
-Build
-↓
-Integrate
-↓
-Validate
-↓
-Update living documents
-↓
-Learn
-↓
-Next Increment
-```
-
-The measure of progress is not the number of documents or diagrams.
-
-The measure of progress is that after every Increment the system is:
-
-- more usable,
-- more correct,
-- more tested,
-- more traceable,
-- more documented,
-- and still architecturally understandable.
+Deliver a sequence of **usable, independently verified product outcomes**, while engineering discipline runs continuously at a depth proportional to risk. Improve workflow from observed defects, rework and delivery friction—not extra documentation. Review the candidate R1–R7 sequencing with the Product Owner before treating it as approved product scope.
