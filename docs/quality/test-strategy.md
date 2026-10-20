@@ -1,47 +1,40 @@
 # Dotick Test Strategy
 
-> **Status:** Increment 0 closed; Increment 1 automated verification implemented and hosted-CI green
-> **Reconciled:** 2026-09-16
-> **Process:** TDD + risk-based verification
+> **Policy status:** Reconciled for the 2026-10-20 engineering-process adoption.
+> **Process authority:** [Engineering Process](../development/engineering-process.md), particularly Sections 5–6. Testing is risk-adaptive, not mandatory TDD for every change.
+> **Evidence boundary:** The I0/I1 and Django-specific lists below describe the **historical v0.2.0 implementation**. No Rust implementation or new CI change is claimed by this document.
 
 ## 1. Objectives
 
-- requirementها پیش از implementation به acceptance قابل ارزیابی تبدیل شوند؛
-- business ruleها بدون وابستگی غیرضروری به transport تست شوند؛
-- PostgreSQL constraint/query/migration واقعاً تست شوند؛
-- API contract، authorization و request-boundary regression سریع تشخیص داده شوند؛
-- vertical slice واقعی client -> API -> PostgreSQL اثبات شود؛
-- migration history و published API surface بدون review خاموش drift نکنند.
+- Independently verify the accepted *observable user behavior* and important negative/failure outcomes.
+- Match evidence to risk; prioritize data integrity, authorization, recurrence/time, offline/sync and real client → API → PostgreSQL paths over test count.
+- Use real PostgreSQL for behavior that depends on transactions, locking, constraints, migrations or query semantics; SQLite is not a substitute.
+- Preserve already-effective security/regression coverage. Changing process text does not authorize deleting a check, weakening an assertion, or lowering a required CI gate.
+- Distinguish unit/integration/contract/user-journey evidence from unrun live-provider/device/recovery checks. Test results are not product requirements.
 
-SQLite جای PostgreSQL integration test نیست.
+## 2. Risk and test levels
 
-## 2. Test levels
+| Risk | Evidence expected | Examples |
+| --- | --- | --- |
+| A — Low | Applicable format/lint/typecheck/build and direct visual/behavior inspection; no obligatory new test/spec/doc | Copy, styling, isolated UI |
+| B — Medium | Focused behavior and integration tests, significant error paths, diff review and changed user journey | Domain logic, API, query and integration |
+| C — High | Explicit threat/failure review, independent positive and negative scenarios, real relevant boundaries, rollback/recovery plan and required approval | Identity, authorization, secrets, personal data, sync/conflict, destructive migration |
 
-| Level | Purpose | Current boundary |
-|---|---|---|
-| Domain/unit | state/value/rule helpers | no network; DB only when rule is a DB invariant |
-| Application/service | use case, authorization orchestration, transaction behavior | PostgreSQL where locking/query semantics matter; fake only external ports |
-| Database integration | ORM mapping, constraints, indexes, migration, query scope | real PostgreSQL |
-| API contract | status, JSON/error schema, auth, owner isolation, idempotency/version | DRF/Django + PostgreSQL |
-| Request/security boundary | body/media limits, CORS, production settings, malformed input | Django request stack |
-| Client component | render/forms/state/network failure behavior | network adapter mocked at boundary |
-| End-to-end | critical account-to-Task workflow | product client + Django API + PostgreSQL |
-| Supply/deployment | dependency/secret/container/configuration controls | hosted CI + Docker |
+Risk is about **impact, not change size**. Reuse existing evidence instead of writing duplicate tests. Prefer stable observable boundaries, avoid implementation-coupled/tautological assertions, mock external providers at their boundary only. Never weaken a test to pass CI.
 
-## 3. TDD loop
+Choose applicable levels for the slice: domain/unit invariants; application/transaction behavior; PostgreSQL integration; HTTP/OpenAPI contract and request/security boundary; client component; critical client → API → PostgreSQL E2E; supply/deployment checks. No requirement to generate a separate test artifact at each level.
 
-For each behavior:
+## 3. Verification loop
 
-1. identify requirement/acceptance criterion;
-2. add the smallest meaningful failing test;
-3. implement the minimum behavior;
-4. refactor with tests green;
-5. add integration/negative cases proportional to risk;
-6. update implementation documentation when the artifact/evidence becomes real.
+1. Derive expected outcome/acceptance independently of the implementation.
+2. Decide the minimum *meaningful* tests and checks for the change's risk; use TDD when it clarifies complex/risky behavior, not as a universal ritual.
+3. Implement the whole slice, run pertinent static and automated checks, and exercise the actual changed user journey where applicable.
+4. Check material negative/failure/security cases, investigate failures and perform a focused diff review.
+5. Report checks **run/passed, failed, and not run**, plus outstanding risk; only claim completion on fresh evidence.
 
-Tests do not create product requirements. Canonical behavior is still defined by the product documents.
+Bug fixes should cover the escaped failure with a focused regression test. Historical I0/I1 coverage is retained below as evidence; the rebuild must prove its own acceptance independently.
 
-## 4. Increment 0 gates — closed
+## 4. Historical Increment 0 gates — closed
 
 I0 established and hosted-verified:
 
@@ -57,7 +50,7 @@ I0 established and hosted-verified:
 
 See `docs/tracking/increment-0-foundation-review.md` for closure evidence.
 
-## 5. Increment 1 critical suite — implemented
+## 5. Historical Increment 1 critical suite — implemented
 
 The current I1 automated suite covers:
 
@@ -78,7 +71,7 @@ The current I1 automated suite covers:
 - I1 query indexes;
 - I6 compatibility guards that prevent I1 shortcuts from breaking stable identity/history/sync evolution.
 
-## 6. Client and E2E evidence
+## 6. Historical client and E2E evidence
 
 The product client is no longer an I0-only workbench. Automated evidence covers registration/verification/password recovery, sign-in/bootstrap, persisted Inbox rendering, List/Task creation, draft retention after failure, versioned status changes, sign-out privacy and time vectors.
 
@@ -98,49 +91,52 @@ Configured external email/SMS, Google and WebAuthn systems are intentionally not
 - timezone tests retain UTC, offset and DST-capable cases;
 - real secrets/credentials never appear in fixtures.
 
-## 8. CI policy — current hosted pipeline
+## 8. CI policy — existing pipeline and rebuild transition
 
-Fast-to-slow hosted verification currently includes:
+**No CI workflow or test implementation is changed by this policy edit.** Preserve all existing required checks until a separately reviewed replacement has independently shown equivalent assurance. For local work, run the relevant subset; for integrated release acceptance, run its required CI and high-risk/user-flow gates. A red required gate blocks acceptance; flaky failures must be diagnosed rather than masked by retries.
 
-1. locked Python/Node dependency installation;
-2. Ruff, ESLint, Prettier and TypeScript;
-3. requirements traceability check;
-4. migration/schema-drift checks, append-only migration-history guard and fresh-database verification;
-5. backend/API/domain and Golden Time tests on PostgreSQL;
-6. Django production deployment/security check;
-7. client component/network/time-vector tests;
-8. Expo web export;
-9. desktop/mobile Playwright E2E;
-10. Python/npm dependency audit and secret scan;
-11. non-root deployment container builds;
-12. container smoke and persistence after API restart.
+Historical v0.2.0 hosted pipeline (still-existing configuration, subject to future verified transition):
 
-Audited implementation HEAD `7302ca3b18a79af35058828102bb62e845a56645` passed run `35057831342` before the documentation-reconciliation commits.
+1. Locked Python/Node dependency installation.
+2. Ruff, ESLint, Prettier and TypeScript.
+3. Requirements traceability check.
+4. Migration/schema-drift, append-only migration-history and fresh-database checks.
+5. Backend/API/domain and Golden Time tests on PostgreSQL.
+6. Django production deployment/security check.
+7. Client component/network/time-vector tests.
+8. Expo web export.
+9. Desktop/mobile Playwright E2E.
+10. Python/npm dependency audit and secret scan.
+11. Non-root deployment container builds.
+12. Container smoke and persistence after API restart.
 
-A red required gate blocks acceptance. Flaky behavior is treated as a defect; unbounded retry is not a substitute for diagnosis.
+The historical audited implementation HEAD `7302ca3b18a79af35058828102bb62e845a56645` passed run `35057831342` before subsequent documentation changes; this **is not evidence of current rebuild/CI success**.
 
-## 9. Migration verification policy
+For the Rust rebuild, choose toolchain equivalents (format/clippy/check/build, domain/API/PostgreSQL tests, contract, security/dependency, migration and critical-path E2E) with the first complete slice. Retain meaningful source behavior and authorization/integrity assertions; don't copy obsolete Django-only implementation tests merely to inflate coverage. Record which checks were actually run.
 
-Historical numbered migrations are immutable once committed into history. `scripts/check_migrations.py` compares migration paths against the relevant base ref and rejects modification, deletion or rename; new schema evolution is expressed in a new migration.
+## 9. Migration and persistence verification
 
-CI also retains `makemigrations --check --dry-run`, migration application and clean/fresh PostgreSQL reconstruction checks.
+Existing committed migrations and their historical evidence must not be silently deleted or rewritten during process adoption. For the current Django implementation, its append-only migration guard, schema-drift, fresh PostgreSQL rebuild and `makemigrations --check --dry-run` remain effective until an approved transition.
+
+For a Rust rebuild, specify the new migration mechanism when persistence is implemented. Verify migration application on a clean PostgreSQL database and meaningful upgrade/data-preservation paths where applicable; require recovery/rollback planning for high-risk or destructive changes. Do not claim that Django-specific gates verify Rust persistence.
 
 ## 10. Coverage and quality signals
 
-No single global coverage percentage is the primary quality gate. The important signals are:
+No global line-coverage percentage, fixed test count or report count is the main gate. Prefer:
 
-- owning-Increment acceptance scenarios have executable evidence;
-- business/error/security branches have negative-path tests;
-- bug fixes arrive with regression tests;
-- critical constraints and access paths are tested against PostgreSQL;
-- contract changes require deliberate OpenAPI/test review;
-- release-only provider/deployment evidence is explicitly separated from deterministic automated tests.
+- Accepted slice scenarios with fresh independent evidence, including important negative paths.
+- Cross-user permission checks and meaningful integrity/error/concurrency tests where risk demands.
+- Real PostgreSQL boundary checks for affected transactions/constraints and migration paths.
+- Deliberate OpenAPI/client contract review where interfaces change.
+- A real critical user journey, regression of escaped defects and tracked delivery friction/rework.
+- External providers, production devices, disaster recovery and live deployment explicitly marked **tested** or **not run**, never inferred from deterministic mocks.
 
-## 11. Test result artifacts
+## 11. Evidence ownership
 
-- hosted CI is the normal execution record;
-- increment/release reviews summarize accepted evidence and remaining gates;
-- manual/configured-provider/recovery evidence belongs in quality/operations reports when executed;
-- requirement/test/code references are added only after the referenced artifact exists.
+- CI logs and focused test executions are normal evidence; no universal standalone Increment review or per-slice document is required.
+- Summarize accepted outcomes, checks actually run, unrun checks and residual risks with the delivered slice/release.
+- Keep historical I0/I1 readiness and [development audit](../tracking/development-commit-audit.md) as prior-implementation evidence.
+- Update a contract/decision/doc only if behavior or a consequential constraint really changed. Requirements and tests must not be circularly derived from generated code.
 
-See [Increment 1 readiness](../tracking/increment-1-readiness.md) and [the 148-commit development audit](../tracking/development-commit-audit.md).
+See [Engineering Process](../development/engineering-process.md) for DoD, release planning and Agent/Git safety.
+
