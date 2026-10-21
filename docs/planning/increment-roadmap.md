@@ -14,17 +14,17 @@ The old implementation-oriented Increment 0–11 sequence, future-track descript
 
 # 1. Delivery model
 
-- Define release boundaries by **user-visible outcomes**, fulfilled through one or more end-to-end vertical slices.
-- Each slice identifies outcome/non-goals, testable acceptance criteria, critical dependencies/risks and independently verified delivery evidence. Keep these close to the work rather than multiplying stand-alone reports.
-- Apply **Define → Analyze/Design → Build → Verify → Review/Deliver** at risk-proportionate depth; see [Engineering Process](../development/engineering-process.md).
-- An engineering baseline covers consequential product/domain and early cross-cutting design choices, but **is not** an independent, open-ended implementation release. The first technical result must exercise a real user journey.
-- Do not require universal TDD, one report per stage, per-increment risk/traceability edits, full repeated document sets, or a fixed number of commits. Preserve real contract, data-integrity, security and user-flow checks.
+- Group accepted **small, complete, user-visible behavior slices** into product-outcome releases. A slice (e.g. user signs in; user creates a Task) is the actual unit of discovery, design, implementation, verification and Product Owner acceptance.
+- For **each new product-behavior slice**, the Agent first asks the Product Owner what should happen, proposes defaults, then jointly reviews observable acceptance scenarios, important edge cases and risk A/B/C. Obtain owner approval of behavior **and** scenario/assurance plan before coding; do not require the owner to approve internal individual test assertions.
+- Use **Behavior Discovery → Approved Scenarios/Risk → Technical Design → Logic/Tests → Complete Base UI/Integration → Agent Verification → Owner Observation/Acceptance → Close**; see [Engineering Process](../development/engineering-process.md). The Agent never marks owner acceptance or starts the next behavior without the required approval.
+- An engineering baseline covers consequential product/domain and early cross-cutting design choices, but **is not** an independent, open-ended implementation release. The first technical result must exercise a real user journey. Design intended UI behavior before it constrains backend contracts; a completed slice integrates a precise base UI with real logic/persistence.
+- Do not require universal TDD, one report per stage, per-increment risk/traceability edits, exhaustive imaginary edge cases, fixed observation days, full repeated document sets, or a fixed number of commits. Preserve real contract, data-integrity, security and user-flow checks. Important bugs block closure; minor deferrals require explicit owner agreement.
 - Review known later constraints (authorization, offline/sync, history/undo, time and data ownership) before choosing an early incompatible API/schema. Implementation of the full later feature may be deferred.
 - The roadmap remains provisional where product decisions are under review; agents must not treat candidate features as permission to implement them.
 
 # 2. Proposed outcome boundaries — **not yet approved product scope**
 
-These replace the old *type-of-entity* sequencing **only after** scope review and approval. They are planning candidates, not implementation authorization.
+These are **optional grouping boundaries for multiple owner-accepted scenario slices**, replacing the old *type-of-entity* sequencing **only after** scope review and approval. They are planning candidates, not implementation authorization or individually indivisible delivery units.
 
 | Candidate | Demonstrable outcome | Material dependency / note |
 | --- | --- | --- |
@@ -51,7 +51,7 @@ These replace the old *type-of-entity* sequencing **only after** scope review an
 
 - **Current behavior/scope:** System Definition, then Decision Register and testable SRS, until revised.
 - **Core designs:** Domain Model, Architecture/ADRs and relevant data/API/security/time contracts.
-- **Workflow and DoD:** [Engineering Process](../development/engineering-process.md) Sections 3–6.
+- **Workflow, scenario approval, risk gates, observation and DoD:** [Engineering Process](../development/engineering-process.md) Sections 3–5.
 - **Detailed testing/CI evidence:** [Test Strategy](../quality/test-strategy.md).
 - **This roadmap:** reviewed delivery outcomes/order/dependencies/status. Modify it when these actually change; do not duplicate SDLC rules in every release.
 - Existing traceability and historical review artifacts stay intact; extend them selectively when they provide actual audit/acceptance value, not as a per-slice paperwork gate.
@@ -3144,10 +3144,10 @@ This revision intentionally changes earlier planning assumptions:
 
 # 33. Current completion rule
 
-The Definition of Done and release evidence policy are owned by [Engineering Process](../development/engineering-process.md#6-definition-of-done) and the applicable [Test Strategy](../quality/test-strategy.md). The historical 11-item per-increment checklist is not a current gate. Demonstrate the accepted user outcome, run relevant checks with fresh evidence, disclose unrun checks/residual risk, and obtain Product Owner acceptance when required. Keep critical permission/data integrity/recovery assurance.
+The Definition of Done and release evidence policy are owned by [Engineering Process](../development/engineering-process.md#6-definition-of-done) and the applicable [Test Strategy](../quality/test-strategy.md). The historical 11-item per-increment checklist is not a current gate. Each behavior requires Product Owner approval of behavior **and** important acceptance/test scenarios before implementation; complete logic plus base UI and integration, demonstrate fresh risk-appropriate verification, then obtain **explicit owner acceptance after appropriate firsthand use**. Distinguish In Observation from Accepted/Closed; disclose unrun checks/residual risk and do not silently close critical/high-severity defects. Keep critical permission/data integrity/recovery assurance.
 
 ---
 
 # 34. Core principle
 
-Deliver a sequence of **usable, independently verified product outcomes**, while engineering discipline runs continuously at a depth proportional to risk. Improve workflow from observed defects, rework and delivery friction—not extra documentation. Review the candidate R1–R7 sequencing with the Product Owner before treating it as approved product scope.
+Deliver the **smallest complete behavior**, agreed in dialogue and supported by reviewed scenarios, risk-proportionate assurance and a real integrated UI; observe and explicitly accept before closing. Release candidates R1–R7 group accepted slices rather than imposing large indivisible increments. Keep continuous engineering and improve from escaped defects/rework instead of paperwork. Review candidate scope/order with the Product Owner before implementation.
