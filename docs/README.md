@@ -4,7 +4,7 @@
 
 ## مسیر پیشنهادی مطالعه
 
-- **قواعد Agent و فرایند توسعه:** [`../AGENTS.md`](../AGENTS.md) → [`development/engineering-process.md`](development/engineering-process.md) (مرجع اصلی SDLC، Vertical Slice و Definition of Done).
+- **قواعد Agent و فرایند توسعه:** [`../AGENTS.md`](../AGENTS.md) → [`development/engineering-process.md`](development/engineering-process.md) (مرجع اصلی **Scenario-Driven Vertical Slice Development**: گفت‌وگوی رفتار و Edge Case، تأیید سناریوها/ریسک پیش از کدنویسی، منطق و UI کامل، بررسی عملی کاربر و Definition of Done).
 - **معنای محصول:** [`requirements/system-definition.md`](requirements/system-definition.md) → [`decision-register.md`](decision-register.md) → [`requirements/srs.md`](requirements/srs.md)، تا زمانی که بازنگری محصول جانشین مصوب آن‌ها را تعیین کند.
 - **طراحی:** [`design/domain-model.md`](design/domain-model.md)، [`design/architecture.md`](design/architecture.md) و اسناد تخصصی مرتبط.
 - **تحویل و کیفیت:** [`planning/increment-roadmap.md`](planning/increment-roadmap.md) → [`quality/test-strategy.md`](quality/test-strategy.md).
