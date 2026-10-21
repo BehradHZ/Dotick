@@ -1,7 +1,7 @@
 # Dotick Test Strategy
 
 > **Policy status:** Reconciled for the 2026-10-20 engineering-process adoption.
-> **Process authority:** [Engineering Process](../development/engineering-process.md), particularly Sections 5–6. Testing is risk-adaptive, not mandatory TDD for every change.
+> **Process authority:** [Engineering Process](../development/engineering-process.md), particularly Gates 2, 4–7 and Sections 4–5. Each new behavior has owner-reviewed acceptance scenarios and A/B/C assurance plan **before coding**; testing remains risk-adaptive, not mandatory TDD for every change.
 > **Evidence boundary:** The I0/I1 and Django-specific lists below describe the **historical v0.2.0 implementation**. No Rust implementation or new CI change is claimed by this document.
 
 ## 1. Objectives
@@ -12,7 +12,12 @@
 - Preserve already-effective security/regression coverage. Changing process text does not authorize deleting a check, weakening an assertion, or lowering a required CI gate.
 - Distinguish unit/integration/contract/user-journey evidence from unrun live-provider/device/recovery checks. Test results are not product requirements.
 
-## 2. Risk and test levels
+## 2. Owner-approved scenarios and risk/test levels
+
+For each new user-behavior slice, the Agent first elicits and obtains Product Owner approval of the **observable behavior**; then presents a compact scenario matrix covering the main success, significant invalid/boundary, network/failure/retry, persistence and permission/privacy paths **where relevant**. Classify risk A/B/C based on the highest potential impact, explain what is automated versus observed manually, and obtain approval of this scenario/assurance plan **before implementation**. The Owner approves expected outcomes and important coverage, **not each technical assertion**. An A-level UI/copy change may be approved in one concise exchange. Do not require exhaustive hypothetical edge-case enumeration; explicitly defer genuinely nonblocking scenarios.
+
+A base UI, real integration and the Product Owner's firsthand observation/acceptance are essential to closing a behavior; a working backend and automated tests alone are not acceptance.
+
 
 | Risk | Evidence expected | Examples |
 | --- | --- | --- |
@@ -24,13 +29,14 @@ Risk is about **impact, not change size**. Reuse existing evidence instead of wr
 
 Choose applicable levels for the slice: domain/unit invariants; application/transaction behavior; PostgreSQL integration; HTTP/OpenAPI contract and request/security boundary; client component; critical client → API → PostgreSQL E2E; supply/deployment checks. No requirement to generate a separate test artifact at each level.
 
-## 3. Verification loop
+## 3. Verification loop and checkpoints
 
-1. Derive expected outcome/acceptance independently of the implementation.
-2. Decide the minimum *meaningful* tests and checks for the change's risk; use TDD when it clarifies complex/risky behavior, not as a universal ritual.
-3. Implement the whole slice, run pertinent static and automated checks, and exercise the actual changed user journey where applicable.
-4. Check material negative/failure/security cases, investigate failures and perform a focused diff review.
-5. Report checks **run/passed, failed, and not run**, plus outstanding risk; only claim completion on fresh evidence.
+1. After **approved behavior**, derive observable expected outcomes independently of generated code; agree scenarios, important edge cases and A/B/C evidence with the Product Owner (Gate 2).
+2. Perform just-enough technical design, then implement logic and focused behavior/integration tests. TDD is optional when useful; approved test **planning**, not coding all tests first, is the prerequisite.
+3. Implement the precise **base UI** (input/default, loading/error/success, retry, accessibility/responsiveness as relevant); connect to the real service/persistence path. Logic-only success is an internal checkpoint, never slice Done.
+4. Run applicable static checks, material positive/negative/security cases, changed user journey, scoped regression and diff review. Investigate failures; do not weaken tests to make them pass.
+5. Demonstrate each approved scenario with fresh evidence and report checks **passed, failed and not run**, plus residual risk. Mark `Agent Verified`, not `Accepted`.
+6. Product Owner then accepts, requests changes or marks `In Observation` for appropriate firsthand use (no fixed waiting period). Resolve blockers, verify escaped-defect regressions and close only after explicit owner acceptance. No unresolved critical/high-severity issues; agreed minor nonblocking issues may be deferred.
 
 Bug fixes should cover the escaped failure with a focused regression test. Historical I0/I1 coverage is retained below as evidence; the rebuild must prove its own acceptance independently.
 
@@ -124,7 +130,7 @@ For a Rust rebuild, specify the new migration mechanism when persistence is impl
 
 No global line-coverage percentage, fixed test count or report count is the main gate. Prefer:
 
-- Accepted slice scenarios with fresh independent evidence, including important negative paths.
+- **Owner-approved** acceptance scenarios before coding, with fresh independent evidence at Agent Verification and explicit owner acceptance after real-use observation.
 - Cross-user permission checks and meaningful integrity/error/concurrency tests where risk demands.
 - Real PostgreSQL boundary checks for affected transactions/constraints and migration paths.
 - Deliberate OpenAPI/client contract review where interfaces change.
@@ -134,9 +140,9 @@ No global line-coverage percentage, fixed test count or report count is the main
 ## 11. Evidence ownership
 
 - CI logs and focused test executions are normal evidence; no universal standalone Increment review or per-slice document is required.
-- Summarize accepted outcomes, checks actually run, unrun checks and residual risks with the delivered slice/release.
+- Maintain a compact record of approved scenarios/risk/test plan, checks actually run, unrun checks, residual risks and Owner status (`In Observation` vs `Accepted/Closed`) with the delivered slice/release.
 - Keep historical I0/I1 readiness and [development audit](../tracking/development-commit-audit.md) as prior-implementation evidence.
 - Update a contract/decision/doc only if behavior or a consequential constraint really changed. Requirements and tests must not be circularly derived from generated code.
 
-See [Engineering Process](../development/engineering-process.md) for DoD, release planning and Agent/Git safety.
+See [Engineering Process](../development/engineering-process.md) for the full Gate 1–8 workflow, scenario sign-off, Definition of Done, release planning and Agent/Git safety.
 
