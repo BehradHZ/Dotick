@@ -1,37 +1,11 @@
 # Dotick
 
-Dotick is being implemented incrementally from its specifications and [roadmap](docs/planning/increment-roadmap.md).
+Dotick is restarting from product documentation. This repository is **not currently a runnable application**; the previous application, tests, migrations, workflows, dependencies and development configuration have been retired from the active tree.
 
-The current repository contains the **Increment 1 implementation slice**: verified identity and revocable sessions, Folder/List/Column organization, the Basic Task lifecycle, an Expo web/Android product client, PostgreSQL-backed APIs, executable OpenAPI contracts and desktop/mobile browser acceptance coverage.
+Read [REBUILD_PLAN.md](REBUILD_PLAN.md) for the documentation-first reconstruction sequence and approval gates.
 
-Increment 1 is released as `v0.2.0`. Closure evidence is recorded in [Increment 1 readiness](docs/tracking/increment-1-readiness.md) and the [formal review](docs/tracking/increment-1-review.md). External email/SMS delivery is optional and unconfigured by default; live provider, authenticator, edge and production-device validation belongs to Increment 11 deployment hardening.
+The next activity is to finalize and explicitly approve the exact **“یک روز با Dotick” Product Scenario**, then begin Product Foundation documentation. The scenario is not yet a finalized baseline. No product behavior or technology stack is approved by this reset.
 
-Follow [environment setup](docs/development/environment-setup.md) to run it. The prototype examples guide visual and interaction design; the specifications define behavior.
+Historical source, tests, migrations and branch-specific work remain recoverable through the four archival Git tags. Selected historical documents are retained in [ARCHIVE_INDEX.md](docs/archive/legacy-2026-10-24/ARCHIVE_INDEX.md), with exact provenance. They are references, not current requirements or instructions.
 
-## Source of truth
-
-Start at [docs/README.md](docs/README.md). Behavioral authority is:
-
-1. [System Definition](docs/requirements/system-definition.md)
-2. [Decision Register](docs/decision-register.md)
-3. [Formal SRS](docs/requirements/srs.md)
-4. [Domain Model](docs/design/domain-model.md) and design documents
-5. [Roadmap](docs/planning/increment-roadmap.md) and derived references
-
-The roadmap owns implementation order. It does not change product semantics. The archived previous implementation is not an active source of truth.
-
-## Repository
-
-- `apps/api`: Django API, identity/organization/Task modules, migrations and tests.
-- `apps/client`: TypeScript + Expo web/Android product client and component tests.
-- `e2e`: desktop/mobile client-to-PostgreSQL verification.
-- `docs`: requirements, design, roadmap, setup and verification evidence.
-- `scripts`: traceability checker and local exported-web server.
-
-Each increment adds only its own implementation scope, updates traceability, and runs the applicable tests and build gates.
-
-## License and brand
-
-Dotick software is free and open source under the [GNU Affero General Public License v3.0](LICENSE). Personal, commercial, organizational, modification, redistribution, and self-hosting use are permitted subject to AGPL-3.0.
-
-The **Dotick** name, logos, visual marks, and official product identity are not licensed under AGPL-3.0. See [TRADEMARKS.md](TRADEMARKS.md) and [docs/licensing.md](docs/licensing.md) for the software/brand boundary.
+Historical software licensing and brand notices are preserved in [LICENSE](docs/archive/legacy-2026-10-24/main/LICENSE), [TRADEMARKS.md](docs/archive/legacy-2026-10-24/main/TRADEMARKS.md) and the tagged history. Archiving does not revoke existing licensing or trademark rights.

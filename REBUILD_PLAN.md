@@ -6,7 +6,7 @@
 ## Goal and starting point
 Recreate all active Dotick documents **from the Product Owner-approved narrative** rather than editing old specifications into compliance. The edited “یک روز با Dotick” is not yet a finalized repository baseline; it must first receive explicit approval. Legacy documents, architecture, code and tests are historical references, not automatically binding decisions or proof of a new implementation.
 
-The predecessor `main` commit was `8cff0c021d3853b8cd787da3e6acf85adb89d817`. Preserve its history without force-push or history rewrite. See `docs/archive/legacy-2026-10-24/README.md` for selected historical reference files and original branch tips.
+The predecessor `main` commit was `8cff0c021d3853b8cd787da3e6acf85adb89d817`. Preserve its history without force-push or history rewrite. See [ARCHIVE_INDEX.md](docs/archive/legacy-2026-10-24/ARCHIVE_INDEX.md) for retained historical reference files, exact source commits, and archival tags.
 
 ## Sequence: create progressively, not as one bulk document dump
 
